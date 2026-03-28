@@ -1,0 +1,46 @@
+# Actual Budget - Replit Setup
+
+## Overview
+
+Actual Budget is a local-first personal finance application. This is the monorepo containing the web frontend, sync server, core budgeting engine, and related packages.
+
+## Architecture
+
+- **Frontend**: React 19 + Vite (packages/desktop-client) — the main web UI
+- **Core Engine**: loot-core (packages/loot-core) — budgeting logic, local SQLite database via sql.js/absurd-sql
+- **Sync Server**: Express (packages/sync-server) — optional server for multi-device sync
+- **Plugin Service**: Service worker (packages/plugins-service) — browser plugin support
+- **Package Manager**: Yarn 4.10.3 with Workspaces (monorepo)
+- **Node**: v22 (required, project uses `engines: { node: ">=22" }`)
+
+## Running the App
+
+The workflow starts the browser version of Actual Budget. It runs:
+1. `yarn install` — installs/links all workspace dependencies
+2. Build plugins-service — creates the service worker for browser plugins
+3. Start loot-core watch:browser — builds the WebWorker backend (runs in background)
+4. Start Vite frontend — serves the React app on port 5000
+
+**Startup script**: `start-dev.sh`
+
+**Workflow command**: `bash start-dev.sh`
+
+## Port Configuration
+
+- **Frontend**: Port 5000 (Vite dev server, 0.0.0.0 host, all hosts allowed)
+- **Sync server** (optional): Would run on a different port (5006 in upstream docs)
+
+## Key Files
+
+- `start-dev.sh` — Dev startup script
+- `packages/desktop-client/vite.config.ts` — Vite config (host: 0.0.0.0, allowedHosts: all)
+- `packages/desktop-client/src/` — Main React app source
+- `packages/loot-core/src/` — Core budgeting engine
+- `packages/sync-server/src/` — Optional sync server
+
+## Notes
+
+- The app is fully local-first — data is stored in the browser's IndexedDB
+- The sync server is optional and not started by default in this setup
+- First startup takes ~30 seconds for the loot-core build and initial Vite compilation
+- The yarn link step (during `yarn install`) takes a few seconds on first cold-boot but is instant on subsequent runs due to caching
