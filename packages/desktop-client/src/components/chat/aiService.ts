@@ -65,6 +65,13 @@ function buildSystemPrompt(context: BudgetContext): string {
     }
   }
 
+  if (context.payees && context.payees.length > 0) {
+    parts.push('\n\nPayees:');
+    for (const p of context.payees) {
+      parts.push(`- ${p.name} (id: ${p.id})`);
+    }
+  }
+
   if (context.schedules.length > 0) {
     parts.push('\n\nScheduled Transactions:');
     for (const sched of context.schedules) {

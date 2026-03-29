@@ -72,6 +72,13 @@ export function AISettings() {
               (e.g., Azure OpenAI, local models).
             </Trans>
           </Text>
+          <Text style={{ fontSize: 11, color: theme.warningText }}>
+            <Trans>
+              Privacy note: Your budget data (accounts, categories, transactions,
+              schedules) will be sent to the configured API endpoint when using the
+              chat assistant.
+            </Trans>
+          </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button onPress={handleSave} variant="primary">

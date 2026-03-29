@@ -19,6 +19,7 @@ export type BudgetAction = {
 
 export type BudgetContext = {
   accounts: Array<{ id: string; name: string; balance: number }>;
+  payees?: Array<{ id: string; name: string }>;
   categories: Array<{
     id: string;
     name: string;

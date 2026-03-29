@@ -184,8 +184,13 @@ export function useBudgetContext() {
       // Transactions may not be available
     }
 
+    const payees = (payeesRaw as Array<{ id: string; name: string }>)
+      .filter(p => p.name)
+      .map(p => ({ id: p.id, name: p.name }));
+
     return {
       accounts,
+      payees,
       categories,
       categoryGroups,
       currentMonth,
