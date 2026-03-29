@@ -15,13 +15,16 @@ export function AISettings() {
   const { t } = useTranslation();
   const [apiKey, setApiKeyPref] = useLocalPref('ai.apiKey');
   const [endpointUrl, setEndpointUrlPref] = useLocalPref('ai.endpointUrl');
+  const [modelName, setModelNamePref] = useLocalPref('ai.modelName');
   const [keyInput, setKeyInput] = useState(apiKey || '');
   const [urlInput, setUrlInput] = useState(endpointUrl || '');
+  const [modelInput, setModelInput] = useState(modelName || '');
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     setApiKeyPref(keyInput.trim());
     setEndpointUrlPref(urlInput.trim());
+    setModelNamePref(modelInput.trim());
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -29,8 +32,10 @@ export function AISettings() {
   const handleClear = () => {
     setApiKeyPref('');
     setEndpointUrlPref('');
+    setModelNamePref('');
     setKeyInput('');
     setUrlInput('');
+    setModelInput('');
     setSaved(false);
   };
 
@@ -56,6 +61,22 @@ export function AISettings() {
             placeholder={t('sk-...')}
             type="password"
           />
+        </View>
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+            <Trans>Model Name (optional)</Trans>
+          </Text>
+          <Input
+            value={modelInput}
+            onChangeValue={setModelInput}
+            placeholder={t('gpt-4o-mini')}
+          />
+          <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
+            <Trans>
+              Leave empty to use gpt-4o-mini. Set a different model name when
+              using custom endpoints.
+            </Trans>
+          </Text>
         </View>
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>

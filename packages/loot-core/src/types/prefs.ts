@@ -91,6 +91,7 @@ export type LocalPrefs = Partial<{
   sidebarWidth: number;
   'mobile.showSpentColumn': boolean;
   'ai.apiKey': string;
+  'ai.modelName': string;
   'ai.endpointUrl': string;
 }>;
 

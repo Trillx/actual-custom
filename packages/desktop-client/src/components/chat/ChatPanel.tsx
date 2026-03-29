@@ -37,6 +37,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
+  const [modelName] = useLocalPref('ai.modelName');
   const { gatherContext } = useBudgetContext();
   const { isNarrowWidth } = useResponsive();
 
@@ -84,6 +85,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         newMessages,
         context,
         endpointUrl || undefined,
+        modelName || undefined,
       );
       const action = parseAction(rawResponse);
       const displayContent = stripActionBlock(rawResponse) || rawResponse;
@@ -105,7 +107,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, apiKey, endpointUrl, messages, gatherContext]);
+  }, [input, isLoading, apiKey, endpointUrl, modelName, messages, gatherContext]);
 
   const handleConfirmAction = useCallback(
     async (messageId: string) => {

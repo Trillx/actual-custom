@@ -132,6 +132,7 @@ export async function sendChatMessage(
   messages: ChatMessage[],
   context: BudgetContext,
   endpointUrl?: string,
+  modelName?: string,
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(context);
   const endpoint = endpointUrl?.trim() || DEFAULT_ENDPOINT;
@@ -153,7 +154,7 @@ export async function sendChatMessage(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: modelName?.trim() || 'gpt-4o-mini',
       messages: apiMessages,
       max_tokens: 1024,
       temperature: 0.7,
