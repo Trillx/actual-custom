@@ -22,8 +22,18 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Available WRITE action types:\n' +
       '- "set-budget-amount": params: {month, categoryId, amount} (amount in cents)\n' +
       '- "add-transaction": params: {accountId, date, amount, payee_name, category_id, notes} (amount in cents, negative for expenses)\n' +
+      '- "update-transaction": params: {transactionId, date?, amount?, payee_name?, category_id?, notes?} (only include fields to change, amount in cents)\n' +
+      '- "delete-transaction": params: {transactionId} (use the transaction ID from recent transactions)\n' +
+      '- "transfer-between-accounts": params: {fromAccountId, toAccountId, amount, date, notes?} (amount in cents, positive value)\n' +
       '- "create-category": params: {name, group_id}\n' +
-      '- "create-account": params: {name, balance, offBudget} (balance in cents)\n\n' +
+      '- "create-account": params: {name, balance, offBudget} (balance in cents)\n' +
+      '- "close-account": params: {accountId, transferAccountId?} (transferAccountId required if account has non-zero balance)\n' +
+      '- "reopen-account": params: {accountId}\n\n' +
+      'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
+      'Use "delete-transaction" when the user wants to remove a transaction.\n' +
+      'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
+      'Use "close-account" when the user wants to close an account. Warn if the account has a non-zero balance.\n' +
+      'Use "reopen-account" when the user wants to reopen a previously closed account.\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
       'Only include ONE action per response.\n\n' +
@@ -61,6 +71,13 @@ function buildSystemPrompt(context: BudgetContext): string {
   if (context.accounts.length > 0) {
     parts.push('\n\nAccounts:');
     for (const acct of context.accounts) {
+      parts.push(`- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`);
+    }
+  }
+
+  if (context.closedAccounts && context.closedAccounts.length > 0) {
+    parts.push('\n\nClosed Accounts (can be reopened):');
+    for (const acct of context.closedAccounts) {
       parts.push(`- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`);
     }
   }
@@ -120,7 +137,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       const category = tx.category_name || 'Uncategorized';
       const account = tx.account_name || '';
       parts.push(
-        `  - ${tx.date}: ${payee} | $${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
+        `  - [id: ${tx.id}] ${tx.date}: ${payee} | $${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
       );
     }
   }
@@ -145,9 +162,14 @@ export function parseAction(content: string): BudgetAction | null {
       [
         'set-budget-amount',
         'add-transaction',
+        'update-transaction',
+        'delete-transaction',
+        'transfer-between-accounts',
         'create-category',
         'create-account',
         'query',
+        'close-account',
+        'reopen-account',
       ].includes(parsed.type)
     ) {
       return parsed;

@@ -19,15 +19,23 @@ export function useBudgetContext() {
         send('api/schedules-get').catch(() => []),
       ]);
 
-    const accounts = (
-      accountsRaw as Array<{
-        id: string;
-        name: string;
-        balance_current?: number | null;
-        closed?: boolean;
-      }>
-    )
+    const allAccounts = accountsRaw as Array<{
+      id: string;
+      name: string;
+      balance_current?: number | null;
+      closed?: boolean;
+    }>;
+
+    const accounts = allAccounts
       .filter(a => !a.closed)
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        balance: a.balance_current ?? 0,
+      }));
+
+    const closedAccounts = allAccounts
+      .filter(a => a.closed)
       .map(a => ({
         id: a.id,
         name: a.name,
@@ -191,6 +199,7 @@ export function useBudgetContext() {
 
     return {
       accounts,
+      closedAccounts,
       payees,
       categories,
       categoryGroups,

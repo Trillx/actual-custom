@@ -11,9 +11,14 @@ export type BudgetAction = {
   type:
     | 'set-budget-amount'
     | 'add-transaction'
+    | 'update-transaction'
+    | 'delete-transaction'
+    | 'transfer-between-accounts'
     | 'create-category'
     | 'create-account'
-    | 'query';
+    | 'query'
+    | 'close-account'
+    | 'reopen-account';
   description: string;
   params: Record<string, unknown>;
 };
@@ -80,6 +85,7 @@ export type QueryAction = {
 
 export type BudgetContext = {
   accounts: Array<{ id: string; name: string; balance: number }>;
+  closedAccounts?: Array<{ id: string; name: string; balance: number }>;
   payees?: Array<{ id: string; name: string }>;
   categories: Array<{
     id: string;
