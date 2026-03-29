@@ -7,6 +7,7 @@ import { animated, config, useSpring } from 'react-spring';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import {
   SvgAdd,
+  SvgChatBubbleDots,
   SvgCog,
   SvgCreditCard,
   SvgPiggyBank,
@@ -21,6 +22,7 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { useDrag } from '@use-gesture/react';
 
+import { useChat } from '@desktop-client/components/chat';
 import { useIsTestEnv } from '@desktop-client/hooks/useIsTestEnv';
 import { useScrollListener } from '@desktop-client/hooks/useScrollListener';
 import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
@@ -155,7 +157,40 @@ export function MobileNavTabs() {
     <NavTab key={tab.path} onClick={() => openDefault()} {...tab} />
   ));
 
-  const bufferTabsCount = COLUMN_COUNT - (navTabs.length % COLUMN_COUNT);
+  const { toggleChat } = useChat();
+  const chatTab = (
+    <button
+      key="ai-chat"
+      onClick={() => {
+        openDefault();
+        toggleChat();
+      }}
+      style={{
+        ...styles.noTapHighlight,
+        alignItems: 'center',
+        color: theme.mobileNavItem,
+        display: 'flex',
+        flexDirection: 'column',
+        textDecoration: 'none',
+        textAlign: 'center',
+        textWrap: 'balance',
+        userSelect: 'none',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 'inherit',
+        padding: 10,
+        ...navTabStyle,
+      }}
+    >
+      <SvgChatBubbleDots width={22} height={22} style={{ minHeight: '22px' }} />
+      {t('AI Chat')}
+    </button>
+  );
+
+  const totalTabs = navTabs.length + 1;
+  const bufferTabsCount = totalTabs % COLUMN_COUNT === 0 ? 0 : COLUMN_COUNT - (totalTabs % COLUMN_COUNT);
   const bufferTabs = Array.from({ length: bufferTabsCount }).map((_, idx) => (
     <div key={idx} style={navTabStyle} />
   ));
@@ -250,7 +285,7 @@ export function MobileNavTabs() {
             width: '100%',
           }}
         >
-          {[navTabs, bufferTabs]}
+          {[navTabs, chatTab, bufferTabs]}
         </View>
       </View>
     </animated.div>

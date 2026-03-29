@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useHref, useLocation } from 'react-router';
@@ -12,7 +12,7 @@ import * as undo from 'loot-core/platform/client/undo';
 
 import { UserAccessPage } from './admin/UserAccess/UserAccessPage';
 import { BankSyncStatus } from './BankSyncStatus';
-import { ChatPanel } from './chat';
+import { ChatPanel, ChatProvider, useChat } from './chat';
 import { CommandBar } from './CommandBar';
 import { GlobalKeys } from './GlobalKeys';
 import { MobileBankSyncAccountEditPage } from './mobile/banksync/MobileBankSyncAccountEditPage';
@@ -86,12 +86,11 @@ function RouterBehaviors() {
   return null;
 }
 
-export function FinancesApp() {
+function FinancesAppInner() {
   const { isNarrowWidth } = useResponsive();
   useMetaThemeColor(isNarrowWidth ? theme.mobileViewTheme : undefined);
 
-  const [chatOpen, setChatOpen] = useState(false);
-  const toggleChat = useCallback(() => setChatOpen(prev => !prev), []);
+  const { chatOpen, toggleChat, closeChat } = useChat();
 
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -390,9 +389,17 @@ export function FinancesApp() {
         </View>
 
         {chatOpen && (
-          <ChatPanel onClose={() => setChatOpen(false)} />
+          <ChatPanel onClose={closeChat} />
         )}
       </View>
     </View>
+  );
+}
+
+export function FinancesApp() {
+  return (
+    <ChatProvider>
+      <FinancesAppInner />
+    </ChatProvider>
   );
 }
