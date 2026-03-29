@@ -149,6 +149,20 @@ export function ChatMessage({
         </View>
       )}
 
+      {message.pendingAction && message.actionStatus === 'failed' && (
+        <View
+          style={{
+            marginTop: 4,
+            padding: '4px 8px',
+            borderRadius: 4,
+          }}
+        >
+          <Text style={{ fontSize: 11, color: theme.errorText }}>
+            Action failed
+          </Text>
+        </View>
+      )}
+
       <Text
         style={{
           fontSize: 10,

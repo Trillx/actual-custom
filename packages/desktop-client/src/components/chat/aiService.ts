@@ -3,7 +3,8 @@ import type { BudgetAction, BudgetContext, ChatMessage } from './types';
 const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
 function formatCurrency(amount: number): string {
-  return (amount / 100).toFixed(2);
+  const abs = Math.abs(amount / 100).toFixed(2);
+  return amount < 0 ? `-${abs}` : abs;
 }
 
 function buildSystemPrompt(context: BudgetContext): string {

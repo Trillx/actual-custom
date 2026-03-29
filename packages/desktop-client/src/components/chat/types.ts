@@ -4,7 +4,7 @@ export type ChatMessage = {
   content: string;
   timestamp: number;
   pendingAction?: BudgetAction;
-  actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed';
+  actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed' | 'failed';
 };
 
 export type BudgetAction = {

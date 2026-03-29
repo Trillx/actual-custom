@@ -30,7 +30,7 @@ export function useBudgetContext() {
       .map(a => ({
         id: a.id,
         name: a.name,
-        balance: a.balance_current || 0,
+        balance: a.balance_current ?? 0,
       }));
 
     const categoryGroups = (
@@ -120,9 +120,9 @@ export function useBudgetContext() {
             for (const cat of group.categories) {
               categoryBudgets.push({
                 name: cat.name || 'Unknown',
-                budgeted: cat.budgeted || 0,
-                spent: cat.spent || 0,
-                balance: cat.balance || 0,
+                budgeted: cat.budgeted ?? 0,
+                spent: cat.spent ?? 0,
+                balance: cat.balance ?? 0,
               });
             }
           }
@@ -130,10 +130,10 @@ export function useBudgetContext() {
       }
       budgetMonth = {
         month: currentMonth,
-        incomeAvailable: bm.incomeAvailable || 0,
-        totalBudgeted: bm.totalBudgeted || 0,
-        totalSpent: bm.totalSpent || 0,
-        toBudget: bm.toBudget || 0,
+        incomeAvailable: bm.incomeAvailable ?? 0,
+        totalBudgeted: bm.totalBudgeted ?? 0,
+        totalSpent: bm.totalSpent ?? 0,
+        toBudget: bm.toBudget ?? 0,
         categoryBudgets,
       };
     } catch {

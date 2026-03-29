@@ -11,10 +11,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseAction, sendChatMessage, stripActionBlock } from './aiService';
 import { ChatMessage } from './ChatMessage';
 import {
-  addSessionMessage,
   getSessionMessages,
   setSessionMessages,
-  updateSessionMessage,
 } from './chatState';
 import { executeAction } from './executeAction';
 import type { ChatMessage as ChatMessageType } from './types';
@@ -59,7 +57,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
     if (!apiKey) {
       setError(
-        'Please set your OpenAI API key in Settings to use the AI assistant.',
+        'Please set your API key in Settings to use the AI assistant.',
       );
       return;
     }
@@ -73,7 +71,6 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-    addSessionMessage(userMessage);
     setInput('');
     setError(null);
     setIsLoading(true);
@@ -88,7 +85,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         modelName || undefined,
       );
       const action = parseAction(rawResponse);
-      const displayContent = stripActionBlock(rawResponse) || rawResponse;
+      const stripped = stripActionBlock(rawResponse);
+      const displayContent = stripped || (action ? action.description : rawResponse);
 
       const assistantMessage: ChatMessageType = {
         id: uuidv4(),
@@ -99,7 +97,6 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         actionStatus: action ? 'pending' : undefined,
       };
       setMessages(prev => [...prev, assistantMessage]);
-      addSessionMessage(assistantMessage);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to get AI response',
@@ -114,12 +111,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       const msg = messages.find(m => m.id === messageId);
       if (!msg?.pendingAction) return;
 
+      setError(null);
       setMessages(prev =>
         prev.map(m =>
           m.id === messageId ? { ...m, actionStatus: 'confirmed' } : m,
         ),
       );
-      updateSessionMessage(messageId, { actionStatus: 'confirmed' });
 
       try {
         const result = await executeAction(msg.pendingAction);
@@ -135,18 +132,15 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           );
           return [...updated, resultMessage];
         });
-        updateSessionMessage(messageId, { actionStatus: 'executed' });
-        addSessionMessage(resultMessage);
       } catch (err) {
         const errorMsg =
           err instanceof Error ? err.message : 'Action failed';
         setError(errorMsg);
         setMessages(prev =>
           prev.map(m =>
-            m.id === messageId ? { ...m, actionStatus: 'rejected' } : m,
+            m.id === messageId ? { ...m, actionStatus: 'failed' } : m,
           ),
         );
-        updateSessionMessage(messageId, { actionStatus: 'rejected' });
       }
     },
     [messages],
@@ -158,7 +152,6 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         m.id === messageId ? { ...m, actionStatus: 'rejected' } : m,
       ),
     );
-    updateSessionMessage(messageId, { actionStatus: 'rejected' });
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -287,11 +280,23 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               borderRadius: 8,
               marginTop: 4,
               border: `1px solid ${theme.errorBorder}`,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
             }}
           >
-            <Text style={{ fontSize: 12, color: theme.errorText }}>
+            <Text style={{ fontSize: 12, color: theme.errorText, flex: 1 }}>
               {error}
             </Text>
+            <Button
+              variant="bare"
+              onPress={() => setError(null)}
+              aria-label="Dismiss error"
+              style={{ flexShrink: 0 }}
+            >
+              <SvgClose style={{ width: 12, height: 12, color: theme.errorText }} />
+            </Button>
           </View>
         )}
 
