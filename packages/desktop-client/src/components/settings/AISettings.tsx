@@ -43,11 +43,12 @@ export function AISettings() {
     <Setting>
       <Text>
         <Trans>
-          <strong>AI Assistant</strong> uses OpenAI to help you understand your
-          budget through natural language conversation. It can also set budget
-          amounts, add transactions, and create categories on your behalf (with
-          confirmation). Enter your OpenAI API key below to enable the chat
-          assistant in the sidebar.
+          <strong>AI Assistant</strong> uses an OpenAI-compatible API to help you
+          understand your budget through natural language conversation. It can
+          also set budget amounts, add transactions, and create categories on
+          your behalf (with confirmation). Works with OpenAI, OpenRouter, and
+          other compatible providers. Enter your API key below to enable the
+          chat assistant.
         </Trans>
       </Text>
       <View style={{ gap: 10, width: '100%' }}>
@@ -58,7 +59,7 @@ export function AISettings() {
           <Input
             value={keyInput}
             onChangeValue={setKeyInput}
-            placeholder={t('sk-...')}
+            placeholder={t('sk-... or sk-or-...')}
             type="password"
           />
         </View>
@@ -73,8 +74,8 @@ export function AISettings() {
           />
           <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
             <Trans>
-              Leave empty to use gpt-4o-mini. Set a different model name when
-              using custom endpoints.
+              Leave empty to use gpt-4o-mini. For OpenRouter, use the full
+              model path (e.g., anthropic/claude-3.5-sonnet, google/gemini-pro).
             </Trans>
           </Text>
         </View>
@@ -89,8 +90,9 @@ export function AISettings() {
           />
           <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
             <Trans>
-              Leave empty to use OpenAI. Set a custom URL for compatible APIs
-              (e.g., Azure OpenAI, local models).
+              Leave empty to use OpenAI. For OpenRouter, use
+              https://openrouter.ai/api/v1/chat/completions. Also supports
+              Azure OpenAI, local models, and other compatible APIs.
             </Trans>
           </Text>
           <Text style={{ fontSize: 11, color: theme.warningText }}>

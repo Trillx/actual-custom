@@ -147,12 +147,19 @@ export async function sendChatMessage(
       })),
   ];
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  if (endpoint.includes('openrouter.ai')) {
+    headers['HTTP-Referer'] = globalThis.location?.origin || 'https://actualbudget.org';
+    headers['X-Title'] = 'Actual Budget AI Assistant';
+  }
+
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: modelName?.trim() || 'gpt-4o-mini',
       messages: apiMessages,
