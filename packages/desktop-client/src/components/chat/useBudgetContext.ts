@@ -22,7 +22,7 @@ export function useBudgetContext() {
       accountsRaw as Array<{
         id: string;
         name: string;
-        balance: number;
+        balance_current?: number | null;
         closed?: boolean;
       }>
     )
@@ -30,7 +30,7 @@ export function useBudgetContext() {
       .map(a => ({
         id: a.id,
         name: a.name,
-        balance: a.balance || 0,
+        balance: a.balance_current || 0,
       }));
 
     const categoryGroups = (
@@ -82,14 +82,14 @@ export function useBudgetContext() {
         id: string;
         name?: string;
         next_date?: string;
-        _amount?: number;
-        _payee?: string;
+        amount?: number;
+        payee?: string;
       }>
     ).map(s => ({
       id: s.id,
-      name: s.name || (s._payee ? payeeMap.get(s._payee) : undefined),
+      name: s.name || (s.payee ? payeeMap.get(s.payee) : undefined),
       next_date: s.next_date,
-      amount: s._amount,
+      amount: s.amount,
     }));
 
     let budgetMonth: BudgetContext['budgetMonth'] = undefined;
