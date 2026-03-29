@@ -3,6 +3,10 @@ import { useCallback } from 'react';
 import { send } from 'loot-core/platform/client/connection';
 
 import { executeQuery } from './queryHelpers';
+import {
+  detectAnomalies,
+  detectRecurringTransactions,
+} from './spendingAnalysis';
 import type { BudgetContext, QueryAction } from './types';
 
 export function useBudgetContext() {
@@ -197,6 +201,68 @@ export function useBudgetContext() {
       .filter(p => p.name)
       .map(p => ({ id: p.id, name: p.name }));
 
+    let subscriptionInsights: BudgetContext['subscriptionInsights'];
+    let anomalyInsights: BudgetContext['anomalyInsights'];
+    try {
+      const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+      const insightStartDate = sixMonthsAgo.toISOString().split('T')[0];
+      const insightEndDate = now.toISOString().split('T')[0];
+
+      const insightTxns: Array<{
+        date: string;
+        amount: number;
+        payee_name?: string;
+        category_name?: string;
+      }> = [];
+
+      for (const account of accounts) {
+        const txns = (await send('api/transactions-get', {
+          accountId: account.id,
+          startDate: insightStartDate,
+          endDate: insightEndDate,
+        })) as Array<{
+          date: string;
+          amount: number;
+          payee?: string;
+          category?: string;
+        }>;
+
+        for (const tx of txns) {
+          insightTxns.push({
+            date: tx.date,
+            amount: tx.amount,
+            payee_name: tx.payee ? payeeMap.get(tx.payee) : undefined,
+            category_name: tx.category ? categoryMap.get(tx.category) : undefined,
+          });
+        }
+      }
+
+      const scheduleInfos = schedules.map(s => ({
+        name: s.name,
+        amount: s.amount,
+      }));
+
+      const subs = detectRecurringTransactions(insightTxns, scheduleInfos);
+      subscriptionInsights = subs.slice(0, 10).map(s => ({
+        payee_name: s.payee_name,
+        amount: s.amount,
+        frequency: s.frequency,
+        confidence: s.confidence,
+        matchesSchedule: s.matchesSchedule,
+      }));
+
+      const anomalies = detectAnomalies(insightTxns);
+      anomalyInsights = anomalies.slice(0, 5).map(a => ({
+        type: a.type,
+        name: a.name,
+        amount: a.amount,
+        average: a.average,
+        deviations: a.deviations,
+      }));
+    } catch {
+      // Insights may not be available
+    }
+
     return {
       accounts,
       closedAccounts,
@@ -207,6 +273,8 @@ export function useBudgetContext() {
       budgetMonth,
       recentTransactions,
       schedules,
+      subscriptionInsights,
+      anomalyInsights,
     };
   }, []);
 
@@ -232,7 +300,15 @@ export function useBudgetContext() {
         accountMap.set(a.id, a.name);
       }
 
-      const maps = { payeeMap, categoryMap, accountMap };
+      const maps = {
+        payeeMap,
+        categoryMap,
+        accountMap,
+        schedules: context.schedules?.map(s => ({
+          name: s.name,
+          amount: s.amount,
+        })),
+      };
 
       return executeQuery(action, maps);
     },

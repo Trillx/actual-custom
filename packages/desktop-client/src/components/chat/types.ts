@@ -85,11 +85,63 @@ export type QueryAction = {
     | 'budget-trend'
     | 'spending-by-week'
     | 'spending-by-quarter'
-    | 'spending-by-account';
+    | 'spending-by-account'
+    | 'detect-subscriptions'
+    | 'detect-anomalies'
+    | 'spending-trend'
+    | 'historical-comparison';
   filters?: TransactionQueryFilters;
   month?: string;
   months?: string[];
   limit?: number;
+  category?: string;
+  payee?: string;
+  lookbackMonths?: number;
+};
+
+export type RecurringTransaction = {
+  payee_name: string;
+  amount: number;
+  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+  confidence: 'high' | 'medium' | 'low';
+  lastDate: string;
+  occurrences: number;
+  matchesSchedule: boolean;
+  scheduleName?: string;
+};
+
+export type SpendingAnomaly = {
+  type: 'transaction' | 'category';
+  name: string;
+  amount: number;
+  average: number;
+  stdDev: number;
+  deviations: number;
+  date?: string;
+  period?: string;
+};
+
+export type SpendingTrend = {
+  name: string;
+  direction: 'increasing' | 'decreasing' | 'stable';
+  percentChange: number;
+  monthlyTotals: Array<{ month: string; total: number }>;
+  narrative: string;
+};
+
+export type HistoricalComparison = {
+  currentMonth: string;
+  comparisonPeriod: string;
+  categories: Array<{
+    name: string;
+    currentSpending: number;
+    historicalAverage: number;
+    difference: number;
+    percentDifference: number;
+    status: 'significantly-over' | 'over' | 'normal' | 'under' | 'significantly-under';
+  }>;
+  totalCurrent: number;
+  totalAverage: number;
 };
 
 export type BudgetContext = {
@@ -131,6 +183,20 @@ export type BudgetContext = {
     name?: string;
     next_date?: string;
     amount?: number;
+  }>;
+  subscriptionInsights?: Array<{
+    payee_name: string;
+    amount: number;
+    frequency: string;
+    confidence: string;
+    matchesSchedule: boolean;
+  }>;
+  anomalyInsights?: Array<{
+    type: string;
+    name: string;
+    amount: number;
+    average: number;
+    deviations: number;
   }>;
   queryResult?: string;
 };

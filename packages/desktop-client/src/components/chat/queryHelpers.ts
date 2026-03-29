@@ -1,6 +1,16 @@
 import { send } from 'loot-core/platform/client/connection';
 import { q } from 'loot-core/shared/query';
 
+import {
+  analyzeSpendingTrend,
+  compareToHistorical,
+  detectAnomalies,
+  detectRecurringTransactions,
+  formatAnomalyReport,
+  formatHistoricalComparison,
+  formatSubscriptionList,
+  formatTrendAnalysis,
+} from './spendingAnalysis';
 import type {
   BudgetComparison,
   QueryAction,
@@ -22,6 +32,7 @@ type LookupMaps = {
   payeeMap: Map<string, string>;
   categoryMap: Map<string, string>;
   accountMap: Map<string, string>;
+  schedules?: Array<{ name?: string; amount?: number }>;
 };
 
 function formatCurrency(amount: number): string {
@@ -545,6 +556,76 @@ export async function executeQuery(
         }
       }
       return results.join('\n');
+    }
+
+    case 'detect-subscriptions': {
+      const lookback = action.lookbackMonths || 12;
+      const lookbackDate = new Date();
+      lookbackDate.setMonth(lookbackDate.getMonth() - lookback);
+      const txns = await fetchFilteredTransactions(
+        {
+          ...action.filters,
+          startDate: lookbackDate.toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+        },
+        maps,
+      );
+      const subscriptions = detectRecurringTransactions(
+        txns,
+        maps.schedules || [],
+      );
+      return formatSubscriptionList(subscriptions);
+    }
+
+    case 'detect-anomalies': {
+      const lookback = action.lookbackMonths || 6;
+      const lookbackDate = new Date();
+      lookbackDate.setMonth(lookbackDate.getMonth() - lookback);
+      const txns = await fetchFilteredTransactions(
+        {
+          ...action.filters,
+          startDate: lookbackDate.toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+        },
+        maps,
+      );
+      const anomalies = detectAnomalies(txns);
+      return formatAnomalyReport(anomalies);
+    }
+
+    case 'spending-trend': {
+      const lookback = action.lookbackMonths || 6;
+      const lookbackDate = new Date();
+      lookbackDate.setMonth(lookbackDate.getMonth() - lookback);
+      const filterType =
+        action.payee ? 'payee' : 'category';
+      const filterName = action.payee || action.category;
+      const txns = await fetchFilteredTransactions(
+        {
+          ...action.filters,
+          startDate: lookbackDate.toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+        },
+        maps,
+      );
+      const trends = analyzeSpendingTrend(txns, filterName, filterType);
+      return formatTrendAnalysis(trends);
+    }
+
+    case 'historical-comparison': {
+      const lookback = action.lookbackMonths || 3;
+      const lookbackDate = new Date();
+      lookbackDate.setMonth(lookbackDate.getMonth() - lookback - 1);
+      const txns = await fetchFilteredTransactions(
+        {
+          ...action.filters,
+          startDate: lookbackDate.toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+        },
+        maps,
+      );
+      const comparison = compareToHistorical(txns, lookback);
+      return formatHistoricalComparison(comparison);
     }
 
     default:

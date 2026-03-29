@@ -62,7 +62,11 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "top-payees": Top payees by total spending. filters: {startDate, endDate}, limit: N\n' +
       '- "top-categories": Top categories by total spending. filters: {startDate, endDate}, limit: N\n' +
       '- "budget-month": Get budget data for a specific month. params: {month: "YYYY-MM"}\n' +
-      '- "budget-trend": Compare budget data across multiple months. params: {months: ["YYYY-MM", ...]} (defaults to last 3 months if omitted)\n\n' +
+      '- "budget-trend": Compare budget data across multiple months. params: {months: ["YYYY-MM", ...]} (defaults to last 3 months if omitted)\n' +
+      '- "detect-subscriptions": Detect recurring charges/subscriptions from transaction history. params: {lookbackMonths: N} (default 12)\n' +
+      '- "detect-anomalies": Find unusual spending this month compared to historical patterns. params: {lookbackMonths: N} (default 6)\n' +
+      '- "spending-trend": Analyze month-over-month spending trends. params: {category: "name", payee: "name", lookbackMonths: N} (use category OR payee filter, omit both for all categories)\n' +
+      '- "historical-comparison": Compare current month spending to historical averages by category. params: {lookbackMonths: 3|6|12} (default 3)\n\n' +
       'Query actions execute automatically without user confirmation. After the query result is returned to you, ' +
       'summarize the results in a natural, helpful way for the user.\n\n' +
       'Date format for filters: "YYYY-MM-DD". Amount filters are in cents (negative for expenses, positive for income). ' +
@@ -73,7 +77,11 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- User asks "Am I on track this month?" → use budget-vs-actual with current month\n' +
       '- User asks "What are my top 5 payees?" → use top-payees with limit 5\n' +
       '- User asks "Show me January budget" → use budget-month with month "YYYY-01"\n' +
-      '- User asks "Compare my last 3 months" → use budget-trend with months array\n\n' +
+      '- User asks "Compare my last 3 months" → use budget-trend with months array\n' +
+      '- User asks "What subscriptions do I have?" → use detect-subscriptions\n' +
+      '- User asks "Any unusual spending this month?" → use detect-anomalies\n' +
+      '- User asks "Am I spending more on dining lately?" → use spending-trend with category "Dining"\n' +
+      '- User asks "How does this month compare to my average?" → use historical-comparison\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
@@ -135,6 +143,24 @@ function buildSystemPrompt(context: BudgetContext): string {
       parts.push(
         `  - ${sched.name || 'Unnamed'}: next ${sched.next_date || 'N/A'}, amount ${amount}`,
       );
+    }
+  }
+
+  if (context.subscriptionInsights && context.subscriptionInsights.length > 0) {
+    parts.push('\n\nDetected Recurring Charges (from recent transaction history — use detect-subscriptions query for full details):');
+    for (const sub of context.subscriptionInsights) {
+      const amount = formatCurrency(Math.abs(sub.amount));
+      const status = sub.matchesSchedule ? '✓ confirmed' : `detected (${sub.confidence})`;
+      parts.push(`  - ${sub.payee_name}: $${amount}/${sub.frequency} [${status}]`);
+    }
+  }
+
+  if (context.anomalyInsights && context.anomalyInsights.length > 0) {
+    parts.push('\n\nSpending Anomalies Detected (use detect-anomalies query for full report):');
+    for (const a of context.anomalyInsights) {
+      const amount = formatCurrency(a.amount);
+      const avg = formatCurrency(a.average);
+      parts.push(`  - ${a.name}: $${amount} vs $${avg} average (${a.deviations}x std dev above normal)`);
     }
   }
 
@@ -218,6 +244,10 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
     'spending-by-week',
     'spending-by-quarter',
     'spending-by-account',
+    'detect-subscriptions',
+    'detect-anomalies',
+    'spending-trend',
+    'historical-comparison',
   ];
   if (!validTypes.includes(queryType)) return null;
 
@@ -227,6 +257,9 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
     month: params.month as string | undefined,
     months: params.months as string[] | undefined,
     limit: params.limit as number | undefined,
+    category: params.category as string | undefined,
+    payee: params.payee as string | undefined,
+    lookbackMonths: params.lookbackMonths as number | undefined,
   };
 }
 
