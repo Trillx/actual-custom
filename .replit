@@ -38,9 +38,10 @@ localPort = 5001
 externalPort = 3002
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "static"
 run = ["bash", "start-dev.sh"]
-build = ["bash", "start-dev.sh"]
+build = ["bash", "build-prod.sh"]
+publicDir = "packages/desktop-client/build"
 
 [postMerge]
 path = "scripts/post-merge.sh"
