@@ -62,8 +62,20 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 The AI can propose these actions, each requiring user confirmation:
 - `set-budget-amount` — Set budget for a category in a given month
 - `add-transaction` — Add a new transaction to an account
+- `update-transaction` — Change details of an existing transaction
+- `delete-transaction` — Remove a transaction
+- `transfer-between-accounts` — Move money between accounts
 - `create-category` — Create a new budget category
 - `create-account` — Create a new account
+- `close-account` / `reopen-account` — Close or reopen accounts
+- `rename-category` / `delete-category` — Rename or delete categories (with optional transfer)
+- `create-category-group` — Create category groups with optional initial categories
+- `rename-payee` / `merge-payees` — Rename payees or merge duplicates
+- `copy-previous-month` — Copy all budget values from previous month
+- `set-budget-average` — Set all budgets to 3/6/12-month average
+- `bulk-set-budget` — Set budget for multiple categories at once
+- `transfer-budget` — Transfer budget between categories
+- `create-goal` / `update-goal` / `delete-goal` — Savings goal management
 
 ### Read-Only Query Actions (auto-execute, no confirmation)
 The AI can query data using these query types:
@@ -73,8 +85,17 @@ The AI can query data using these query types:
 - `top-payees` / `top-categories` — Ranked spending by payee or category
 - `budget-month` — Get budget data for any specific month
 - `budget-trend` — Compare budget data across multiple months
+- `detect-subscriptions` — Find recurring charges from transaction history
+- `detect-anomalies` — Identify unusual spending patterns vs historical averages
+- `spending-trend` — Analyze month-over-month spending trends by category or payee
+- `historical-comparison` — Compare current month spending to historical averages
 
-Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint for server-side transaction filtering and the `api/budget-month` endpoint for budget data. The flow is: AI returns a query action → ChatPanel auto-executes it → result is injected into context → AI summarizes the result for the user.
+Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint for server-side transaction filtering and the `api/budget-month` endpoint for budget data. The flow is: AI returns a query action → ChatPanel auto-executes it (up to 2 rounds) → result is injected into context → AI summarizes the result for the user.
+
+### Subscription & Anomaly Detection
+- `spendingAnalysis.ts` — Detects recurring charges by analyzing payee + amount consistency (CV < 30%) with recognizable intervals. Cross-references with scheduled transactions for confirmation.
+- Anomalies use 2+ standard deviations above historical mean for both category-level and individual transaction analysis.
+- Results are pre-computed and injected into context for proactive AI insights.
 
 ### Goal Tracking & Spending Forecasting
 The AI assistant supports forward-looking financial insights:
@@ -95,9 +116,11 @@ The AI assistant supports forward-looking financial insights:
 
 ### Configuration
 - API key is stored in `LocalPrefs['ai.apiKey']` (device-local, not synced)
-- Optional custom endpoint URL in `LocalPrefs['ai.endpointUrl']` for Azure OpenAI, local models, etc.
+- Optional custom endpoint URL in `LocalPrefs['ai.endpointUrl']` for OpenRouter, Azure OpenAI, local models, or any OpenAI-compatible endpoint
+- Optional custom model name in `LocalPrefs['ai.modelName']` (defaults to `gpt-4o-mini`)
+- OpenRouter headers (`HTTP-Referer`, `X-Title`) are auto-added when endpoint contains `openrouter.ai`
 - Set via Settings > AI Assistant section
-- No backend proxy needed — calls go directly to OpenAI from the browser
+- No backend proxy needed — calls go directly to the API from the browser
 
 ## Notes
 

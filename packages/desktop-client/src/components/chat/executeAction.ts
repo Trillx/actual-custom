@@ -539,6 +539,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
             notes: validated.notes,
           },
         ],
+        runTransfers: true,
       });
       return 'Transfer completed successfully.';
     }
@@ -551,10 +552,12 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'create-account': {
       const validated = validateCreateAccount(action.params);
-      await send('account-create', {
-        name: validated.name,
-        balance: validated.balance,
-        offBudget: validated.offBudget,
+      await send('api/account-create', {
+        account: {
+          name: validated.name,
+          offbudget: validated.offBudget,
+        },
+        initialBalance: validated.balance,
       });
       return `Account "${validated.name}" created successfully.`;
     }
