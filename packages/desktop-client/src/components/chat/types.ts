@@ -11,7 +11,6 @@ export type BudgetAction = {
   type:
     | 'set-budget-amount'
     | 'add-transaction'
-    | 'update-transaction'
     | 'create-category'
     | 'create-account';
   description: string;

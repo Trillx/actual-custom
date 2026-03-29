@@ -5,6 +5,7 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
+import { formatActionDetails } from './executeAction';
 import type { ChatMessage as ChatMessageType } from './types';
 
 type ChatMessageProps = {
@@ -69,12 +70,25 @@ export function ChatMessage({
               fontSize: 12,
               fontWeight: 600,
               color: theme.noticeText,
-              marginBottom: 6,
+              marginBottom: 4,
             }}
           >
-            Proposed action: {message.pendingAction.description}
+            Proposed action:
           </Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          {formatActionDetails(message.pendingAction).map((line, i) => (
+            <Text
+              key={i}
+              style={{
+                fontSize: 11,
+                color: theme.noticeText,
+                lineHeight: '1.6',
+                fontFamily: 'monospace',
+              }}
+            >
+              {line}
+            </Text>
+          ))}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
             <Button
               variant="primary"
               onPress={() => onConfirmAction?.(message.id)}

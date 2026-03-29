@@ -104,7 +104,6 @@ export function parseAction(content: string): BudgetAction | null {
       [
         'set-budget-amount',
         'add-transaction',
-        'update-transaction',
         'create-category',
         'create-account',
       ].includes(parsed.type)
