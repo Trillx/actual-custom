@@ -28,7 +28,16 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "create-category": params: {name, group_id}\n' +
       '- "create-account": params: {name, balance, offBudget} (balance in cents)\n' +
       '- "close-account": params: {accountId, transferAccountId?} (transferAccountId required if account has non-zero balance)\n' +
-      '- "reopen-account": params: {accountId}\n\n' +
+      '- "reopen-account": params: {accountId}\n' +
+      '- "rename-category": params: {categoryId, newName, oldName} — Rename an existing category. Use the category ID from context.\n' +
+      '- "delete-category": params: {categoryId, categoryName, transferCategoryId?, transactionCount} — Delete a category. Set transactionCount to warn user. Optionally transfer transactions to another category via transferCategoryId.\n' +
+      '- "create-category-group": params: {name, categories?} — Create a new category group. categories is an optional array of {name} objects to create categories inside the group.\n' +
+      '- "rename-payee": params: {payeeId, newName, oldName} — Rename an existing payee.\n' +
+      '- "merge-payees": params: {targetId, targetName, mergeIds, mergeNames} — Merge multiple payees into a target. mergeIds is an array of payee IDs to merge into targetId.\n' +
+      '- "copy-previous-month": params: {month} — Copy all budget values from the previous month to the specified month (YYYY-MM format).\n' +
+      '- "set-budget-average": params: {month, numMonths} — Set all budget amounts to the average of the last N months. numMonths must be 3, 6, or 12.\n' +
+      '- "bulk-set-budget": params: {month, budgets} — Set budget amounts for multiple categories at once. budgets is an array of {categoryId, categoryName, amount} (amount in cents).\n' +
+      '- "transfer-budget": params: {month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName} — Transfer budget amount (in cents) from one category to another.\n\n' +
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
@@ -167,6 +176,15 @@ export function parseAction(content: string): BudgetAction | null {
         'transfer-between-accounts',
         'create-category',
         'create-account',
+        'rename-category',
+        'delete-category',
+        'create-category-group',
+        'rename-payee',
+        'merge-payees',
+        'copy-previous-month',
+        'set-budget-average',
+        'bulk-set-budget',
+        'transfer-budget',
         'query',
         'close-account',
         'reopen-account',

@@ -130,6 +130,145 @@ function validateReopenAccount(params: Record<string, unknown>): {
   return { accountId };
 }
 
+function validateRenameCategory(params: Record<string, unknown>): {
+  categoryId: string;
+  newName: string;
+  oldName: string;
+} {
+  const { categoryId, newName, oldName } = params;
+  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
+  if (typeof newName !== 'string' || !newName) throw new Error('Missing or invalid "newName" parameter.');
+  return {
+    categoryId,
+    newName,
+    oldName: typeof oldName === 'string' ? oldName : '',
+  };
+}
+
+function validateDeleteCategory(params: Record<string, unknown>): {
+  categoryId: string;
+  categoryName: string;
+  transferCategoryId?: string;
+  transactionCount: number;
+} {
+  const { categoryId, categoryName, transferCategoryId, transactionCount } = params;
+  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
+  return {
+    categoryId,
+    categoryName: typeof categoryName === 'string' ? categoryName : '',
+    transferCategoryId: typeof transferCategoryId === 'string' ? transferCategoryId : undefined,
+    transactionCount: typeof transactionCount === 'number' ? transactionCount : 0,
+  };
+}
+
+function validateCreateCategoryGroup(params: Record<string, unknown>): {
+  name: string;
+  categories?: Array<{ name: string }>;
+} {
+  const { name, categories } = params;
+  if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
+  const cats = Array.isArray(categories)
+    ? categories.filter((c): c is { name: string } => typeof c === 'object' && c !== null && typeof (c as Record<string, unknown>).name === 'string')
+    : undefined;
+  return { name, categories: cats };
+}
+
+function validateRenamePayee(params: Record<string, unknown>): {
+  payeeId: string;
+  newName: string;
+  oldName: string;
+} {
+  const { payeeId, newName, oldName } = params;
+  if (typeof payeeId !== 'string' || !payeeId) throw new Error('Missing or invalid "payeeId" parameter.');
+  if (typeof newName !== 'string' || !newName) throw new Error('Missing or invalid "newName" parameter.');
+  return {
+    payeeId,
+    newName,
+    oldName: typeof oldName === 'string' ? oldName : '',
+  };
+}
+
+function validateMergePayees(params: Record<string, unknown>): {
+  targetId: string;
+  targetName: string;
+  mergeIds: string[];
+  mergeNames: string[];
+} {
+  const { targetId, targetName, mergeIds, mergeNames } = params;
+  if (typeof targetId !== 'string' || !targetId) throw new Error('Missing or invalid "targetId" parameter.');
+  if (!Array.isArray(mergeIds)) throw new Error('Missing or invalid "mergeIds" parameter.');
+  const filteredIds = mergeIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  if (filteredIds.length === 0) throw new Error('"mergeIds" must contain at least one valid payee ID.');
+  return {
+    targetId,
+    targetName: typeof targetName === 'string' ? targetName : '',
+    mergeIds: filteredIds,
+    mergeNames: Array.isArray(mergeNames) ? mergeNames.filter((n): n is string => typeof n === 'string') : [],
+  };
+}
+
+function validateCopyPreviousMonth(params: Record<string, unknown>): {
+  month: string;
+} {
+  const { month } = params;
+  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
+  return { month };
+}
+
+function validateSetBudgetAverage(params: Record<string, unknown>): {
+  month: string;
+  numMonths: number;
+} {
+  const { month, numMonths } = params;
+  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
+  const n = typeof numMonths === 'number' ? numMonths : 3;
+  if (![3, 6, 12].includes(n)) throw new Error('"numMonths" must be 3, 6, or 12.');
+  return { month, numMonths: n };
+}
+
+function validateBulkSetBudget(params: Record<string, unknown>): {
+  month: string;
+  budgets: Array<{ categoryId: string; categoryName: string; amount: number }>;
+} {
+  const { month, budgets } = params;
+  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
+  if (!Array.isArray(budgets) || budgets.length === 0) throw new Error('Missing or invalid "budgets" parameter.');
+  const validated = budgets.map((b, i) => {
+    const entry = b as Record<string, unknown>;
+    if (typeof entry.categoryId !== 'string' || !entry.categoryId) throw new Error(`Missing "categoryId" in budget entry ${i}.`);
+    if (typeof entry.amount !== 'number') throw new Error(`Missing "amount" in budget entry ${i}.`);
+    return {
+      categoryId: entry.categoryId as string,
+      categoryName: typeof entry.categoryName === 'string' ? entry.categoryName : '',
+      amount: entry.amount as number,
+    };
+  });
+  return { month, budgets: validated };
+}
+
+function validateTransferBudget(params: Record<string, unknown>): {
+  month: string;
+  amount: number;
+  fromCategoryId: string;
+  toCategoryId: string;
+  fromCategoryName: string;
+  toCategoryName: string;
+} {
+  const { month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName } = params;
+  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
+  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
+  if (typeof fromCategoryId !== 'string' || !fromCategoryId) throw new Error('Missing or invalid "fromCategoryId" parameter.');
+  if (typeof toCategoryId !== 'string' || !toCategoryId) throw new Error('Missing or invalid "toCategoryId" parameter.');
+  return {
+    month,
+    amount,
+    fromCategoryId,
+    toCategoryId,
+    fromCategoryName: typeof fromCategoryName === 'string' ? fromCategoryName : '',
+    toCategoryName: typeof toCategoryName === 'string' ? toCategoryName : '',
+  };
+}
+
 function formatCents(amount: number): string {
   return '$' + (amount / 100).toFixed(2);
 }
@@ -185,6 +324,63 @@ export function formatActionDetails(action: BudgetAction): string[] {
       if (p.name) lines.push(`Name: ${p.name}`);
       if (typeof p.balance === 'number') lines.push(`Balance: ${formatCents(p.balance as number)}`);
       if (typeof p.offBudget === 'boolean') lines.push(`Off Budget: ${p.offBudget ? 'Yes' : 'No'}`);
+      break;
+    case 'rename-category':
+      lines.push(`Type: Rename Category`);
+      if (p.oldName) lines.push(`From: ${p.oldName}`);
+      if (p.newName) lines.push(`To: ${p.newName}`);
+      break;
+    case 'delete-category':
+      lines.push(`Type: Delete Category`);
+      if (p.categoryName) lines.push(`Category: ${p.categoryName}`);
+      if (typeof p.transactionCount === 'number' && (p.transactionCount as number) > 0) {
+        lines.push(`Warning: ${p.transactionCount} transaction(s) use this category`);
+      }
+      if (p.transferCategoryId) lines.push(`Transfer to: ${p.transferCategoryId}`);
+      break;
+    case 'create-category-group':
+      lines.push(`Type: Create Category Group`);
+      if (p.name) lines.push(`Group Name: ${p.name}`);
+      if (Array.isArray(p.categories) && (p.categories as Array<{ name: string }>).length > 0) {
+        lines.push(`Categories: ${(p.categories as Array<{ name: string }>).map(c => c.name).join(', ')}`);
+      }
+      break;
+    case 'rename-payee':
+      lines.push(`Type: Rename Payee`);
+      if (p.oldName) lines.push(`From: ${p.oldName}`);
+      if (p.newName) lines.push(`To: ${p.newName}`);
+      break;
+    case 'merge-payees':
+      lines.push(`Type: Merge Payees`);
+      if (p.targetName) lines.push(`Target: ${p.targetName}`);
+      if (Array.isArray(p.mergeNames) && (p.mergeNames as string[]).length > 0) {
+        lines.push(`Merging: ${(p.mergeNames as string[]).join(', ')}`);
+      }
+      break;
+    case 'copy-previous-month':
+      lines.push(`Type: Copy Previous Month Budget`);
+      if (p.month) lines.push(`Copy to: ${p.month}`);
+      break;
+    case 'set-budget-average':
+      lines.push(`Type: Set Budget from Average`);
+      if (p.month) lines.push(`Month: ${p.month}`);
+      if (typeof p.numMonths === 'number') lines.push(`Average of last: ${p.numMonths} months`);
+      break;
+    case 'bulk-set-budget':
+      lines.push(`Type: Bulk Set Budget`);
+      if (p.month) lines.push(`Month: ${p.month}`);
+      if (Array.isArray(p.budgets)) {
+        for (const b of p.budgets as Array<{ categoryName: string; amount: number }>) {
+          lines.push(`  ${b.categoryName || 'Unknown'}: ${formatCents(b.amount)}`);
+        }
+      }
+      break;
+    case 'transfer-budget':
+      lines.push(`Type: Transfer Budget`);
+      if (p.month) lines.push(`Month: ${p.month}`);
+      if (p.fromCategoryName) lines.push(`From: ${p.fromCategoryName}`);
+      if (p.toCategoryName) lines.push(`To: ${p.toCategoryName}`);
+      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
       break;
     case 'query':
       lines.push(`Type: Data Query`);
@@ -298,6 +494,90 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const validated = validateReopenAccount(action.params);
       await send('account-reopen', { id: validated.accountId });
       return 'Account reopened successfully.';
+    }
+    case 'rename-category': {
+      const validated = validateRenameCategory(action.params);
+      await send('api/category-update', {
+        id: validated.categoryId,
+        fields: { name: validated.newName },
+      });
+      return `Category renamed from "${validated.oldName}" to "${validated.newName}" successfully.`;
+    }
+    case 'delete-category': {
+      const validated = validateDeleteCategory(action.params);
+      await send('api/category-delete', {
+        id: validated.categoryId,
+        transferCategoryId: validated.transferCategoryId,
+      });
+      return `Category "${validated.categoryName}" deleted successfully.`;
+    }
+    case 'create-category-group': {
+      const validated = validateCreateCategoryGroup(action.params);
+      const groupId = await send('api/category-group-create', {
+        group: { name: validated.name },
+      });
+      if (validated.categories && validated.categories.length > 0) {
+        for (const cat of validated.categories) {
+          await send('api/category-create', {
+            category: { name: cat.name, group_id: groupId, hidden: false },
+          });
+        }
+        return `Category group "${validated.name}" created with ${validated.categories.length} categor${validated.categories.length === 1 ? 'y' : 'ies'}: ${validated.categories.map(c => c.name).join(', ')}.`;
+      }
+      return `Category group "${validated.name}" created successfully.`;
+    }
+    case 'rename-payee': {
+      const validated = validateRenamePayee(action.params);
+      await send('payees-batch-change', {
+        updated: [{ id: validated.payeeId, name: validated.newName }],
+      });
+      return `Payee renamed from "${validated.oldName}" to "${validated.newName}" successfully.`;
+    }
+    case 'merge-payees': {
+      const validated = validateMergePayees(action.params);
+      await send('payees-merge', {
+        targetId: validated.targetId,
+        mergeIds: validated.mergeIds,
+      });
+      return `Payees merged into "${validated.targetName}" successfully.`;
+    }
+    case 'copy-previous-month': {
+      const validated = validateCopyPreviousMonth(action.params);
+      await send('budget/copy-previous-month', { month: validated.month });
+      return `Budget values copied from previous month to ${validated.month} successfully.`;
+    }
+    case 'set-budget-average': {
+      const validated = validateSetBudgetAverage(action.params);
+      const methodMap: Record<number, string> = {
+        3: 'budget/set-3month-avg',
+        6: 'budget/set-6month-avg',
+        12: 'budget/set-12month-avg',
+      };
+      const method = methodMap[validated.numMonths];
+      await send(method as 'budget/set-3month-avg', { month: validated.month });
+      return `Budget amounts set to ${validated.numMonths}-month average for ${validated.month} successfully.`;
+    }
+    case 'bulk-set-budget': {
+      const validated = validateBulkSetBudget(action.params);
+      for (const entry of validated.budgets) {
+        await send('api/budget-set-amount', {
+          month: validated.month,
+          categoryId: entry.categoryId,
+          amount: entry.amount,
+        });
+      }
+      return `Budget amounts set for ${validated.budgets.length} categor${validated.budgets.length === 1 ? 'y' : 'ies'} in ${validated.month} successfully.`;
+    }
+    case 'transfer-budget': {
+      const validated = validateTransferBudget(action.params);
+      await send('budget/transfer-category', {
+        month: validated.month,
+        amount: validated.amount,
+        from: validated.fromCategoryId,
+        to: validated.toCategoryId,
+        currencyCode: 'USD',
+      });
+      return `Transferred ${formatCents(validated.amount)} from "${validated.fromCategoryName}" to "${validated.toCategoryName}" successfully.`;
     }
     default:
       throw new Error(`Unknown action type: ${action.type}`);

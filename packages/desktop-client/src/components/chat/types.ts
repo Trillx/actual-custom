@@ -18,7 +18,16 @@ export type BudgetAction = {
     | 'create-account'
     | 'query'
     | 'close-account'
-    | 'reopen-account';
+    | 'reopen-account'
+    | 'rename-category'
+    | 'delete-category'
+    | 'create-category-group'
+    | 'rename-payee'
+    | 'merge-payees'
+    | 'copy-previous-month'
+    | 'set-budget-average'
+    | 'bulk-set-budget'
+    | 'transfer-budget';
   description: string;
   params: Record<string, unknown>;
 };
