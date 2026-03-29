@@ -51,11 +51,12 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 ### How It Works
 1. User clicks "AI Chat" button in the sidebar (uses `SvgChatBubbleDots` icon)
 2. Chat panel opens on the right side of FinancesApp (or full-screen overlay on mobile)
-3. On each message, the system gathers current budget context (accounts, categories, budget for current month, last 30 transactions, scheduled transactions)
+3. On each message, the system gathers lightweight baseline context (accounts, categories, budget for current month, a small sample of recent transactions, scheduled transactions). Detailed data is fetched on-demand via query actions only when needed.
 4. Context + conversation history is sent to OpenAI's API (or custom endpoint)
 5. Response is displayed in the chat panel
 6. If the AI proposes a write action (set budget, add transaction, create category/account), a confirmation card is shown
 7. User must explicitly confirm or cancel before any write operation executes
+8. If the AI proposes a read-only query action, it auto-executes, fetches data, and sends a follow-up request to summarize results
 
 ### Write Actions (with confirmation)
 The AI can propose these actions, each requiring user confirmation:
@@ -63,6 +64,17 @@ The AI can propose these actions, each requiring user confirmation:
 - `add-transaction` — Add a new transaction to an account
 - `create-category` — Create a new budget category
 - `create-account` — Create a new account
+
+### Read-Only Query Actions (auto-execute, no confirmation)
+The AI can query data using these query types:
+- `search-transactions` — Filter transactions by date, payee, category, account, amount, notes
+- `spending-by-category` / `spending-by-payee` / `spending-by-month` / `spending-by-week` / `spending-by-quarter` / `spending-by-account` — Spending breakdowns
+- `budget-vs-actual` — Compare budgeted vs actual spending for a month
+- `top-payees` / `top-categories` — Ranked spending by payee or category
+- `budget-month` — Get budget data for any specific month
+- `budget-trend` — Compare budget data across multiple months
+
+Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint for server-side transaction filtering and the `api/budget-month` endpoint for budget data. The flow is: AI returns a query action → ChatPanel auto-executes it → result is injected into context → AI summarizes the result for the user.
 
 ### Chat State
 - Messages persist in a session store (`chatState.ts`) — closing and reopening the panel preserves conversation history within the session

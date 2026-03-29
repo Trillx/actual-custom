@@ -1,4 +1,4 @@
-import type { BudgetAction, BudgetContext, ChatMessage } from './types';
+import type { BudgetAction, BudgetContext, ChatMessage, QueryAction } from './types';
 
 const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
@@ -16,17 +16,46 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Be concise and helpful. Format currency amounts with $ and two decimal places. ' +
       'All amounts in the data are in cents (divide by 100 for dollars). ' +
       'Negative amounts represent money spent/outflow, positive amounts represent income/inflow.\n\n' +
-      'IMPORTANT: When the user asks you to perform an action (set a budget amount, add a transaction, create a category, etc.), ' +
+      'IMPORTANT: When the user asks you to perform a WRITE action (set a budget amount, add a transaction, create a category, etc.), ' +
       'you MUST respond with a JSON action block on its own line, wrapped like this:\n' +
       '```action\n{"type":"<action-type>","description":"<human readable description>","params":{...}}\n```\n\n' +
-      'Available action types:\n' +
+      'Available WRITE action types:\n' +
       '- "set-budget-amount": params: {month, categoryId, amount} (amount in cents)\n' +
       '- "add-transaction": params: {accountId, date, amount, payee_name, category_id, notes} (amount in cents, negative for expenses)\n' +
       '- "create-category": params: {name, group_id}\n' +
       '- "create-account": params: {name, balance, offBudget} (balance in cents)\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
-      'Only include ONE action per response. For read-only questions, just answer normally without action blocks.',
+      'Only include ONE action per response.\n\n' +
+      'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
+      '(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), ' +
+      'you MUST respond with a QUERY action block:\n' +
+      '```action\n{"type":"query","description":"<what you are looking up>","params":{"queryType":"<type>","filters":{...},"month":"YYYY-MM","limit":N}}\n```\n\n' +
+      'Available query types:\n' +
+      '- "search-transactions": Search/filter transactions. filters: {startDate, endDate, payee (name search), payeeId, category (name search), categoryId, accountId, amountMin, amountMax, notes}\n' +
+      '- "spending-by-category": Spending totals grouped by category. filters: {startDate, endDate, accountId}\n' +
+      '- "spending-by-payee": Spending totals grouped by payee. filters: {startDate, endDate, accountId}\n' +
+      '- "spending-by-month": Spending totals grouped by month. filters: {startDate, endDate}\n' +
+      '- "spending-by-week": Spending totals grouped by week. filters: {startDate, endDate}\n' +
+      '- "spending-by-quarter": Spending totals grouped by quarter. filters: {startDate, endDate}\n' +
+      '- "spending-by-account": Spending totals grouped by account. filters: {startDate, endDate}\n' +
+      '- "budget-vs-actual": Budget vs actual spending comparison. params: {month: "YYYY-MM"}\n' +
+      '- "top-payees": Top payees by total spending. filters: {startDate, endDate}, limit: N\n' +
+      '- "top-categories": Top categories by total spending. filters: {startDate, endDate}, limit: N\n' +
+      '- "budget-month": Get budget data for a specific month. params: {month: "YYYY-MM"}\n' +
+      '- "budget-trend": Compare budget data across multiple months. params: {months: ["YYYY-MM", ...]} (defaults to last 3 months if omitted)\n\n' +
+      'Query actions execute automatically without user confirmation. After the query result is returned to you, ' +
+      'summarize the results in a natural, helpful way for the user.\n\n' +
+      'Date format for filters: "YYYY-MM-DD". Amount filters are in cents (negative for expenses, positive for income). ' +
+      'For example, to find expenses over $50, use amountMax: -5000 (since expenses are negative).\n\n' +
+      'Examples of queries:\n' +
+      '- User asks "Find all Amazon purchases last month" → use search-transactions with payee filter and date range\n' +
+      '- User asks "How much did I spend on dining in Q1?" → use spending-by-category with category and date filters\n' +
+      '- User asks "Am I on track this month?" → use budget-vs-actual with current month\n' +
+      '- User asks "What are my top 5 payees?" → use top-payees with limit 5\n' +
+      '- User asks "Show me January budget" → use budget-month with month "YYYY-01"\n' +
+      '- User asks "Compare my last 3 months" → use budget-trend with months array\n\n' +
+      'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
   if (context.accounts.length > 0) {
@@ -84,8 +113,8 @@ function buildSystemPrompt(context: BudgetContext): string {
   }
 
   if (context.recentTransactions.length > 0) {
-    parts.push('\n\nRecent Transactions (last 30):');
-    for (const tx of context.recentTransactions.slice(0, 30)) {
+    parts.push(`\n\nRecent Transactions (last 7 days from all accounts — use query actions for broader date ranges or filtered searches):`);
+    for (const tx of context.recentTransactions) {
       const amount = formatCurrency(tx.amount);
       const payee = tx.payee_name || 'Unknown';
       const category = tx.category_name || 'Uncategorized';
@@ -94,6 +123,10 @@ function buildSystemPrompt(context: BudgetContext): string {
         `  - ${tx.date}: ${payee} | $${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
       );
     }
+  }
+
+  if (context.queryResult) {
+    parts.push(`\n\nQuery Result (from your previous query):\n${context.queryResult}`);
   }
 
   return parts.join('\n');
@@ -114,6 +147,7 @@ export function parseAction(content: string): BudgetAction | null {
         'add-transaction',
         'create-category',
         'create-account',
+        'query',
       ].includes(parsed.type)
     ) {
       return parsed;
@@ -122,6 +156,38 @@ export function parseAction(content: string): BudgetAction | null {
     // Invalid JSON in action block
   }
   return null;
+}
+
+export function parseQueryAction(action: BudgetAction): QueryAction | null {
+  if (action.type !== 'query') return null;
+
+  const params = action.params;
+  const queryType = params.queryType as QueryAction['queryType'];
+  if (!queryType) return null;
+
+  const validTypes = [
+    'search-transactions',
+    'spending-by-category',
+    'spending-by-payee',
+    'spending-by-month',
+    'budget-vs-actual',
+    'top-payees',
+    'top-categories',
+    'budget-month',
+    'budget-trend',
+    'spending-by-week',
+    'spending-by-quarter',
+    'spending-by-account',
+  ];
+  if (!validTypes.includes(queryType)) return null;
+
+  return {
+    queryType,
+    filters: params.filters as QueryAction['filters'],
+    month: params.month as string | undefined,
+    months: params.months as string[] | undefined,
+    limit: params.limit as number | undefined,
+  };
 }
 
 export function stripActionBlock(content: string): string {

@@ -2,7 +2,8 @@ import { useCallback } from 'react';
 
 import { send } from 'loot-core/platform/client/connection';
 
-import type { BudgetContext } from './types';
+import { executeQuery } from './queryHelpers';
+import type { BudgetContext, QueryAction } from './types';
 
 export function useBudgetContext() {
   const gatherContext = useCallback(async (): Promise<BudgetContext> => {
@@ -142,11 +143,11 @@ export function useBudgetContext() {
 
     let recentTransactions: BudgetContext['recentTransactions'] = [];
     try {
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const startDate = sevenDaysAgo.toISOString().split('T')[0];
       const endDate = now.toISOString().split('T')[0];
 
-      for (const account of accounts.slice(0, 5)) {
+      for (const account of accounts) {
         const txns = (await send('api/transactions-get', {
           accountId: account.id,
           startDate,
@@ -200,5 +201,34 @@ export function useBudgetContext() {
     };
   }, []);
 
-  return { gatherContext };
+  const runQuery = useCallback(
+    async (
+      action: QueryAction,
+      context: BudgetContext,
+    ): Promise<string> => {
+      const payeeMap = new Map<string, string>();
+      if (context.payees) {
+        for (const p of context.payees) {
+          payeeMap.set(p.id, p.name);
+        }
+      }
+
+      const categoryMap = new Map<string, string>();
+      for (const c of context.categories) {
+        categoryMap.set(c.id, c.name);
+      }
+
+      const accountMap = new Map<string, string>();
+      for (const a of context.accounts) {
+        accountMap.set(a.id, a.name);
+      }
+
+      const maps = { payeeMap, categoryMap, accountMap };
+
+      return executeQuery(action, maps);
+    },
+    [],
+  );
+
+  return { gatherContext, runQuery };
 }

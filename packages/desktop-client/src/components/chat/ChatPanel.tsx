@@ -8,14 +8,14 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { v4 as uuidv4 } from 'uuid';
 
-import { parseAction, sendChatMessage, stripActionBlock } from './aiService';
+import { parseAction, parseQueryAction, sendChatMessage, stripActionBlock } from './aiService';
 import { ChatMessage } from './ChatMessage';
 import {
   getSessionMessages,
   setSessionMessages,
 } from './chatState';
 import { executeAction } from './executeAction';
-import type { ChatMessage as ChatMessageType } from './types';
+import type { BudgetContext, ChatMessage as ChatMessageType } from './types';
 import { useBudgetContext } from './useBudgetContext';
 
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
@@ -36,7 +36,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
   const [modelName] = useLocalPref('ai.modelName');
-  const { gatherContext } = useBudgetContext();
+  const { gatherContext, runQuery } = useBudgetContext();
   const { isNarrowWidth } = useResponsive();
 
   useEffect(() => {
@@ -77,24 +77,63 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
     try {
       const context = await gatherContext();
-      const rawResponse = await sendChatMessage(
+      let rawResponse = await sendChatMessage(
         apiKey,
         newMessages,
         context,
         endpointUrl || undefined,
         modelName || undefined,
       );
-      const action = parseAction(rawResponse);
+
+      let action = parseAction(rawResponse);
+      let currentMessages = newMessages;
+      let currentContext = context;
+      const MAX_QUERY_ROUNDS = 2;
+
+      for (let round = 0; round < MAX_QUERY_ROUNDS; round++) {
+        const queryAction = action ? parseQueryAction(action) : null;
+        if (!queryAction || !action) break;
+
+        const queryResult = await runQuery(queryAction, currentContext);
+
+        currentContext = {
+          ...currentContext,
+          queryResult,
+        };
+
+        const queryDescription = action.description || 'Looking up data...';
+        const queryInfoMessage: ChatMessageType = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: `Querying: ${queryDescription}`,
+          timestamp: Date.now(),
+        };
+
+        currentMessages = [...currentMessages, queryInfoMessage];
+        setMessages(currentMessages);
+
+        rawResponse = await sendChatMessage(
+          apiKey,
+          currentMessages,
+          currentContext,
+          endpointUrl || undefined,
+          modelName || undefined,
+        );
+
+        action = parseAction(rawResponse);
+      }
+
       const stripped = stripActionBlock(rawResponse);
-      const displayContent = stripped || (action ? action.description : rawResponse);
+      const isWriteAction = action && action.type !== 'query';
+      const displayContent = stripped || (isWriteAction ? action!.description : rawResponse);
 
       const assistantMessage: ChatMessageType = {
         id: uuidv4(),
         role: 'assistant',
         content: displayContent,
         timestamp: Date.now(),
-        pendingAction: action || undefined,
-        actionStatus: action ? 'pending' : undefined,
+        pendingAction: isWriteAction ? action! : undefined,
+        actionStatus: isWriteAction ? 'pending' : undefined,
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
@@ -104,7 +143,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, apiKey, endpointUrl, modelName, messages, gatherContext]);
+  }, [input, isLoading, apiKey, endpointUrl, modelName, messages, gatherContext, runQuery]);
 
   const handleConfirmAction = useCallback(
     async (messageId: string) => {
@@ -239,8 +278,9 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               }}
             >
               Ask me anything about your budget, spending, accounts, or
-              categories. I can also help you set budgets, add transactions, and
-              create categories!
+              categories. I can also help you search transactions, analyze
+              spending patterns, compare budget vs actual, and find your top
+              payees!
             </Text>
           </View>
         )}

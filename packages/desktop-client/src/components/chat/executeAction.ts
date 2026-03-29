@@ -95,6 +95,10 @@ export function formatActionDetails(action: BudgetAction): string[] {
       if (typeof p.balance === 'number') lines.push(`Balance: ${formatCents(p.balance as number)}`);
       if (typeof p.offBudget === 'boolean') lines.push(`Off Budget: ${p.offBudget ? 'Yes' : 'No'}`);
       break;
+    case 'query':
+      lines.push(`Type: Data Query`);
+      lines.push(`Query: ${action.description}`);
+      break;
   }
 
   return lines;

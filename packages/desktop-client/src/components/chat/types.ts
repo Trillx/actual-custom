@@ -12,9 +12,70 @@ export type BudgetAction = {
     | 'set-budget-amount'
     | 'add-transaction'
     | 'create-category'
-    | 'create-account';
+    | 'create-account'
+    | 'query';
   description: string;
   params: Record<string, unknown>;
+};
+
+export type TransactionQueryFilters = {
+  startDate?: string;
+  endDate?: string;
+  payee?: string;
+  payeeId?: string;
+  category?: string;
+  categoryId?: string;
+  accountId?: string;
+  amountMin?: number;
+  amountMax?: number;
+  notes?: string;
+};
+
+export type SpendingSummary = {
+  groupBy: 'category' | 'payee' | 'month' | 'week' | 'quarter' | 'account';
+  startDate: string;
+  endDate: string;
+  items: Array<{
+    name: string;
+    total: number;
+    count: number;
+  }>;
+  grandTotal: number;
+};
+
+export type BudgetComparison = {
+  month: string;
+  categories: Array<{
+    name: string;
+    groupName?: string;
+    budgeted: number;
+    spent: number;
+    remaining: number;
+    percentUsed: number;
+    status: 'under' | 'on-track' | 'over';
+  }>;
+  totalBudgeted: number;
+  totalSpent: number;
+};
+
+export type QueryAction = {
+  queryType:
+    | 'search-transactions'
+    | 'spending-by-category'
+    | 'spending-by-payee'
+    | 'spending-by-month'
+    | 'budget-vs-actual'
+    | 'top-payees'
+    | 'top-categories'
+    | 'budget-month'
+    | 'budget-trend'
+    | 'spending-by-week'
+    | 'spending-by-quarter'
+    | 'spending-by-account';
+  filters?: TransactionQueryFilters;
+  month?: string;
+  months?: string[];
+  limit?: number;
 };
 
 export type BudgetContext = {
@@ -56,4 +117,5 @@ export type BudgetContext = {
     next_date?: string;
     amount?: number;
   }>;
+  queryResult?: string;
 };
