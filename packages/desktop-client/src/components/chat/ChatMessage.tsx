@@ -1,7 +1,6 @@
 import React from 'react';
 
 import { Button } from '@actual-app/components/button';
-import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
@@ -11,17 +10,18 @@ import type { ChatMessage as ChatMessageType } from './types';
 
 type ChatMessageProps = {
   message: ChatMessageType;
+  isNarrowWidth?: boolean;
   onConfirmAction?: (messageId: string) => void;
   onRejectAction?: (messageId: string) => void;
 };
 
 export function ChatMessage({
   message,
+  isNarrowWidth = false,
   onConfirmAction,
   onRejectAction,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
-  const { isNarrowWidth } = useResponsive();
 
   const maxBubbleWidth = isNarrowWidth ? '80%' : '85%';
 

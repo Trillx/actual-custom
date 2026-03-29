@@ -256,6 +256,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           <ChatMessage
             key={msg.id}
             message={msg}
+            isNarrowWidth={isNarrowWidth}
             onConfirmAction={handleConfirmAction}
             onRejectAction={handleRejectAction}
           />
