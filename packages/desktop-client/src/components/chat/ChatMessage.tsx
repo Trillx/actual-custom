@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
@@ -20,13 +21,18 @@ export function ChatMessage({
   onRejectAction,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const { isNarrowWidth } = useResponsive();
+
+  const maxBubbleWidth = isNarrowWidth ? '80%' : '85%';
 
   return (
     <View
       style={{
         alignSelf: isUser ? 'flex-end' : 'flex-start',
-        maxWidth: '85%',
+        maxWidth: maxBubbleWidth,
+        width: 'fit-content',
         marginBottom: 8,
+        minWidth: 0,
       }}
     >
       <View
@@ -35,20 +41,24 @@ export function ChatMessage({
             ? theme.buttonPrimaryBackground
             : theme.cardBackground,
           color: isUser ? theme.buttonPrimaryText : theme.pageText,
-          padding: '10px 14px',
+          padding: isNarrowWidth ? '8px 12px' : '10px 14px',
           borderRadius: 12,
           borderBottomRightRadius: isUser ? 4 : 12,
           borderBottomLeftRadius: isUser ? 12 : 4,
           border: isUser ? 'none' : `1px solid ${theme.cardBorder}`,
+          minWidth: 0,
+          overflow: 'hidden',
         }}
       >
         <Text
           style={{
-            fontSize: 13,
+            fontSize: isNarrowWidth ? 14 : 13,
             lineHeight: '1.5',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
+            overflowWrap: 'break-word',
             color: 'inherit',
+            minWidth: 0,
           }}
         >
           {message.content}
@@ -63,6 +73,8 @@ export function ChatMessage({
             backgroundColor: theme.noticeBackground,
             border: `1px solid ${theme.noticeBorder}`,
             borderRadius: 8,
+            minWidth: 0,
+            overflow: 'hidden',
           }}
         >
           <Text
@@ -83,6 +95,8 @@ export function ChatMessage({
                 color: theme.noticeText,
                 lineHeight: '1.6',
                 fontFamily: 'monospace',
+                overflowWrap: 'break-word',
+                wordBreak: 'break-word',
               }}
             >
               {line}

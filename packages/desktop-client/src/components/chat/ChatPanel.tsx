@@ -221,9 +221,10 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         style={{
           flex: 1,
           overflow: 'auto',
-          padding: 16,
+          padding: isNarrowWidth ? '12px 10px' : 16,
           display: 'flex',
           flexDirection: 'column',
+          minWidth: 0,
         }}
       >
         {messages.length === 0 && (
