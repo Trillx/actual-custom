@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -11,6 +11,38 @@ import { Setting } from './UI';
 
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
 
+const PROVIDERS = [
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    endpoint: '',
+    defaultModel: 'gpt-4o-mini',
+    keyPlaceholder: 'sk-...',
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    defaultModel: 'openai/gpt-4o-mini',
+    keyPlaceholder: 'sk-or-...',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    endpoint: '',
+    defaultModel: '',
+    keyPlaceholder: 'API key',
+  },
+] as const;
+
+type ProviderId = (typeof PROVIDERS)[number]['id'];
+
+function detectProvider(endpoint: string): ProviderId {
+  if (!endpoint) return 'openai';
+  if (endpoint.includes('openrouter.ai')) return 'openrouter';
+  return 'custom';
+}
+
 export function AISettings() {
   const { t } = useTranslation();
   const [apiKey, setApiKeyPref] = useLocalPref('ai.apiKey');
@@ -19,7 +51,24 @@ export function AISettings() {
   const [keyInput, setKeyInput] = useState(apiKey || '');
   const [urlInput, setUrlInput] = useState(endpointUrl || '');
   const [modelInput, setModelInput] = useState(modelName || '');
+  const [provider, setProvider] = useState<ProviderId>(
+    detectProvider(endpointUrl || ''),
+  );
   const [saved, setSaved] = useState(false);
+
+  const currentProvider = PROVIDERS.find(p => p.id === provider)!;
+
+  const handleProviderChange = useCallback(
+    (newProviderId: ProviderId) => {
+      setProvider(newProviderId);
+      const newProvider = PROVIDERS.find(p => p.id === newProviderId)!;
+      setUrlInput(newProvider.endpoint);
+      if (!modelInput || modelInput === currentProvider.defaultModel) {
+        setModelInput(newProvider.defaultModel);
+      }
+    },
+    [modelInput, currentProvider.defaultModel],
+  );
 
   const handleSave = () => {
     setApiKeyPref(keyInput.trim());
@@ -36,6 +85,7 @@ export function AISettings() {
     setKeyInput('');
     setUrlInput('');
     setModelInput('');
+    setProvider('openai');
     setSaved(false);
   };
 
@@ -43,15 +93,45 @@ export function AISettings() {
     <Setting>
       <Text>
         <Trans>
-          <strong>AI Assistant</strong> uses an OpenAI-compatible API to help you
-          understand your budget through natural language conversation. It can
-          also set budget amounts, add transactions, and create categories on
-          your behalf (with confirmation). Works with OpenAI, OpenRouter, and
-          other compatible providers. Enter your API key below to enable the
-          chat assistant.
+          <strong>AI Assistant</strong> helps you understand your budget through
+          conversation. It can read your financial data and perform actions like
+          setting budgets and adding transactions (with your confirmation).
         </Trans>
       </Text>
       <View style={{ gap: 10, width: '100%' }}>
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+            <Trans>Provider</Trans>
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {PROVIDERS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleProviderChange(p.id)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: `1px solid ${provider === p.id ? theme.buttonPrimaryBackground : theme.formInputBorder}`,
+                  backgroundColor:
+                    provider === p.id
+                      ? theme.buttonPrimaryBackground
+                      : theme.formInputBackground,
+                  color:
+                    provider === p.id
+                      ? theme.buttonPrimaryText
+                      : theme.pageText,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: provider === p.id ? 600 : 400,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </View>
+        </View>
+
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
             <Trans>API Key</Trans>
@@ -59,50 +139,68 @@ export function AISettings() {
           <Input
             value={keyInput}
             onChangeValue={setKeyInput}
-            placeholder={t('sk-... or sk-or-...')}
+            placeholder={t(currentProvider.keyPlaceholder)}
             type="password"
           />
         </View>
+
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
-            <Trans>Model Name (optional)</Trans>
+            <Trans>Model</Trans>
           </Text>
           <Input
             value={modelInput}
             onChangeValue={setModelInput}
-            placeholder={t('gpt-4o-mini')}
+            placeholder={currentProvider.defaultModel || t('Model name')}
           />
           <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
-            <Trans>
-              Leave empty to use gpt-4o-mini. For OpenRouter, use the full
-              model path (e.g., anthropic/claude-3.5-sonnet, google/gemini-pro).
-            </Trans>
+            {provider === 'openai' && (
+              <Trans>
+                Leave empty for gpt-4o-mini. Other options: gpt-4o, gpt-4-turbo.
+              </Trans>
+            )}
+            {provider === 'openrouter' && (
+              <Trans>
+                Browse models at openrouter.ai/models. Examples:
+                anthropic/claude-3.5-sonnet, google/gemini-pro,
+                meta-llama/llama-3-70b-instruct.
+              </Trans>
+            )}
+            {provider === 'custom' && (
+              <Trans>
+                Enter the model name supported by your endpoint.
+              </Trans>
+            )}
           </Text>
         </View>
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
-            <Trans>Endpoint URL (optional)</Trans>
-          </Text>
-          <Input
-            value={urlInput}
-            onChangeValue={setUrlInput}
-            placeholder={t('https://api.openai.com/v1/chat/completions')}
-          />
-          <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
-            <Trans>
-              Leave empty to use OpenAI. For OpenRouter, use
-              https://openrouter.ai/api/v1/chat/completions. Also supports
-              Azure OpenAI, local models, and other compatible APIs.
-            </Trans>
-          </Text>
-          <Text style={{ fontSize: 11, color: theme.warningText }}>
-            <Trans>
-              Privacy note: Your budget data (accounts, categories, transactions,
-              schedules) will be sent to the configured API endpoint when using the
-              chat assistant.
-            </Trans>
-          </Text>
-        </View>
+
+        {provider === 'custom' && (
+          <View style={{ gap: 4 }}>
+            <Text
+              style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}
+            >
+              <Trans>Endpoint URL</Trans>
+            </Text>
+            <Input
+              value={urlInput}
+              onChangeValue={setUrlInput}
+              placeholder={t('https://your-api.example.com/v1/chat/completions')}
+            />
+            <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
+              <Trans>
+                Must be an OpenAI-compatible chat completions endpoint.
+              </Trans>
+            </Text>
+          </View>
+        )}
+
+        <Text style={{ fontSize: 11, color: theme.warningText }}>
+          <Trans>
+            Privacy note: Your budget data will be sent to the selected provider
+            when using the chat assistant.
+          </Trans>
+        </Text>
+
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button onPress={handleSave} variant="primary">
             <Trans>Save</Trans>
