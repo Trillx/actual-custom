@@ -1,4 +1,4 @@
-import React, { useEffect, useEffectEvent, useRef } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useHref, useLocation } from 'react-router';
@@ -12,6 +12,7 @@ import * as undo from 'loot-core/platform/client/undo';
 
 import { UserAccessPage } from './admin/UserAccess/UserAccessPage';
 import { BankSyncStatus } from './BankSyncStatus';
+import { ChatPanel } from './chat';
 import { CommandBar } from './CommandBar';
 import { GlobalKeys } from './GlobalKeys';
 import { MobileBankSyncAccountEditPage } from './mobile/banksync/MobileBankSyncAccountEditPage';
@@ -88,6 +89,9 @@ function RouterBehaviors() {
 export function FinancesApp() {
   const { isNarrowWidth } = useResponsive();
   useMetaThemeColor(isNarrowWidth ? theme.mobileViewTheme : undefined);
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const toggleChat = useCallback(() => setChatOpen(prev => !prev), []);
 
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -203,7 +207,7 @@ export function FinancesApp() {
           flex: 1,
         }}
       >
-        <FloatableSidebar />
+        <FloatableSidebar onToggleChat={toggleChat} />
 
         <View
           style={{
@@ -384,6 +388,10 @@ export function FinancesApp() {
             </Routes>
           </ScrollProvider>
         </View>
+
+        {chatOpen && !isNarrowWidth && (
+          <ChatPanel onClose={() => setChatOpen(false)} />
+        )}
       </View>
     </View>
   );

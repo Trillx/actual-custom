@@ -14,6 +14,7 @@ import { css } from '@emotion/css';
 import { listen } from 'loot-core/platform/client/connection';
 import { isElectron } from 'loot-core/shared/environment';
 
+import { AISettings } from './AISettings';
 import { AuthSettings } from './AuthSettings';
 import { Backups } from './Backups';
 import { BudgetTypeSettings } from './BudgetTypeSettings';
@@ -249,6 +250,7 @@ export function Settings() {
         <AuthSettings />
         <EncryptionSettings />
         <BudgetTypeSettings />
+        <AISettings />
         {isElectron() && <Backups />}
         <ExportBudget />
         <AdvancedToggle>

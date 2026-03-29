@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { SvgAdd } from '@actual-app/components/icons/v1';
+import { SvgChatBubbleDots } from '@actual-app/components/icons/v1';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
@@ -25,7 +26,11 @@ import { useResizeObserver } from '@desktop-client/hooks/useResizeObserver';
 import { replaceModal } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
-export function Sidebar() {
+export function Sidebar({
+  onToggleChat,
+}: {
+  onToggleChat?: () => void;
+}) {
   const hasWindowButtons = !Platform.isBrowser && Platform.OS === 'mac';
 
   const { t } = useTranslation();
@@ -127,6 +132,15 @@ export function Sidebar() {
           <SecondaryButtons
             buttons={[
               { title: t('Add account'), Icon: SvgAdd, onClick: onAddAccount },
+              ...(onToggleChat
+                ? [
+                    {
+                      title: t('AI Chat'),
+                      Icon: SvgChatBubbleDots,
+                      onClick: onToggleChat,
+                    },
+                  ]
+                : []),
             ]}
           />
         </View>

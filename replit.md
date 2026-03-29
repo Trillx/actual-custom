@@ -38,6 +38,28 @@ The workflow starts the browser version of Actual Budget. It runs:
 - `packages/loot-core/src/` — Core budgeting engine
 - `packages/sync-server/src/` — Optional sync server
 
+## AI Chat Assistant
+
+The app includes an AI-powered budget chat assistant that lets users ask questions about their finances in natural language.
+
+### Architecture
+- **Chat Panel**: `packages/desktop-client/src/components/chat/` — sliding panel on the right side of the app
+- **AI Service**: `aiService.ts` — calls OpenAI API (gpt-4o-mini) directly from the browser
+- **Budget Context**: `useBudgetContext.ts` — gathers accounts, categories, budget month data, and recent transactions via the `send()` API bridge
+- **Settings**: `packages/desktop-client/src/components/settings/AISettings.tsx` — OpenAI API key configuration stored in `LocalPrefs`
+
+### How It Works
+1. User clicks "AI Chat" button in the sidebar (uses `SvgChatBubbleDots` icon)
+2. Chat panel opens on the right side of FinancesApp
+3. On each message, the system gathers current budget context (accounts, categories, budget for current month, last 30 transactions)
+4. Context + conversation history is sent to OpenAI's API
+5. Response is displayed in the chat panel
+
+### Configuration
+- API key is stored in `LocalPrefs['ai.apiKey']` (device-local, not synced)
+- Set via Settings > AI Assistant section
+- No backend proxy needed — calls go directly to OpenAI from the browser
+
 ## Notes
 
 - The app is fully local-first — data is stored in the browser's IndexedDB

@@ -9,7 +9,11 @@ import { useSidebar } from './SidebarProvider';
 
 import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
 
-export function FloatableSidebar() {
+export function FloatableSidebar({
+  onToggleChat,
+}: {
+  onToggleChat?: () => void;
+}) {
   const [floatingSidebar] = useGlobalPref('floatingSidebar');
 
   const sidebar = useSidebar();
@@ -55,7 +59,7 @@ export function FloatableSidebar() {
           'transform .5s, box-shadow .5s, border-radius .5s, bottom .5s',
       }}
     >
-      <Sidebar />
+      <Sidebar onToggleChat={onToggleChat} />
     </View>
   );
 }
