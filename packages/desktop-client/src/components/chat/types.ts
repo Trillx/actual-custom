@@ -3,6 +3,19 @@ export type ChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  pendingAction?: BudgetAction;
+  actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed';
+};
+
+export type BudgetAction = {
+  type:
+    | 'set-budget-amount'
+    | 'add-transaction'
+    | 'update-transaction'
+    | 'create-category'
+    | 'create-account';
+  description: string;
+  params: Record<string, unknown>;
 };
 
 export type BudgetContext = {
@@ -36,5 +49,11 @@ export type BudgetContext = {
     category_name?: string;
     account_name?: string;
     notes?: string;
+  }>;
+  schedules: Array<{
+    id: string;
+    name?: string;
+    next_date?: string;
+    amount?: number;
   }>;
 };

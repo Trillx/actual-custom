@@ -1,4 +1,6 @@
-import type { BudgetContext, ChatMessage } from './types';
+import type { BudgetAction, BudgetContext, ChatMessage } from './types';
+
+const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
 function formatCurrency(amount: number): string {
   return (amount / 100).toFixed(2);
@@ -12,13 +14,24 @@ function buildSystemPrompt(context: BudgetContext): string {
       'You help users understand their budget, spending, and finances. ' +
       'Be concise and helpful. Format currency amounts with $ and two decimal places. ' +
       'All amounts in the data are in cents (divide by 100 for dollars). ' +
-      'Negative amounts represent money spent/outflow, positive amounts represent income/inflow.',
+      'Negative amounts represent money spent/outflow, positive amounts represent income/inflow.\n\n' +
+      'IMPORTANT: When the user asks you to perform an action (set a budget amount, add a transaction, create a category, etc.), ' +
+      'you MUST respond with a JSON action block on its own line, wrapped like this:\n' +
+      '```action\n{"type":"<action-type>","description":"<human readable description>","params":{...}}\n```\n\n' +
+      'Available action types:\n' +
+      '- "set-budget-amount": params: {month, categoryId, amount} (amount in cents)\n' +
+      '- "add-transaction": params: {accountId, date, amount, payee_name, category_id, notes} (amount in cents, negative for expenses)\n' +
+      '- "create-category": params: {name, group_id}\n' +
+      '- "create-account": params: {name, balance, offBudget} (balance in cents)\n\n' +
+      'After the action block, add a brief explanation of what will happen. ' +
+      'The user will need to confirm the action before it executes. ' +
+      'Only include ONE action per response. For read-only questions, just answer normally without action blocks.',
   );
 
   if (context.accounts.length > 0) {
     parts.push('\n\nAccounts:');
     for (const acct of context.accounts) {
-      parts.push(`- ${acct.name}: $${formatCurrency(acct.balance)}`);
+      parts.push(`- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`);
     }
   }
 
@@ -27,9 +40,9 @@ function buildSystemPrompt(context: BudgetContext): string {
     for (const group of context.categoryGroups) {
       const cats = context.categories.filter(c => c.group_id === group.id);
       if (cats.length > 0) {
-        parts.push(`${group.name}:`);
+        parts.push(`${group.name} (id: ${group.id}):`);
         for (const cat of cats) {
-          parts.push(`  - ${cat.name}`);
+          parts.push(`  - ${cat.name} (id: ${cat.id})`);
         }
       }
     }
@@ -52,6 +65,16 @@ function buildSystemPrompt(context: BudgetContext): string {
     }
   }
 
+  if (context.schedules.length > 0) {
+    parts.push('\n\nScheduled Transactions:');
+    for (const sched of context.schedules) {
+      const amount = sched.amount != null ? `$${formatCurrency(sched.amount)}` : 'unknown';
+      parts.push(
+        `  - ${sched.name || 'Unnamed'}: next ${sched.next_date || 'N/A'}, amount ${amount}`,
+      );
+    }
+  }
+
   if (context.recentTransactions.length > 0) {
     parts.push('\n\nRecent Transactions (last 30):');
     for (const tx of context.recentTransactions.slice(0, 30)) {
@@ -68,12 +91,44 @@ function buildSystemPrompt(context: BudgetContext): string {
   return parts.join('\n');
 }
 
+export function parseAction(content: string): BudgetAction | null {
+  const actionMatch = content.match(/```action\s*\n([\s\S]*?)\n```/);
+  if (!actionMatch) return null;
+
+  try {
+    const parsed = JSON.parse(actionMatch[1]) as BudgetAction;
+    if (
+      parsed.type &&
+      parsed.description &&
+      parsed.params &&
+      [
+        'set-budget-amount',
+        'add-transaction',
+        'update-transaction',
+        'create-category',
+        'create-account',
+      ].includes(parsed.type)
+    ) {
+      return parsed;
+    }
+  } catch {
+    // Invalid JSON in action block
+  }
+  return null;
+}
+
+export function stripActionBlock(content: string): string {
+  return content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+}
+
 export async function sendChatMessage(
   apiKey: string,
   messages: ChatMessage[],
   context: BudgetContext,
+  endpointUrl?: string,
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(context);
+  const endpoint = endpointUrl?.trim() || DEFAULT_ENDPOINT;
 
   const apiMessages = [
     { role: 'system' as const, content: systemPrompt },
@@ -85,7 +140,7 @@ export async function sendChatMessage(
       })),
   ];
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

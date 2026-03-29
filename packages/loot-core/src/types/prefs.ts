@@ -91,7 +91,7 @@ export type LocalPrefs = Partial<{
   sidebarWidth: number;
   'mobile.showSpentColumn': boolean;
   'ai.apiKey': string;
-  'ai.chatOpen': boolean;
+  'ai.endpointUrl': string;
 }>;
 
 export type Theme = 'light' | 'dark' | 'auto' | 'midnight' | string;

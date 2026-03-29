@@ -9,12 +9,13 @@ export function useBudgetContext() {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    const [accountsRaw, categoriesRaw, categoryGroupsRaw, payeesRaw] =
+    const [accountsRaw, categoriesRaw, categoryGroupsRaw, payeesRaw, schedulesRaw] =
       await Promise.all([
         send('api/accounts-get'),
         send('api/categories-get', { grouped: false }),
         send('api/category-groups-get'),
         send('api/payees-get'),
+        send('api/schedules-get').catch(() => []),
       ]);
 
     const accounts = (
@@ -75,6 +76,21 @@ export function useBudgetContext() {
     for (const a of accounts) {
       accountMap.set(a.id, a.name);
     }
+
+    const schedules = (
+      schedulesRaw as Array<{
+        id: string;
+        name?: string;
+        next_date?: string;
+        _amount?: number;
+        _payee?: string;
+      }>
+    ).map(s => ({
+      id: s.id,
+      name: s.name || (s._payee ? payeeMap.get(s._payee) : undefined),
+      next_date: s.next_date,
+      amount: s._amount,
+    }));
 
     let budgetMonth: BudgetContext['budgetMonth'] = undefined;
     try {
@@ -175,6 +191,7 @@ export function useBudgetContext() {
       currentMonth,
       budgetMonth,
       recentTransactions,
+      schedules,
     };
   }, []);
 

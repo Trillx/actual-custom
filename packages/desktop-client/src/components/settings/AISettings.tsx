@@ -14,18 +14,23 @@ import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
 export function AISettings() {
   const { t } = useTranslation();
   const [apiKey, setApiKeyPref] = useLocalPref('ai.apiKey');
-  const [inputValue, setInputValue] = useState(apiKey || '');
+  const [endpointUrl, setEndpointUrlPref] = useLocalPref('ai.endpointUrl');
+  const [keyInput, setKeyInput] = useState(apiKey || '');
+  const [urlInput, setUrlInput] = useState(endpointUrl || '');
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
-    setApiKeyPref(inputValue.trim());
+    setApiKeyPref(keyInput.trim());
+    setEndpointUrlPref(urlInput.trim());
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const handleClear = () => {
     setApiKeyPref('');
-    setInputValue('');
+    setEndpointUrlPref('');
+    setKeyInput('');
+    setUrlInput('');
     setSaved(false);
   };
 
@@ -34,19 +39,41 @@ export function AISettings() {
       <Text>
         <Trans>
           <strong>AI Assistant</strong> uses OpenAI to help you understand your
-          budget through natural language conversation. Enter your OpenAI API key
-          below to enable the chat assistant in the sidebar.
+          budget through natural language conversation. It can also set budget
+          amounts, add transactions, and create categories on your behalf (with
+          confirmation). Enter your OpenAI API key below to enable the chat
+          assistant in the sidebar.
         </Trans>
       </Text>
       <View style={{ gap: 10, width: '100%' }}>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+            <Trans>API Key</Trans>
+          </Text>
           <Input
-            value={inputValue}
-            onChangeValue={setInputValue}
+            value={keyInput}
+            onChangeValue={setKeyInput}
             placeholder={t('sk-...')}
             type="password"
-            style={{ flex: 1 }}
           />
+        </View>
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+            <Trans>Endpoint URL (optional)</Trans>
+          </Text>
+          <Input
+            value={urlInput}
+            onChangeValue={setUrlInput}
+            placeholder={t('https://api.openai.com/v1/chat/completions')}
+          />
+          <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
+            <Trans>
+              Leave empty to use OpenAI. Set a custom URL for compatible APIs
+              (e.g., Azure OpenAI, local models).
+            </Trans>
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button onPress={handleSave} variant="primary">
             <Trans>Save</Trans>
           </Button>
@@ -58,12 +85,15 @@ export function AISettings() {
         </View>
         {saved && (
           <Text style={{ color: theme.noticeText, fontSize: 12 }}>
-            <Trans>API key saved successfully.</Trans>
+            <Trans>Settings saved successfully.</Trans>
           </Text>
         )}
         {apiKey && !saved && (
           <Text style={{ color: theme.pageTextSubdued, fontSize: 12 }}>
-            <Trans>API key is configured. Use the chat icon in the sidebar to start a conversation.</Trans>
+            <Trans>
+              API key is configured. Use the chat icon in the sidebar to start a
+              conversation.
+            </Trans>
           </Text>
         )}
       </View>

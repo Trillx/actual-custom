@@ -389,7 +389,7 @@ export function FinancesApp() {
           </ScrollProvider>
         </View>
 
-        {chatOpen && !isNarrowWidth && (
+        {chatOpen && (
           <ChatPanel onClose={() => setChatOpen(false)} />
         )}
       </View>

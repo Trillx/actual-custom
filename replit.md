@@ -50,13 +50,27 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 
 ### How It Works
 1. User clicks "AI Chat" button in the sidebar (uses `SvgChatBubbleDots` icon)
-2. Chat panel opens on the right side of FinancesApp
-3. On each message, the system gathers current budget context (accounts, categories, budget for current month, last 30 transactions)
-4. Context + conversation history is sent to OpenAI's API
+2. Chat panel opens on the right side of FinancesApp (or full-screen overlay on mobile)
+3. On each message, the system gathers current budget context (accounts, categories, budget for current month, last 30 transactions, scheduled transactions)
+4. Context + conversation history is sent to OpenAI's API (or custom endpoint)
 5. Response is displayed in the chat panel
+6. If the AI proposes a write action (set budget, add transaction, create category/account), a confirmation card is shown
+7. User must explicitly confirm or cancel before any write operation executes
+
+### Write Actions (with confirmation)
+The AI can propose these actions, each requiring user confirmation:
+- `set-budget-amount` — Set budget for a category in a given month
+- `add-transaction` — Add a new transaction to an account
+- `create-category` — Create a new budget category
+- `create-account` — Create a new account
+
+### Chat State
+- Messages persist in a session store (`chatState.ts`) — closing and reopening the panel preserves conversation history within the session
+- State is module-level (not localStorage), so it resets on page reload
 
 ### Configuration
 - API key is stored in `LocalPrefs['ai.apiKey']` (device-local, not synced)
+- Optional custom endpoint URL in `LocalPrefs['ai.endpointUrl']` for Azure OpenAI, local models, etc.
 - Set via Settings > AI Assistant section
 - No backend proxy needed — calls go directly to OpenAI from the browser
 
