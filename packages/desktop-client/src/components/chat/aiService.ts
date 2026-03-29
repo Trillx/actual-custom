@@ -37,7 +37,10 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "copy-previous-month": params: {month} — Copy all budget values from the previous month to the specified month (YYYY-MM format).\n' +
       '- "set-budget-average": params: {month, numMonths} — Set all budget amounts to the average of the last N months. numMonths must be 3, 6, or 12.\n' +
       '- "bulk-set-budget": params: {month, budgets} — Set budget amounts for multiple categories at once. budgets is an array of {categoryId, categoryName, amount} (amount in cents).\n' +
-      '- "transfer-budget": params: {month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName} — Transfer budget amount (in cents) from one category to another.\n\n' +
+      '- "transfer-budget": params: {month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName} — Transfer budget amount (in cents) from one category to another.\n' +
+      '- "create-goal": params: {name, targetAmount, targetDate, associatedAccountIds?, associatedCategoryIds?} — Create a savings goal. targetAmount in cents. targetDate as "YYYY-MM-DD".\n' +
+      '- "update-goal": params: {goalId, name?, targetAmount?, targetDate?, associatedAccountIds?, associatedCategoryIds?} — Update an existing goal.\n' +
+      '- "delete-goal": params: {goalId, goalName} — Delete a savings goal.\n\n' +
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
@@ -82,6 +85,17 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- User asks "Any unusual spending this month?" → use detect-anomalies\n' +
       '- User asks "Am I spending more on dining lately?" → use spending-trend with category "Dining"\n' +
       '- User asks "How does this month compare to my average?" → use historical-comparison\n\n' +
+      'GOAL TRACKING & SPENDING FORECASTING:\n' +
+      'You can help users set and track savings goals, project spending, and analyze what-if scenarios.\n' +
+      '- When a user says "I want to save $X by [date]", create a goal using the create-goal action.\n' +
+      '- When asked "Am I on track?" or about goal progress, use the goal progress data in context to give a clear answer.\n' +
+      '- When asked "Will I stay within budget this month?", use the spending projection data to give an extrapolated estimate.\n' +
+      '- When asked about category spending projections (e.g., "How much will I spend on groceries?"), use the category forecast data.\n' +
+      '- When asked about credit card payoff, calculate based on the account balance and recent payment patterns.\n' +
+      '- When asked "What if I cut [category] by X%?", calculate the monthly and annual savings, and impact on goals.\n' +
+      '- When mentioning projections, always state assumptions clearly (e.g., "Based on 15 days of spending at $X/day").\n' +
+      '- When the user asks about spending and has active goals, proactively mention relevant goal progress.\n' +
+      '- Goals persist across sessions. Users can create, update, and delete goals.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
@@ -177,6 +191,31 @@ function buildSystemPrompt(context: BudgetContext): string {
     }
   }
 
+  if (context.goals && context.goals.length > 0) {
+    parts.push('\n\nSavings Goals:');
+    for (const g of context.goals) {
+      parts.push(
+        `- ${g.name} (id: ${g.id}): target $${(g.targetAmount / 100).toFixed(2)} by ${g.targetDate}`,
+      );
+    }
+  }
+
+  if (context.goalProgress) {
+    parts.push(`\n\nGoal Progress Analysis:\n${context.goalProgress}`);
+  }
+
+  if (context.spendingProjection) {
+    parts.push(`\n\nMonthly Spending Projection:\n${context.spendingProjection}`);
+  }
+
+  if (context.categoryForecasts) {
+    parts.push(`\n\nCategory Forecasts:\n${context.categoryForecasts}`);
+  }
+
+  if (context.debtAccounts) {
+    parts.push(`\n\n${context.debtAccounts}`);
+  }
+
   if (context.queryResult) {
     parts.push(`\n\nQuery Result (from your previous query):\n${context.queryResult}`);
   }
@@ -214,6 +253,9 @@ export function parseAction(content: string): BudgetAction | null {
         'query',
         'close-account',
         'reopen-account',
+        'create-goal',
+        'update-goal',
+        'delete-goal',
       ].includes(parsed.type)
     ) {
       return parsed;

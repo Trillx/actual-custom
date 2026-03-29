@@ -27,7 +27,10 @@ export type BudgetAction = {
     | 'copy-previous-month'
     | 'set-budget-average'
     | 'bulk-set-budget'
-    | 'transfer-budget';
+    | 'transfer-budget'
+    | 'create-goal'
+    | 'update-goal'
+    | 'delete-goal';
   description: string;
   params: Record<string, unknown>;
 };
@@ -199,4 +202,16 @@ export type BudgetContext = {
     deviations: number;
   }>;
   queryResult?: string;
+  goals?: Array<{
+    id: string;
+    name: string;
+    targetAmount: number;
+    targetDate: string;
+    associatedAccountIds?: string[];
+    associatedCategoryIds?: string[];
+  }>;
+  goalProgress?: string;
+  spendingProjection?: string;
+  categoryForecasts?: string;
+  debtAccounts?: string;
 };

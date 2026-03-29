@@ -1,5 +1,6 @@
 import { send } from 'loot-core/platform/client/connection';
 
+import { createGoal, deleteGoal, updateGoal } from './goalStorage';
 import type { BudgetAction } from './types';
 
 function validateSetBudgetAmount(params: Record<string, unknown>): {
@@ -269,6 +270,64 @@ function validateTransferBudget(params: Record<string, unknown>): {
   };
 }
 
+function validateDateString(date: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date).getTime());
+}
+
+function validateCreateGoal(params: Record<string, unknown>): {
+  name: string;
+  targetAmount: number;
+  targetDate: string;
+  associatedAccountIds?: string[];
+  associatedCategoryIds?: string[];
+} {
+  const { name, targetAmount, targetDate, associatedAccountIds, associatedCategoryIds } = params;
+  if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
+  if (typeof targetAmount !== 'number' || !isFinite(targetAmount) || targetAmount <= 0) throw new Error('"targetAmount" must be a positive number (in cents).');
+  if (typeof targetDate !== 'string' || !validateDateString(targetDate)) throw new Error('"targetDate" must be a valid date in YYYY-MM-DD format.');
+  return {
+    name,
+    targetAmount: Math.round(targetAmount),
+    targetDate,
+    associatedAccountIds: Array.isArray(associatedAccountIds) ? associatedAccountIds.filter((id): id is string => typeof id === 'string') : undefined,
+    associatedCategoryIds: Array.isArray(associatedCategoryIds) ? associatedCategoryIds.filter((id): id is string => typeof id === 'string') : undefined,
+  };
+}
+
+function validateUpdateGoal(params: Record<string, unknown>): {
+  goalId: string;
+  name?: string;
+  targetAmount?: number;
+  targetDate?: string;
+  associatedAccountIds?: string[];
+  associatedCategoryIds?: string[];
+} {
+  const { goalId, name, targetAmount, targetDate, associatedAccountIds, associatedCategoryIds } = params;
+  if (typeof goalId !== 'string' || !goalId) throw new Error('Missing or invalid "goalId" parameter.');
+  if (typeof targetAmount === 'number' && (!isFinite(targetAmount) || targetAmount <= 0)) throw new Error('"targetAmount" must be a positive number (in cents).');
+  if (typeof targetDate === 'string' && !validateDateString(targetDate)) throw new Error('"targetDate" must be a valid date in YYYY-MM-DD format.');
+  return {
+    goalId,
+    name: typeof name === 'string' && name ? name : undefined,
+    targetAmount: typeof targetAmount === 'number' ? Math.round(targetAmount) : undefined,
+    targetDate: typeof targetDate === 'string' ? targetDate : undefined,
+    associatedAccountIds: Array.isArray(associatedAccountIds) ? associatedAccountIds.filter((id): id is string => typeof id === 'string') : undefined,
+    associatedCategoryIds: Array.isArray(associatedCategoryIds) ? associatedCategoryIds.filter((id): id is string => typeof id === 'string') : undefined,
+  };
+}
+
+function validateDeleteGoal(params: Record<string, unknown>): {
+  goalId: string;
+  goalName: string;
+} {
+  const { goalId, goalName } = params;
+  if (typeof goalId !== 'string' || !goalId) throw new Error('Missing or invalid "goalId" parameter.');
+  return {
+    goalId,
+    goalName: typeof goalName === 'string' ? goalName : '',
+  };
+}
+
 function formatCents(amount: number): string {
   return '$' + (amount / 100).toFixed(2);
 }
@@ -394,6 +453,23 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'reopen-account':
       lines.push(`Type: Reopen Account`);
       lines.push(`Account ID: ${p.accountId}`);
+      break;
+    case 'create-goal':
+      lines.push(`Type: Create Savings Goal`);
+      if (p.name) lines.push(`Name: ${p.name}`);
+      if (typeof p.targetAmount === 'number') lines.push(`Target: ${formatCents(p.targetAmount as number)}`);
+      if (p.targetDate) lines.push(`Target Date: ${p.targetDate}`);
+      break;
+    case 'update-goal':
+      lines.push(`Type: Update Savings Goal`);
+      if (p.goalId) lines.push(`Goal ID: ${p.goalId}`);
+      if (p.name) lines.push(`New Name: ${p.name}`);
+      if (typeof p.targetAmount === 'number') lines.push(`New Target: ${formatCents(p.targetAmount as number)}`);
+      if (p.targetDate) lines.push(`New Target Date: ${p.targetDate}`);
+      break;
+    case 'delete-goal':
+      lines.push(`Type: Delete Savings Goal`);
+      if (p.goalName) lines.push(`Goal: ${p.goalName}`);
       break;
   }
 
@@ -578,6 +654,29 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         currencyCode: 'USD',
       });
       return `Transferred ${formatCents(validated.amount)} from "${validated.fromCategoryName}" to "${validated.toCategoryName}" successfully.`;
+    }
+    case 'create-goal': {
+      const validated = validateCreateGoal(action.params);
+      const goal = createGoal(validated);
+      return `Savings goal "${goal.name}" created successfully. Target: ${formatCents(goal.targetAmount)} by ${goal.targetDate}.`;
+    }
+    case 'update-goal': {
+      const validated = validateUpdateGoal(action.params);
+      const updates: Record<string, unknown> = {};
+      if (validated.name !== undefined) updates.name = validated.name;
+      if (validated.targetAmount !== undefined) updates.targetAmount = validated.targetAmount;
+      if (validated.targetDate !== undefined) updates.targetDate = validated.targetDate;
+      if (validated.associatedAccountIds !== undefined) updates.associatedAccountIds = validated.associatedAccountIds;
+      if (validated.associatedCategoryIds !== undefined) updates.associatedCategoryIds = validated.associatedCategoryIds;
+      const updated = updateGoal(validated.goalId, updates);
+      if (!updated) throw new Error('Goal not found.');
+      return `Savings goal "${updated.name}" updated successfully.`;
+    }
+    case 'delete-goal': {
+      const validated = validateDeleteGoal(action.params);
+      const deleted = deleteGoal(validated.goalId);
+      if (!deleted) throw new Error('Goal not found.');
+      return `Savings goal "${validated.goalName}" deleted successfully.`;
     }
     default:
       throw new Error(`Unknown action type: ${action.type}`);

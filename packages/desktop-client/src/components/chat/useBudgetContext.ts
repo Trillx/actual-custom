@@ -2,6 +2,14 @@ import { useCallback } from 'react';
 
 import { send } from 'loot-core/platform/client/connection';
 
+import {
+  calculateGoalProgress,
+  forecastByCategory,
+  formatGoalProgressSummary,
+  formatProjectionSummary,
+  projectMonthlySpending,
+} from './forecastEngine';
+import { getGoals, setBudgetId } from './goalStorage';
 import { executeQuery } from './queryHelpers';
 import {
   detectAnomalies,
@@ -22,6 +30,12 @@ export function useBudgetContext() {
         send('api/payees-get'),
         send('api/schedules-get').catch(() => []),
       ]);
+
+    const rawAccounts = accountsRaw as Array<{ id: string }>;
+    if (rawAccounts.length > 0) {
+      const budgetFingerprint = rawAccounts.map(a => a.id).sort().join(':');
+      setBudgetId(budgetFingerprint);
+    }
 
     const allAccounts = accountsRaw as Array<{
       id: string;
@@ -263,7 +277,16 @@ export function useBudgetContext() {
       // Insights may not be available
     }
 
-    return {
+    const goals = getGoals().map(g => ({
+      id: g.id,
+      name: g.name,
+      targetAmount: g.targetAmount,
+      targetDate: g.targetDate,
+      associatedAccountIds: g.associatedAccountIds,
+      associatedCategoryIds: g.associatedCategoryIds,
+    }));
+
+    const baseContext: BudgetContext = {
       accounts,
       closedAccounts,
       payees,
@@ -275,6 +298,71 @@ export function useBudgetContext() {
       schedules,
       subscriptionInsights,
       anomalyInsights,
+      goals: goals.length > 0 ? goals : undefined,
+    };
+
+    let monthlyNetSavings = 0;
+    if (budgetMonth) {
+      monthlyNetSavings = budgetMonth.totalBudgeted + budgetMonth.totalSpent;
+    }
+
+    let goalProgress: string | undefined;
+    if (goals.length > 0) {
+      const fullGoals = getGoals();
+      const progressItems = fullGoals.map(g =>
+        calculateGoalProgress(g, baseContext, monthlyNetSavings),
+      );
+      goalProgress = progressItems.map(formatGoalProgressSummary).join('\n\n');
+    }
+
+    const projection = projectMonthlySpending(baseContext);
+    const spendingProjection = projection
+      ? formatProjectionSummary(projection)
+      : undefined;
+
+    const catForecasts = forecastByCategory(baseContext);
+    let categoryForecasts: string | undefined;
+    if (catForecasts.length > 0) {
+      const overBudget = catForecasts.filter(cf => cf.status === 'over');
+      const lines: string[] = [];
+      if (overBudget.length > 0) {
+        lines.push('Categories projected to go over budget:');
+        for (const cf of overBudget) {
+          lines.push(
+            `- ${cf.categoryName}: spent $${(cf.spentSoFar / 100).toFixed(2)} so far, projected $${(cf.projectedTotal / 100).toFixed(2)} (budget $${(cf.budgeted / 100).toFixed(2)}, over by $${(Math.abs(cf.projectedOverUnder) / 100).toFixed(2)})`,
+          );
+        }
+      }
+      const onTrack = catForecasts.filter(cf => cf.status === 'on-track');
+      if (onTrack.length > 0) {
+        lines.push('Categories on track:');
+        for (const cf of onTrack) {
+          lines.push(
+            `- ${cf.categoryName}: projected $${(cf.projectedTotal / 100).toFixed(2)} of $${(cf.budgeted / 100).toFixed(2)} budget`,
+          );
+        }
+      }
+      if (lines.length > 0) categoryForecasts = lines.join('\n');
+    }
+
+    let debtAccounts: string | undefined;
+    const debtAccts = accounts.filter(a => a.balance < 0);
+    if (debtAccts.length > 0) {
+      const lines = ['Accounts with negative balances (potential debt):'];
+      for (const da of debtAccts) {
+        lines.push(
+          `- ${da.name}: balance -$${(Math.abs(da.balance) / 100).toFixed(2)}`,
+        );
+      }
+      debtAccounts = lines.join('\n');
+    }
+
+    return {
+      ...baseContext,
+      goalProgress,
+      spendingProjection,
+      categoryForecasts,
+      debtAccounts,
     };
   }, []);
 

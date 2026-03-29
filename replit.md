@@ -76,9 +76,22 @@ The AI can query data using these query types:
 
 Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint for server-side transaction filtering and the `api/budget-month` endpoint for budget data. The flow is: AI returns a query action → ChatPanel auto-executes it → result is injected into context → AI summarizes the result for the user.
 
+### Goal Tracking & Spending Forecasting
+The AI assistant supports forward-looking financial insights:
+- **Goal Storage**: `goalStorage.ts` — localStorage-based CRUD for savings goals, scoped per budget file
+- **Forecast Engine**: `forecastEngine.ts` — monthly spending projection, category-level forecasts, debt payoff calculator, what-if scenario engine, and goal progress calculator
+- **Goal Actions**: `create-goal`, `update-goal`, `delete-goal` write actions with confirmation cards
+- **Context Integration**: `useBudgetContext.ts` automatically computes and injects goal progress, spending projections, category forecasts, and debt account info into AI context
+- Users can say "I want to save $5,000 by December" and the AI creates a goal and tracks progress
+- Monthly spending projections extrapolate based on daily spending rate with clear assumptions stated
+- Category-level forecasts identify which categories are likely to go over budget
+- Debt payoff timelines based on account balances with negative balances
+- What-if scenarios (e.g., "cut dining by 50%") show projected impact on budget and goals
+
 ### Chat State
 - Messages persist in a session store (`chatState.ts`) — closing and reopening the panel preserves conversation history within the session
 - State is module-level (not localStorage), so it resets on page reload
+- Goals persist across sessions via localStorage (scoped per budget file)
 
 ### Configuration
 - API key is stored in `LocalPrefs['ai.apiKey']` (device-local, not synced)
