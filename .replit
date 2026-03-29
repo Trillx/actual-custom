@@ -38,8 +38,8 @@ localPort = 5001
 externalPort = 3002
 
 [deployment]
-deploymentTarget = "static"
-run = ["bash", "start-dev.sh"]
+deploymentTarget = "autoscale"
+run = ["node", "serve-prod.js"]
 build = ["bash", "build-prod.sh"]
 publicDir = "packages/desktop-client/build"
 
