@@ -47,7 +47,6 @@ export function ChatMessage({
           borderBottomLeftRadius: isUser ? 12 : 4,
           border: isUser ? 'none' : `1px solid ${theme.cardBorder}`,
           minWidth: 0,
-          overflow: 'hidden',
         }}
       >
         <Text

@@ -254,6 +254,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           flex: 1,
           overflow: 'auto',
           padding: isNarrowWidth ? '12px 10px' : 16,
+          paddingBottom: isNarrowWidth ? 20 : 16,
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,

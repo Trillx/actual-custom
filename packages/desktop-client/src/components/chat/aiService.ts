@@ -345,7 +345,7 @@ export async function sendChatMessage(
     body: JSON.stringify({
       model: modelName?.trim() || 'gpt-4o-mini',
       messages: apiMessages,
-      max_tokens: 1024,
+      max_tokens: 2048,
       temperature: 0.7,
     }),
   });
