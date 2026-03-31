@@ -40,6 +40,7 @@ export function ChatMessage({
         maxWidth: maxBubbleWidth,
         width: 'fit-content',
         marginBottom: showTimestamp ? 10 : 4,
+        flexShrink: 0,
       }}
     >
       <View

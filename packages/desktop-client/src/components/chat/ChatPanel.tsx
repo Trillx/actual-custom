@@ -49,6 +49,7 @@ function TypingIndicator() {
         flexDirection: 'row',
         gap: 4,
         alignItems: 'center',
+        flexShrink: 0,
       }}
     >
       {[0, 1, 2].map(i => (
@@ -437,6 +438,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 8,
+              flexShrink: 0,
             }}
           >
             <Text style={{ fontSize: 12, color: theme.errorText, flex: 1 }}>
