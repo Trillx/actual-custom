@@ -92,12 +92,14 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
 
     const bulletMatch = trimmed.match(/^[-*•]\s+(.+)/);
     if (bulletMatch) {
+      if (listItems.length > 0 && listItems[0].ordered) flushList();
       listItems.push({ content: bulletMatch[1], ordered: false });
       continue;
     }
 
     const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
     if (numberedMatch) {
+      if (listItems.length > 0 && !listItems[0].ordered) flushList();
       listItems.push({
         content: numberedMatch[2],
         ordered: true,
