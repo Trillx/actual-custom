@@ -197,7 +197,9 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         err instanceof Error ? err.message : 'Failed to get AI response',
       );
     } finally {
-      setIsLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [input, isLoading, apiKey, endpointUrl, modelName, messages, gatherContext, runQuery]);
 
