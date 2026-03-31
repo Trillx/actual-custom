@@ -123,7 +123,11 @@
     </style>
   </head>
   <body>
-    <script src="/coi-serviceworker.js"></script>
+    <script>
+      if (!window.crossOriginIsolated && !window.SharedArrayBuffer) {
+        localStorage.setItem('SharedArrayBufferOverride', 'true');
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
   </body>
