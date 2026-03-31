@@ -239,5 +239,5 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
 
   flushList();
 
-  return <div style={{ ...style, overflow: 'hidden', minWidth: 0, maxWidth: '100%' }}>{elements}</div>;
+  return <div style={{ ...style, overflowWrap: 'anywhere' }}>{elements}</div>;
 }

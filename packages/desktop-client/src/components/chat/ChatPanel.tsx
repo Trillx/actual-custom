@@ -344,13 +344,10 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       <View
         style={{
           flex: 1,
-          overflow: 'auto',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           padding: isNarrowWidth ? '12px 10px' : '12px 14px',
           paddingBottom: isNarrowWidth ? 24 : 16,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          maxWidth: '100%',
         }}
       >
         {messages.length === 0 && (

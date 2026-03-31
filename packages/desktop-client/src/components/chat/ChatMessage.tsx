@@ -40,8 +40,6 @@ export function ChatMessage({
         maxWidth: maxBubbleWidth,
         width: 'fit-content',
         marginBottom: showTimestamp ? 10 : 4,
-        minWidth: 0,
-        overflow: 'hidden',
       }}
     >
       <View
@@ -55,9 +53,7 @@ export function ChatMessage({
           borderBottomRightRadius: isUser ? 4 : 16,
           borderBottomLeftRadius: isUser ? 16 : 4,
           border: isUser ? 'none' : `1px solid ${theme.cardBorder}`,
-          minWidth: 0,
-          overflow: 'hidden',
-          maxWidth: '100%',
+          overflowWrap: 'anywhere',
         }}
       >
         {isUser ? (
