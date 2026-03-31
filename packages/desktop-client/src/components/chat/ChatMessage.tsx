@@ -255,9 +255,16 @@ export function shouldShowTimestamp(
   index: number,
 ): boolean {
   const current = messages[index];
+  const prev = messages[index - 1];
   const next = messages[index + 1];
-  if (!next) return true;
-  if (next.role !== current.role) return true;
-  const gap = next.timestamp - current.timestamp;
-  return gap > 2 * 60 * 1000;
+
+  const isFirstInGroup =
+    !prev || prev.role !== current.role ||
+    current.timestamp - prev.timestamp > 2 * 60 * 1000;
+
+  const isLastInGroup =
+    !next || next.role !== current.role ||
+    next.timestamp - current.timestamp > 2 * 60 * 1000;
+
+  return isFirstInGroup || isLastInGroup;
 }

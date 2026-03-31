@@ -250,6 +250,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   }, []);
 
   const handleClearChat = useCallback(() => {
+    if (!window.confirm('Clear chat history?')) return;
     requestIdRef.current++;
     setMessages([]);
     clearSessionMessages();
