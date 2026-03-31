@@ -204,6 +204,7 @@ function FinancesAppInner() {
           flexDirection: 'row',
           backgroundColor: theme.pageBackground,
           flex: 1,
+          overflow: 'hidden',
         }}
       >
         <FloatableSidebar onToggleChat={toggleChat} />
@@ -214,7 +215,7 @@ function FinancesAppInner() {
             backgroundColor: theme.pageBackground,
             flex: 1,
             overflow: 'hidden',
-            width: '100%',
+            minWidth: 0,
           }}
         >
           <ScrollProvider

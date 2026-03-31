@@ -288,11 +288,14 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       }
     : {
         width: 380,
+        minWidth: 380,
+        maxWidth: 380,
         height: '100%',
         borderLeft: `1px solid ${theme.tableBorder}`,
         backgroundColor: theme.pageBackground,
         display: 'flex',
         flexDirection: 'column' as const,
+        overflow: 'hidden',
       };
 
   return (
@@ -347,6 +350,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
+          maxWidth: '100%',
         }}
       >
         {messages.length === 0 && (
