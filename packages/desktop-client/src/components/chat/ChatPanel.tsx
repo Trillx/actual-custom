@@ -2,15 +2,20 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@actual-app/components/button';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
-import { SvgClose } from '@actual-app/components/icons/v1';
+import {
+  SvgClose,
+  SvgTrash,
+  SvgSend,
+} from '@actual-app/components/icons/v1';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { v4 as uuidv4 } from 'uuid';
 
 import { parseAction, parseQueryAction, sendChatMessage, stripActionBlock } from './aiService';
-import { ChatMessage } from './ChatMessage';
+import { ChatMessage, shouldShowTimestamp } from './ChatMessage';
 import {
+  clearSessionMessages,
   getSessionMessages,
   setSessionMessages,
 } from './chatState';
@@ -20,9 +25,54 @@ import { useBudgetContext } from './useBudgetContext';
 
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
 
+const SUGGESTION_CHIPS = [
+  'Show my budget summary',
+  'Top spending categories',
+  'Where am I overspending?',
+  'Recent transactions',
+];
+
 type ChatPanelProps = {
   onClose: () => void;
 };
+
+function TypingIndicator() {
+  return (
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        backgroundColor: theme.cardBackground,
+        border: `1px solid ${theme.cardBorder}`,
+        padding: '12px 16px',
+        borderRadius: 16,
+        borderBottomLeftRadius: 4,
+        flexDirection: 'row',
+        gap: 4,
+        alignItems: 'center',
+      }}
+    >
+      {[0, 1, 2].map(i => (
+        <div
+          key={i}
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            backgroundColor: theme.pageTextSubdued,
+            opacity: 0.5,
+            animation: `chatBounce 1.2s ease-in-out ${i * 0.15}s infinite`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes chatBounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-6px); opacity: 0.9; }
+        }
+      `}</style>
+    </View>
+  );
+}
 
 export function ChatPanel({ onClose }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessageType[]>(
@@ -31,8 +81,10 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputFocused, setInputFocused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const requestIdRef = useRef(0);
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
   const [modelName] = useLocalPref('ai.modelName');
@@ -45,7 +97,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -74,6 +126,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     setInput('');
     setError(null);
     setIsLoading(true);
+    const currentRequestId = ++requestIdRef.current;
 
     try {
       const context = await gatherContext();
@@ -110,6 +163,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         };
 
         currentMessages = [...currentMessages, queryInfoMessage];
+        if (currentRequestId !== requestIdRef.current) return;
         setMessages(currentMessages);
 
         rawResponse = await sendChatMessage(
@@ -135,8 +189,10 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         pendingAction: isWriteAction ? action! : undefined,
         actionStatus: isWriteAction ? 'pending' : undefined,
       };
+      if (currentRequestId !== requestIdRef.current) return;
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
+      if (currentRequestId !== requestIdRef.current) return;
       setError(
         err instanceof Error ? err.message : 'Failed to get AI response',
       );
@@ -193,6 +249,19 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     );
   }, []);
 
+  const handleClearChat = useCallback(() => {
+    requestIdRef.current++;
+    setMessages([]);
+    clearSessionMessages();
+    setError(null);
+    setIsLoading(false);
+  }, []);
+
+  const handleChipClick = useCallback((text: string) => {
+    setInput(text);
+    inputRef.current?.focus();
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -227,7 +296,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     <View style={panelStyle}>
       <View
         style={{
-          padding: '12px 16px',
+          padding: '10px 12px 10px 16px',
           borderBottom: `1px solid ${theme.tableBorder}`,
           flexDirection: 'row',
           alignItems: 'center',
@@ -244,17 +313,34 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         >
           AI Budget Assistant
         </Text>
-        <Button variant="bare" onPress={onClose} aria-label="Close chat">
-          <SvgClose style={{ width: 16, height: 16 }} />
-        </Button>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          {messages.length > 0 && (
+            <Button
+              variant="bare"
+              onPress={handleClearChat}
+              aria-label="Clear chat"
+            >
+              <SvgTrash
+                style={{
+                  width: 14,
+                  height: 14,
+                  color: theme.pageTextSubdued,
+                }}
+              />
+            </Button>
+          )}
+          <Button variant="bare" onPress={onClose} aria-label="Close chat">
+            <SvgClose style={{ width: 16, height: 16 }} />
+          </Button>
+        </View>
       </View>
 
       <View
         style={{
           flex: 1,
           overflow: 'auto',
-          padding: isNarrowWidth ? '12px 10px' : 16,
-          paddingBottom: isNarrowWidth ? 20 : 16,
+          padding: isNarrowWidth ? '12px 10px' : '12px 14px',
+          paddingBottom: isNarrowWidth ? 24 : 16,
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
@@ -267,7 +353,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: 20,
+              padding: 16,
+              gap: 16,
             }}
           >
             <Text
@@ -275,50 +362,71 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
                 color: theme.pageTextSubdued,
                 fontSize: 13,
                 textAlign: 'center',
-                lineHeight: '1.5',
+                lineHeight: '1.6',
               }}
             >
-              Ask me anything about your budget, spending, accounts, or
-              categories. I can also help you search transactions, analyze
-              spending patterns, compare budget vs actual, and find your top
-              payees!
+              Ask me anything about your budget, spending, or categories.
             </Text>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 8,
+                justifyContent: 'center',
+                maxWidth: 320,
+              }}
+            >
+              {SUGGESTION_CHIPS.map(chip => (
+                <button
+                  key={chip}
+                  onClick={() => handleChipClick(chip)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 16,
+                    border: `1px solid ${theme.tableBorder}`,
+                    backgroundColor: 'transparent',
+                    color: theme.pageText,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'background-color 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    (e.target as HTMLElement).style.backgroundColor =
+                      String(theme.tableRowBackgroundHover);
+                  }}
+                  onMouseLeave={e => {
+                    (e.target as HTMLElement).style.backgroundColor =
+                      'transparent';
+                  }}
+                >
+                  {chip}
+                </button>
+              ))}
+            </View>
           </View>
         )}
 
-        {messages.map(msg => (
+        {messages.map((msg, idx) => (
           <ChatMessage
             key={msg.id}
             message={msg}
             isNarrowWidth={isNarrowWidth}
+            showTimestamp={shouldShowTimestamp(messages, idx)}
             onConfirmAction={handleConfirmAction}
             onRejectAction={handleRejectAction}
           />
         ))}
 
-        {isLoading && (
-          <View
-            style={{
-              alignSelf: 'flex-start',
-              backgroundColor: theme.cardBackground,
-              border: `1px solid ${theme.cardBorder}`,
-              padding: '10px 14px',
-              borderRadius: 12,
-              borderBottomLeftRadius: 4,
-            }}
-          >
-            <Text style={{ fontSize: 13, color: theme.pageTextSubdued }}>
-              Thinking...
-            </Text>
-          </View>
-        )}
+        {isLoading && <TypingIndicator />}
 
         {error && (
           <View
             style={{
               backgroundColor: theme.errorBackground,
               padding: '8px 12px',
-              borderRadius: 8,
+              borderRadius: 10,
               marginTop: 4,
               border: `1px solid ${theme.errorBorder}`,
               flexDirection: 'row',
@@ -346,7 +454,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
       <View
         style={{
-          padding: 12,
+          padding: '10px 12px',
           borderTop: `1px solid ${theme.tableBorder}`,
           flexShrink: 0,
         }}
@@ -356,6 +464,11 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             flexDirection: 'row',
             gap: 8,
             alignItems: 'flex-end',
+            backgroundColor: theme.formInputBackground,
+            border: `1px solid ${inputFocused ? String(theme.buttonPrimaryBackground) : String(theme.formInputBorder)}`,
+            borderRadius: 20,
+            padding: '4px 4px 4px 14px',
+            transition: 'border-color 0.15s',
           }}
         >
           <textarea
@@ -363,6 +476,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             placeholder={
               apiKey
                 ? 'Ask about your budget...'
@@ -372,27 +487,43 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             rows={1}
             style={{
               flex: 1,
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: `1px solid ${theme.formInputBorder}`,
-              backgroundColor: theme.formInputBackground,
+              padding: '6px 0',
+              border: 'none',
+              backgroundColor: 'transparent',
               color: theme.formInputText,
               fontSize: 13,
               fontFamily: 'inherit',
               resize: 'none',
               outline: 'none',
-              minHeight: 36,
+              minHeight: 28,
               maxHeight: 100,
             }}
           />
-          <Button
-            variant="primary"
-            onPress={() => void handleSend()}
-            isDisabled={sendDisabled}
-            style={{ flexShrink: 0, height: 36 }}
+          <button
+            onClick={() => void handleSend()}
+            disabled={sendDisabled}
+            aria-label="Send message"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: sendDisabled
+                ? String(theme.buttonNormalDisabledBackground)
+                : String(theme.buttonPrimaryBackground),
+              color: sendDisabled
+                ? String(theme.buttonNormalDisabledText)
+                : String(theme.buttonPrimaryText),
+              cursor: sendDisabled ? 'default' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'background-color 0.15s',
+            }}
           >
-            Send
-          </Button>
+            <SvgSend style={{ width: 14, height: 14 }} />
+          </button>
         </View>
       </View>
     </View>
