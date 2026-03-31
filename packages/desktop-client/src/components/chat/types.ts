@@ -22,6 +22,8 @@ export type BudgetAction = {
     | 'rename-category'
     | 'delete-category'
     | 'create-category-group'
+    | 'move-category'
+    | 'delete-category-group'
     | 'rename-payee'
     | 'merge-payees'
     | 'copy-previous-month'

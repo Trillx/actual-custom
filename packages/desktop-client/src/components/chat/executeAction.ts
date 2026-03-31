@@ -174,6 +174,35 @@ function validateCreateCategoryGroup(params: Record<string, unknown>): {
   return { name, categories: cats };
 }
 
+function validateMoveCategory(params: Record<string, unknown>): {
+  categoryId: string;
+  categoryName: string;
+  groupId: string;
+  groupName: string;
+} {
+  const { categoryId, categoryName, groupId, groupName } = params;
+  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
+  if (typeof groupId !== 'string' || !groupId) throw new Error('Missing or invalid "groupId" parameter.');
+  return {
+    categoryId,
+    categoryName: typeof categoryName === 'string' ? categoryName : '',
+    groupId,
+    groupName: typeof groupName === 'string' ? groupName : '',
+  };
+}
+
+function validateDeleteCategoryGroup(params: Record<string, unknown>): {
+  groupId: string;
+  groupName: string;
+} {
+  const { groupId, groupName } = params;
+  if (typeof groupId !== 'string' || !groupId) throw new Error('Missing or invalid "groupId" parameter.');
+  return {
+    groupId,
+    groupName: typeof groupName === 'string' ? groupName : '',
+  };
+}
+
 function validateRenamePayee(params: Record<string, unknown>): {
   payeeId: string;
   newName: string;
@@ -404,6 +433,15 @@ export function formatActionDetails(action: BudgetAction): string[] {
         lines.push(`Categories: ${(p.categories as Array<{ name: string }>).map(c => c.name).join(', ')}`);
       }
       break;
+    case 'move-category':
+      lines.push(`Type: Move Category`);
+      if (p.categoryName) lines.push(`Category: ${p.categoryName}`);
+      if (p.groupName) lines.push(`To Group: ${p.groupName}`);
+      break;
+    case 'delete-category-group':
+      lines.push(`Type: Delete Category Group`);
+      if (p.groupName) lines.push(`Group: ${p.groupName}`);
+      break;
     case 'rename-payee':
       lines.push(`Type: Rename Payee`);
       if (p.oldName) lines.push(`From: ${p.oldName}`);
@@ -604,6 +642,30 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         return `Category group "${validated.name}" created with ${validated.categories.length} categor${validated.categories.length === 1 ? 'y' : 'ies'}: ${validated.categories.map(c => c.name).join(', ')}.`;
       }
       return `Category group "${validated.name}" created successfully.`;
+    }
+    case 'move-category': {
+      const validated = validateMoveCategory(action.params);
+      await send('api/category-update', {
+        id: validated.categoryId,
+        fields: { group_id: validated.groupId },
+      });
+      return `Category "${validated.categoryName}" moved to group "${validated.groupName}" successfully.`;
+    }
+    case 'delete-category-group': {
+      const validated = validateDeleteCategoryGroup(action.params);
+      const allCategories = await send('api/categories-get', { grouped: false });
+      const remainingCategories = (allCategories as Array<{ group_id?: string }>).filter(
+        c => c.group_id === validated.groupId,
+      );
+      if (remainingCategories.length > 0) {
+        throw new Error(
+          `Cannot delete group "${validated.groupName}" — it still contains ${remainingCategories.length} categor${remainingCategories.length === 1 ? 'y' : 'ies'}. Move all categories out first.`,
+        );
+      }
+      await send('api/category-group-delete', {
+        id: validated.groupId,
+      });
+      return `Category group "${validated.groupName}" deleted successfully.`;
     }
     case 'rename-payee': {
       const validated = validateRenamePayee(action.params);

@@ -32,6 +32,8 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "rename-category": params: {categoryId, newName, oldName} — Rename an existing category. Use the category ID from context.\n' +
       '- "delete-category": params: {categoryId, categoryName, transferCategoryId?, transactionCount} — Delete a category. Set transactionCount to warn user. Optionally transfer transactions to another category via transferCategoryId.\n' +
       '- "create-category-group": params: {name, categories?} — Create a new category group. categories is an optional array of {name} objects to create categories inside the group.\n' +
+      '- "move-category": params: {categoryId, categoryName, groupId, groupName} — Move an existing category to a different category group. Use the category ID and group ID from context.\n' +
+      '- "delete-category-group": params: {groupId, groupName} — Delete an empty category group. Only use after all categories have been moved out.\n' +
       '- "rename-payee": params: {payeeId, newName, oldName} — Rename an existing payee.\n' +
       '- "merge-payees": params: {targetId, targetName, mergeIds, mergeNames} — Merge multiple payees into a target. mergeIds is an array of payee IDs to merge into targetId.\n' +
       '- "copy-previous-month": params: {month} — Copy all budget values from the previous month to the specified month (YYYY-MM format).\n' +
@@ -46,6 +48,13 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
       'Use "close-account" when the user wants to close an account. Warn if the account has a non-zero balance.\n' +
       'Use "reopen-account" when the user wants to reopen a previously closed account.\n\n' +
+      'IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their categories into new groups, ' +
+      'you MUST use "move-category" to move existing categories instead of creating duplicate categories. ' +
+      'Follow this multi-step flow (one action per response): ' +
+      '1) Create each new category group using "create-category-group" (without the categories array). ' +
+      '2) Move each existing category to its new group using "move-category". ' +
+      '3) After all categories are moved, delete the now-empty old groups using "delete-category-group". ' +
+      'Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history.\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
       'Only include ONE action per response.\n\n' +
@@ -244,6 +253,8 @@ export function parseAction(content: string): BudgetAction | null {
         'rename-category',
         'delete-category',
         'create-category-group',
+        'move-category',
+        'delete-category-group',
         'rename-payee',
         'merge-payees',
         'copy-previous-month',
