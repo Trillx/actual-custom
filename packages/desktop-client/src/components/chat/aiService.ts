@@ -39,7 +39,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "copy-previous-month": params: {month} — Copy all budget values from the previous month to the specified month (YYYY-MM format).\n' +
       '- "set-budget-average": params: {month, numMonths} — Set all budget amounts to the average of the last N months. numMonths must be 3, 6, or 12.\n' +
       '- "bulk-set-budget": params: {month, budgets} — Set budget amounts for multiple categories at once. budgets is an array of {categoryId, categoryName, amount} (amount in cents, ABSOLUTE value — each amount is the NEW TOTAL budget for that category, NOT an increment).\n' +
-      '- "transfer-budget": params: {month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName} — Transfer budget amount (in cents) from one category to another. This is INCREMENTAL — it moves the specified amount. Prefer this over bulk-set-budget when redistributing money between categories.\n' +
+      '- "transfer-budget": params: {month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName} — Transfer budget amount (in cents) from one category to another. This is INCREMENTAL — it moves the specified amount. Only use for simple one-to-one transfers. For multi-category redistribution, use bulk-set-budget instead.\n' +
       '- "create-goal": params: {name, targetAmount, targetDate, associatedAccountIds?, associatedCategoryIds?} — Create a savings goal. targetAmount in cents. targetDate as "YYYY-MM-DD".\n' +
       '- "update-goal": params: {goalId, name?, targetAmount?, targetDate?, associatedAccountIds?, associatedCategoryIds?} — Update an existing goal.\n' +
       '- "delete-goal": params: {goalId, goalName} — Delete a savings goal.\n\n' +
@@ -52,8 +52,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       '"set-budget-amount" and "bulk-set-budget" SET the total budget to the specified amount. They do NOT add to the existing budget.\n' +
       'When adjusting a budget upward (e.g., to cover overspending), you MUST calculate the new total: new_amount = current_budgeted + adjustment.\n' +
       'Example: Food is budgeted $400 (40000 cents) and overspent by $81. To cover the overspend, set amount to 48100 (40000 + 8100), NOT 8100.\n' +
-      'When redistributing or rebalancing budgets, prefer "transfer-budget" which is inherently incremental — it moves money from one category to another without needing to calculate absolute totals.\n' +
-      'If you must use "bulk-set-budget" for redistribution, always look up the current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total.\n\n' +
+      'For multi-category redistribution or rebalancing (adjusting 2+ categories at once), ALWAYS use "bulk-set-budget" so the user only needs to confirm ONCE. ' +
+      'Look up each category\'s current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total for each.\n' +
+      'Use "transfer-budget" ONLY for simple one-to-one transfers between exactly two categories.\n\n' +
       'IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their categories into new groups, ' +
       'you MUST use "move-category" to move existing categories instead of creating duplicate categories. ' +
       'Follow this multi-step flow (one action per response): ' +
