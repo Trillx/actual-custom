@@ -123,9 +123,31 @@ The AI assistant supports forward-looking financial insights:
 - Set via Settings > AI Assistant section
 - No backend proxy needed — calls go directly to the API from the browser
 
+## Deployment (with Sync Server)
+
+Production deployment runs the full Actual Budget sync server, enabling:
+- Multi-device sync
+- Bank syncing (GoCardless, SimpleFIN)
+- Password-protected access
+- Server-side budget file storage
+
+### Build & Serve
+- **Build**: `bash build-prod.sh` — builds frontend + loot-core + sync server
+- **Serve**: `node serve-prod.js` — launches the sync server which serves both the API and frontend
+- **Data dir**: `/home/runner/actual-data/` (server-files, user-files)
+- **Port**: Uses `PORT` env var (Replit sets this automatically)
+
+### Sync Server Details
+- Express app at `packages/sync-server/`
+- In production mode, serves the frontend static files from `@actual-app/web` build directory
+- Sets required security headers (COOP, COEP, CSP)
+- Auth: password-based by default (set password on first visit)
+- Config via env vars: `ACTUAL_DATA_DIR`, `ACTUAL_PORT`, `ACTUAL_HOSTNAME`, `ACTUAL_LOGIN_METHOD`
+
 ## Notes
 
-- The app is fully local-first — data is stored in the browser's IndexedDB
-- The sync server is optional and not started by default in this setup
+- The app is local-first — data is stored in browser IndexedDB AND synced to the server
+- The sync server runs in production deployment, enabling multi-device access
+- In development, only the frontend runs (no sync server) — data stays in browser only
 - First startup takes ~30 seconds for the loot-core build and initial Vite compilation
 - The yarn link step (during `yarn install`) takes a few seconds on first cold-boot but is instant on subsequent runs due to caching

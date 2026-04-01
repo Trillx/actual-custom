@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Actual Budget Production Build ==="
+echo "=== Actual Budget Production Build (with Sync Server) ==="
 
 rm -f node_modules/desktop-electron 2>/dev/null || true
 
@@ -54,5 +54,16 @@ if [[ ! -f "build/kcab/kcab.worker.${WORKER_HASH}.js" ]]; then
   exit 1
 fi
 
+cd ../..
+
+echo "Building sync server..."
+yarn workspace @actual-app/sync-server build
+echo "Sync server built."
+
+mkdir -p /home/runner/actual-data/server-files
+mkdir -p /home/runner/actual-data/user-files
+
 echo "=== Build complete ==="
-echo "Output in packages/desktop-client/build/"
+echo "Frontend: packages/desktop-client/build/"
+echo "Sync server: packages/sync-server/build/"
+echo "Data directory: /home/runner/actual-data/"

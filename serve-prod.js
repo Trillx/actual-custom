@@ -1,79 +1,40 @@
-const http = require('http');
-const fs = require('fs');
+const { spawn } = require('child_process');
 const path = require('path');
 
-const PORT = parseInt(process.env.PORT || '5000', 10);
-const BUILD_DIR = path.join(__dirname, 'packages', 'desktop-client', 'build');
+const PORT = process.env.PORT || '5000';
+const DATA_DIR = process.env.ACTUAL_DATA_DIR || '/home/runner/actual-data';
 
-const MIME_TYPES = {
-  '.html': 'text/html',
-  '.js': 'application/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.wasm': 'application/wasm',
-  '.map': 'application/json',
-  '.txt': 'text/plain',
-  '.webmanifest': 'application/manifest+json',
+const serverPath = path.join(__dirname, 'packages', 'sync-server', 'build', 'app.js');
+
+const env = {
+  ...process.env,
+  NODE_ENV: 'production',
+  PORT: PORT,
+  ACTUAL_PORT: PORT,
+  ACTUAL_DATA_DIR: DATA_DIR,
+  ACTUAL_SERVER_FILES: path.join(DATA_DIR, 'server-files'),
+  ACTUAL_USER_FILES: path.join(DATA_DIR, 'user-files'),
+  ACTUAL_HOSTNAME: '0.0.0.0',
 };
 
-const server = http.createServer((req, res) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+console.log(`Starting Actual Budget sync server on port ${PORT}`);
+console.log(`Data directory: ${DATA_DIR}`);
 
-  let urlPath = req.url.split('?')[0];
-  if (urlPath === '/') urlPath = '/index.html';
-
-  let filePath = path.join(BUILD_DIR, urlPath);
-  filePath = path.normalize(filePath);
-  if (!filePath.startsWith(BUILD_DIR)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
-  fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      const indexPath = path.join(BUILD_DIR, 'index.html');
-      fs.readFile(indexPath, (err2, data) => {
-        if (err2) {
-          res.writeHead(404);
-          res.end('Not Found');
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(data);
-      });
-      return;
-    }
-
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
-    if (ext !== '.html') {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    }
-
-    fs.readFile(filePath, (err2, data) => {
-      if (err2) {
-        res.writeHead(500);
-        res.end('Internal Server Error');
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(data);
-    });
-  });
+const child = spawn('node', [serverPath], {
+  env,
+  stdio: 'inherit',
+  cwd: __dirname,
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Actual Budget serving on port ${PORT}`);
+child.on('error', (err) => {
+  console.error('Failed to start sync server:', err);
+  process.exit(1);
 });
+
+child.on('exit', (code) => {
+  console.log(`Sync server exited with code ${code}`);
+  process.exit(code || 0);
+});
+
+process.on('SIGTERM', () => child.kill('SIGTERM'));
+process.on('SIGINT', () => child.kill('SIGINT'));
