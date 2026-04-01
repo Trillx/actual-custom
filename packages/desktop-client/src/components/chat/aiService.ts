@@ -293,6 +293,26 @@ const QUERY_TYPE_NAMES = [
   'historical-comparison',
 ];
 
+function extractBalancedJson(content: string, startPos: number): string | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let j = startPos; j < content.length; j++) {
+    const ch = content[j];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\' && inString) { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    if (depth === 0 && j > startPos) {
+      return content.substring(startPos, j + 1);
+    }
+  }
+  return null;
+}
+
 function tryParseActionJson(json: string): BudgetAction | null {
   try {
     const parsed = JSON.parse(json) as Record<string, unknown>;
@@ -358,18 +378,10 @@ export function parseAction(content: string): BudgetAction | null {
 
   for (let i = 0; i < content.length; i++) {
     if (content[i] !== '{') continue;
-    let depth = 0;
-    for (let j = i; j < content.length; j++) {
-      if (content[j] === '{') depth++;
-      else if (content[j] === '}') depth--;
-      if (depth === 0) {
-        const candidate = content.substring(i, j + 1);
-        if (candidate.includes('"type"')) {
-          const result = tryParseActionJson(candidate);
-          if (result) return result;
-        }
-        break;
-      }
+    const candidate = extractBalancedJson(content, i);
+    if (candidate && candidate.includes('"type"')) {
+      const result = tryParseActionJson(candidate);
+      if (result) return result;
     }
   }
 
@@ -400,25 +412,21 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
 export function stripActionBlock(content: string): string {
   let result = content
     .replace(/```action\s*\n[\s\S]*?\n```\s*/g, '')
-    .replace(/```json\s*\n[\s\S]*?\n```\s*/g, '')
     .trim();
+
+  const jsonFenceMatch = result.match(/```json\s*\n([\s\S]*?)\n```/);
+  if (jsonFenceMatch && tryParseActionJson(jsonFenceMatch[1])) {
+    result = result.replace(/```json\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  }
 
   if (result === content.trim()) {
     for (let i = 0; i < result.length; i++) {
       if (result[i] !== '{') continue;
-      let depth = 0;
-      for (let j = i; j < result.length; j++) {
-        if (result[j] === '{') depth++;
-        else if (result[j] === '}') depth--;
-        if (depth === 0) {
-          const candidate = result.substring(i, j + 1);
-          if (candidate.includes('"type"') && tryParseActionJson(candidate)) {
-            result = (result.substring(0, i) + result.substring(j + 1)).trim();
-          }
-          break;
-        }
+      const candidate = extractBalancedJson(result, i);
+      if (candidate && candidate.includes('"type"') && tryParseActionJson(candidate)) {
+        result = (result.substring(0, i) + result.substring(i + candidate.length)).trim();
+        break;
       }
-      break;
     }
   }
 

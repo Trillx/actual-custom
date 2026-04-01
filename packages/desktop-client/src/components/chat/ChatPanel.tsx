@@ -86,6 +86,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const requestIdRef = useRef(0);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
   const [modelName] = useLocalPref('ai.modelName');
@@ -336,18 +338,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   const handleConfirmAction = useCallback(
     async (messageId: string) => {
-      let pendingAction: ChatMessageType['pendingAction'] | undefined;
-      setMessages(prev => {
-        const msg = prev.find(m => m.id === messageId);
-        pendingAction = msg?.pendingAction;
-        if (!pendingAction) return prev;
-        return prev.map(m =>
-          m.id === messageId ? { ...m, actionStatus: 'confirmed' as const } : m,
-        );
-      });
+      const msg = messagesRef.current.find(m => m.id === messageId);
+      if (!msg?.pendingAction) return;
 
-      if (!pendingAction) return;
+      const pendingAction = msg.pendingAction;
       setError(null);
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId ? { ...m, actionStatus: 'confirmed' as const } : m,
+        ),
+      );
 
       try {
         const result = await executeAction(pendingAction);
