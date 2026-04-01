@@ -62,7 +62,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Do NOT use individual "create-category-group", "move-category", or "delete-category-group" actions for reorganization — use "reorganize-categories" instead.\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
-      'Only include ONE action per response.\n\n' +
+      'Only include ONE action per response. Note: "reorganize-categories" counts as a single action even though it performs multiple steps internally.\n\n' +
       'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
       '(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), ' +
       'you MUST respond with a QUERY action block:\n' +

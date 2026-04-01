@@ -442,18 +442,27 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Delete Category Group`);
       if (p.groupName) lines.push(`Group: ${p.groupName}`);
       break;
-    case 'reorganize-categories':
+    case 'reorganize-categories': {
       lines.push(`Type: Reorganize Categories`);
+      const newGroupNames: string[] = [];
       if (Array.isArray(p.newGroups)) {
         for (const g of p.newGroups as Array<{ name: string; categories?: string[] }>) {
-          const cats = Array.isArray(g.categories) ? g.categories.join(', ') : '';
-          lines.push(`Create group "${g.name}"${cats ? `: ${cats}` : ''}`);
+          newGroupNames.push(g.name);
+          if (Array.isArray(g.categories)) {
+            for (const cat of g.categories) {
+              lines.push(`  ${cat} → ${g.name}`);
+            }
+          }
         }
+      }
+      if (newGroupNames.length > 0) {
+        lines.push(`New groups: ${newGroupNames.join(', ')}`);
       }
       if (Array.isArray(p.deleteOldGroups) && (p.deleteOldGroups as string[]).length > 0) {
         lines.push(`Delete old groups: ${(p.deleteOldGroups as string[]).join(', ')}`);
       }
       break;
+    }
     case 'rename-payee':
       lines.push(`Type: Rename Payee`);
       if (p.oldName) lines.push(`From: ${p.oldName}`);
