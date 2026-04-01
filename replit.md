@@ -165,11 +165,12 @@ For distributing to end users, deploy via Fly.io (follows official Actual Budget
    ```
 
 Key difference from official docs: Official uses `--image actualbudget/actual-server:latest` (pre-built).
-Our fork uses `Dockerfile.fly` to build from source (includes AI chat feature).
+Our fork builds from source via the root `Dockerfile` (includes AI chat feature).
 
 Files:
-- `Dockerfile.fly` — Multi-stage production build (deps → build frontend + sync server → minimal runtime)
-- `fly.toml` — Fly.io config (matches official template + our Dockerfile build)
+- `Dockerfile` — Multi-stage production build (deps → build frontend + sync server → minimal runtime)
+- `Dockerfile.dev` — Development container (used by docker-compose.yml)
+- `fly.toml` — Fly.io config (matches official template, uses default Dockerfile)
 - `.dockerignore` — Keeps Docker build context small
 
 ## Notes

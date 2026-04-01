@@ -1,0 +1,287 @@
+$ fly logs -a actual-custom 
+Waiting for logs...
+04:25:00
+Machine started in 1.477s
+04:25:00
+2026/04/01 04:25:00 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:00
+ INFO Main child exited normally with code: 2
+04:25:00
+ INFO Starting clean up.
+04:25:00
+[    2.272861] reboot: Restarting system
+04:25:01
+ INFO Main child exited normally with code: 2
+04:25:01
+ INFO Starting clean up.
+04:25:01
+[    2.166908] reboot: Restarting system
+04:25:05
+Starting machine
+04:25:05
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:05
+Starting machine
+04:25:05
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:05
+2026-04-01T04:25:05.935221204 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Running Firecracker v1.14.2
+04:25:05
+2026-04-01T04:25:05.935558590 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Listening on API socket ("/fc.sock").
+04:25:05
+Starting machine
+04:25:05
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:06
+Starting machine
+04:25:06
+[PM01] machines API returned an error: "machine still attempting to start"
+04:25:07
+ INFO Starting init (commit: 350f2667)...
+04:25:07
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:07
+ INFO [fly api proxy] listening at /.fly/api
+04:25:07
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:07
+Machine started in 1.679s
+04:25:07
+2026/04/01 04:25:07 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:08
+ INFO Main child exited normally with code: 2
+04:25:08
+ INFO Starting clean up.
+04:25:08
+[    2.308844] reboot: Restarting system
+04:25:11
+2026-04-01T04:25:11.020536148 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Running Firecracker v1.14.2
+04:25:11
+2026-04-01T04:25:11.020763342 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Listening on API socket ("/fc.sock").
+04:25:11
+[PC05] timed out while connecting to your instance. this indicates a problem with your app (hint: look at your logs and metrics)
+04:25:12
+ INFO Starting init (commit: 350f2667)...
+04:25:12
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:12
+ INFO [fly api proxy] listening at /.fly/api
+04:25:12
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:12
+Machine started in 1.619s
+04:25:12
+2026/04/01 04:25:12 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:12
+Starting machine
+04:25:12
+[PM01] machines API returned an error: "machine still attempting to start"
+04:25:12
+2026-04-01T04:25:12.803393127 [01KN3MHXMXJ3EDMRA5R32PST55:main] Running Firecracker v1.14.2
+04:25:12
+2026-04-01T04:25:12.803837959 [01KN3MHXMXJ3EDMRA5R32PST55:main] Listening on API socket ("/fc.sock").
+04:25:13
+ INFO Main child exited normally with code: 2
+04:25:13
+ INFO Starting clean up.
+04:25:13
+[    2.261721] reboot: Restarting system
+04:25:13
+ INFO Starting init (commit: 350f2667)...
+04:25:13
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:13
+ INFO [fly api proxy] listening at /.fly/api
+04:25:14
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:14
+Machine started in 2.818s
+04:25:14
+2026/04/01 04:25:14 INFO SSH listening listen_address=[fdaa:59:356e:a7b:68f:ad16:c92e:2]:22
+04:25:15
+ INFO Main child exited normally with code: 2
+04:25:15
+ INFO Starting clean up.
+04:25:15
+[    2.187651] reboot: Restarting system
+04:25:17
+[PC05] timed out while connecting to your instance. this indicates a problem with your app (hint: look at your logs and metrics)
+04:25:19
+2026-04-01T04:25:19.072834988 [01KN3MHXMXJ3EDMRA5R32PST55:main] Running Firecracker v1.14.2
+04:25:19
+2026-04-01T04:25:19.073074786 [01KN3MHXMXJ3EDMRA5R32PST55:main] Listening on API socket ("/fc.sock").
+04:25:20
+ INFO Starting init (commit: 350f2667)...
+04:25:20
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:20
+ INFO [fly api proxy] listening at /.fly/api
+04:25:20
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:20
+Machine started in 1.739s
+04:25:20
+2026/04/01 04:25:20 INFO SSH listening listen_address=[fdaa:59:356e:a7b:68f:ad16:c92e:2]:22
+Region
+iad
+Instance
+48e612ea072128
+Provider
+app
+Level
+info
+Full Message
+2026/04/01 04:25:20 INFO SSH listening listen_address=[fdaa:59:356e:a7b:68f:ad16:c92e:2]:22
+Copy as JSON
+04:25:21
+ INFO Main child exited normally with code: 2
+04:25:21
+ INFO Starting clean up.
+04:25:21
+[    2.411476] reboot: Restarting system
+04:25:23
+Starting machine
+04:25:23
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:23
+Starting machine
+04:25:23
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:23
+Starting machine
+04:25:23
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:24
+Starting machine
+04:25:24
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:25
+2026-04-01T04:25:25.064921692 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Running Firecracker v1.14.2
+04:25:25
+2026-04-01T04:25:25.065161136 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Listening on API socket ("/fc.sock").
+04:25:26
+ INFO Starting init (commit: 350f2667)...
+04:25:26
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:26
+ INFO [fly api proxy] listening at /.fly/api
+04:25:26
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:26
+Machine started in 1.571s
+04:25:26
+2026/04/01 04:25:26 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:27
+ INFO Main child exited normally with code: 2
+04:25:27
+ INFO Starting clean up.
+04:25:27
+[    2.178842] reboot: Restarting system
+04:25:29
+[PC05] timed out while connecting to your instance. this indicates a problem with your app (hint: look at your logs and metrics)
+04:25:30
+Starting machine
+04:25:30
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:33
+Starting machine
+04:25:33
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:36
+Starting machine
+04:25:36
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:37
+Starting machine
+04:25:37
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:42
+2026-04-01T04:25:42.932814598 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Running Firecracker v1.14.2
+04:25:42
+2026-04-01T04:25:42.933096693 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Listening on API socket ("/fc.sock").
+04:25:43
+ INFO Starting init (commit: 350f2667)...
+04:25:44
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:44
+ INFO [fly api proxy] listening at /.fly/api
+04:25:44
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:44
+Machine started in 1.375s
+04:25:44
+2026/04/01 04:25:44 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:37
+Starting machine
+04:25:37
+[PM07] failed to change machine state: machine still active, refusing to start
+04:25:42
+2026-04-01T04:25:42.932814598 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Running Firecracker v1.14.2
+04:25:42
+2026-04-01T04:25:42.933096693 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Listening on API socket ("/fc.sock").
+04:25:43
+ INFO Starting init (commit: 350f2667)...
+04:25:44
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:44
+ INFO [fly api proxy] listening at /.fly/api
+04:25:44
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:44
+Machine started in 1.375s
+04:25:44
+2026/04/01 04:25:44 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:45
+ INFO Main child exited normally with code: 2
+04:25:45
+ INFO Starting clean up.
+04:25:45
+[    2.086729] reboot: Restarting system
+04:25:54
+2026-04-01T04:25:54.563440452 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Running Firecracker v1.14.2
+04:25:54
+2026-04-01T04:25:54.563649796 [01KN3MHGZKWC73HMJMZTGN8Z81:main] Listening on API socket ("/fc.sock").
+04:25:55
+ INFO Starting init (commit: 350f2667)...
+04:25:55
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:25:55
+ INFO [fly api proxy] listening at /.fly/api
+04:25:55
+sh: 0: cannot open ./bin/docker-start: No such file
+04:25:55
+Machine started in 1.467s
+04:25:55
+2026/04/01 04:25:55 INFO SSH listening listen_address=[fdaa:59:356e:a7b:303:e205:353b:2]:22
+04:25:56
+ INFO Main child exited normally with code: 2
+04:25:56
+ INFO Starting clean up.
+04:25:56
+[    2.122096] reboot: Restarting system
+04:25:58
+machine has reached its max restart count of 10
+04:26:13
+2026-04-01T04:26:13.142298031 [01KN3MHXMXJ3EDMRA5R32PST55:main] Running Firecracker v1.14.2
+04:26:13
+2026-04-01T04:26:13.146213664 [01KN3MHXMXJ3EDMRA5R32PST55:main] Listening on API socket ("/fc.sock").
+04:26:14
+ INFO Starting init (commit: 350f2667)...
+04:26:14
+ INFO Preparing to run: `docker-entrypoint.sh sh ./bin/docker-start` as root
+04:26:14
+ INFO [fly api proxy] listening at /.fly/api
+04:26:14
+sh: 0: cannot open ./bin/docker-start: No such file
+04:26:14
+Machine started in 1.841s
+04:26:14
+2026/04/01 04:26:14 INFO SSH listening listen_address=[fdaa:59:356e:a7b:68f:ad16:c92e:2]:22
+04:26:15
+ INFO Main child exited normally with code: 2
+04:26:15
+ INFO Starting clean up.
+04:26:15
+[    2.205587] reboot: Restarting system
+04:26:15
+machine has reached its max restart count of 10

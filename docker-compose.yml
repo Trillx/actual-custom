@@ -6,7 +6,9 @@
 
 services:
   actual-development:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     image: actual-development
     environment:
       - HTTPS
