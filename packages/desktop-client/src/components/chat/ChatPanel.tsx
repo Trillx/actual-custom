@@ -147,6 +147,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
       const WAITING_PATTERN = /(?:please\s+hold|let\s+me\s+(?:gather|look|analyze|check|pull|fetch|find|get)|hold\s+on\s+while|I\s+will\s+(?:analyze|look|gather|check|pull|fetch|find|get)|while\s+I\s+(?:gather|look|analyze|check|pull|fetch|find|get)|I'?m\s+(?:gathering|looking|analyzing|checking|pulling|fetching|finding|getting))/i;
       if (!action && WAITING_PATTERN.test(rawResponse)) {
+        const statusMsg: ChatMessageType = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: 'Querying: Gathering your data...',
+          timestamp: Date.now(),
+        };
+        displayMessages = [...displayMessages, statusMsg];
+        if (currentRequestId !== requestIdRef.current) return;
+        setMessages(displayMessages);
+
         const narrativeMsg: ChatMessageType = {
           id: uuidv4(),
           role: 'assistant',
@@ -162,8 +172,6 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           timestamp: Date.now(),
         };
         apiHistory = [...apiHistory, retryMsg];
-
-        if (currentRequestId !== requestIdRef.current) return;
 
         rawResponse = await sendChatMessage(
           apiKey,
