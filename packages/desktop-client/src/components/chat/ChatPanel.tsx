@@ -185,9 +185,21 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         action = parseAction(rawResponse);
       }
 
+      let lastQueryType: string | null = null;
+      let sameQueryCount = 0;
+
       for (let round = 0; round < MAX_QUERY_ROUNDS; round++) {
         const queryAction = action ? parseQueryAction(action) : null;
         if (!queryAction || !action) break;
+
+        const queryKey = `${queryAction.queryType}:${JSON.stringify(queryAction.filters || {})}`;
+        if (queryKey === lastQueryType) {
+          sameQueryCount++;
+          if (sameQueryCount >= 1) break;
+        } else {
+          lastQueryType = queryKey;
+          sameQueryCount = 0;
+        }
 
         let queryResult: string;
         try {
@@ -300,15 +312,13 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       const isWriteAction = action && action.type !== 'query';
       let displayContent: string;
       if (action && action.type === 'query') {
-        if (stripped) {
-          displayContent = stripped;
-        } else if (currentContext.queryResult) {
+        if (currentContext.queryResult) {
           const truncated = currentContext.queryResult.length > 3000
             ? currentContext.queryResult.substring(0, 3000) + '\n... (data truncated for display)'
             : currentContext.queryResult;
           displayContent = `Here are the results from your query:\n\n${truncated}`;
         } else {
-          displayContent = 'I was unable to complete the data lookup. Please try rephrasing your question.';
+          displayContent = stripped || 'I was unable to complete the data lookup. Please try rephrasing your question.';
         }
       } else {
         displayContent = stripped || (isWriteAction ? action!.description : rawResponse);
