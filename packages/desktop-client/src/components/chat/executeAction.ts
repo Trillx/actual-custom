@@ -613,19 +613,18 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       let resolvedGroupId = validated.group_id;
 
       const allGroups = await send('api/category-groups-get') as Array<{ id: string; name: string; is_income?: boolean; hidden?: boolean }>;
-      const visibleGroups = allGroups.filter(g => !g.is_income && !g.hidden);
 
       const groupExists = allGroups.some(g => g.id === resolvedGroupId);
       if (!groupExists) {
         const byName = allGroups.find(g => g.name.toLowerCase() === resolvedGroupId.toLowerCase());
         if (byName) {
           resolvedGroupId = byName.id;
-        } else if (visibleGroups.length > 0) {
-          resolvedGroupId = visibleGroups[0].id;
-        } else if (allGroups.length > 0) {
-          resolvedGroupId = allGroups[0].id;
         } else {
-          throw new Error('No category groups exist. Please create a category group first.');
+          const groupNames = allGroups.map(g => g.name).join(', ');
+          throw new Error(
+            `Could not find category group "${resolvedGroupId}". ` +
+            (groupNames ? `Available groups: ${groupNames}. Please specify which group to add the category to.` : 'No category groups exist. Please create a category group first.')
+          );
         }
       }
 

@@ -107,7 +107,7 @@ function isTableRow(line: string): boolean {
 
 function isSeparatorRow(line: string): boolean {
   const t = line.trim();
-  if (!t.includes('-')) return false;
+  if (!t.includes('|') || !t.includes('-')) return false;
   let inner = t;
   if (inner.startsWith('|')) inner = inner.slice(1);
   if (inner.endsWith('|')) inner = inner.slice(0, -1);
