@@ -145,16 +145,31 @@ Production deployment runs the full Actual Budget sync server, enabling:
 - Config via env vars: `ACTUAL_DATA_DIR`, `ACTUAL_PORT`, `ACTUAL_HOSTNAME`, `ACTUAL_LOGIN_METHOD`
 
 ### Fly.io Deployment
-For distributing to end users, deploy via Fly.io:
-1. Install flyctl: `curl -L https://fly.io/install.sh | sh`
-2. Login: `flyctl auth login`
-3. Create app: `flyctl apps create your-app-name`
-4. Create volume for data persistence: `flyctl volumes create actual_data --size 1 --region iad -a your-app-name`
-5. Deploy: `flyctl deploy -a your-app-name`
+For distributing to end users, deploy via Fly.io (follows official Actual Budget Fly.io docs pattern):
+
+1. Install flyctl and login:
+   - macOS: `curl -L https://fly.io/install.sh | sh`
+   - Windows: `iwr https://fly.io/install.ps1 -useb | iex`
+   - Then: `fly auth login`
+
+2. From the project root (where fly.toml lives), launch the app:
+   ```
+   fly launch
+   ```
+   - Say `y` to use existing fly.toml config
+   - This creates the app, volume, and deploys in one step
+
+3. To update after code changes:
+   ```
+   fly deploy
+   ```
+
+Key difference from official docs: Official uses `--image actualbudget/actual-server:latest` (pre-built).
+Our fork uses `Dockerfile.fly` to build from source (includes AI chat feature).
 
 Files:
 - `Dockerfile.fly` — Multi-stage production build (deps → build frontend + sync server → minimal runtime)
-- `fly.toml` — Fly.io config (shared-cpu-1x, 512MB, persistent volume at /data)
+- `fly.toml` — Fly.io config (matches official template + our Dockerfile build)
 - `.dockerignore` — Keeps Docker build context small
 
 ## Notes
