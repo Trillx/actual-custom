@@ -445,18 +445,22 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'reorganize-categories': {
       lines.push(`Type: Reorganize Categories`);
       const newGroupNames: string[] = [];
+      const moveLines: string[] = [];
       if (Array.isArray(p.newGroups)) {
         for (const g of p.newGroups as Array<{ name: string; categories?: string[] }>) {
           newGroupNames.push(g.name);
           if (Array.isArray(g.categories)) {
             for (const cat of g.categories) {
-              lines.push(`  ${cat} → ${g.name}`);
+              moveLines.push(`  ${cat} → ${g.name}`);
             }
           }
         }
       }
       if (newGroupNames.length > 0) {
-        lines.push(`New groups: ${newGroupNames.join(', ')}`);
+        lines.push(`Create groups: ${newGroupNames.join(', ')}`);
+      }
+      if (moveLines.length > 0) {
+        lines.push(...moveLines);
       }
       if (Array.isArray(p.deleteOldGroups) && (p.deleteOldGroups as string[]).length > 0) {
         lines.push(`Delete old groups: ${(p.deleteOldGroups as string[]).join(', ')}`);
