@@ -97,6 +97,143 @@ const headingStyles: Record<number, CSSProperties> = {
   4: { fontSize: '1em', fontWeight: 600, margin: '6px 0 2px' },
 };
 
+function isTableRow(line: string): boolean {
+  const t = line.trim();
+  if (t.length < 3) return false;
+  if (t.startsWith('|') && t.endsWith('|')) return true;
+  if (t.includes('|') && !t.startsWith('```')) return true;
+  return false;
+}
+
+function isSeparatorRow(line: string): boolean {
+  const t = line.trim();
+  if (!t.includes('-')) return false;
+  let inner = t;
+  if (inner.startsWith('|')) inner = inner.slice(1);
+  if (inner.endsWith('|')) inner = inner.slice(0, -1);
+  return /^[\s|:\-]+$/.test(inner) && inner.includes('-');
+}
+
+function splitTableCells(line: string): string[] {
+  const t = line.trim();
+  let inner = t;
+  if (inner.startsWith('|')) inner = inner.slice(1);
+  if (inner.endsWith('|')) inner = inner.slice(0, -1);
+
+  const cells: string[] = [];
+  let current = '';
+  let inCode = false;
+  let escaped = false;
+
+  for (let c = 0; c < inner.length; c++) {
+    const ch = inner[c];
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '`') {
+      inCode = !inCode;
+      current += ch;
+      continue;
+    }
+    if (ch === '|' && !inCode) {
+      cells.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function renderTable(
+  rows: string[],
+  tableKey: number,
+): React.ReactNode {
+  let headerRow: string | null = null;
+  const dataRows: string[] = [];
+
+  if (rows.length >= 2 && isSeparatorRow(rows[1])) {
+    headerRow = rows[0];
+    for (let r = 2; r < rows.length; r++) {
+      if (!isSeparatorRow(rows[r])) {
+        dataRows.push(rows[r]);
+      }
+    }
+  } else {
+    for (const row of rows) {
+      if (!isSeparatorRow(row)) {
+        dataRows.push(row);
+      }
+    }
+  }
+
+  const cellStyle: CSSProperties = {
+    padding: '5px 10px',
+    borderBottom: '1px solid rgba(128,128,128,0.2)',
+    lineHeight: '1.5',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+  };
+
+  const headerCellStyle: CSSProperties = {
+    ...cellStyle,
+    fontWeight: 600,
+    backgroundColor: 'rgba(128,128,128,0.1)',
+    borderBottom: '2px solid rgba(128,128,128,0.3)',
+  };
+
+  return (
+    <div
+      key={`table-wrap-${tableKey}`}
+      style={{
+        overflowX: 'auto',
+        margin: '6px 0',
+        borderRadius: 6,
+        border: '1px solid rgba(128,128,128,0.2)',
+      }}
+    >
+      <table
+        key={`table-${tableKey}`}
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          fontSize: '0.92em',
+        }}
+      >
+        {headerRow && (
+          <thead>
+            <tr>
+              {splitTableCells(headerRow).map((cell, ci) => (
+                <th key={ci} style={headerCellStyle}>
+                  {renderInline(cell, `th-${tableKey}-${ci}`)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {dataRows.map((row, ri) => (
+            <tr key={ri}>
+              {splitTableCells(row).map((cell, ci) => (
+                <td key={ci} style={cellStyle}>
+                  {renderInline(cell, `td-${tableKey}-${ri}-${ci}`)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function MarkdownText({ text, style }: MarkdownTextProps) {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
@@ -105,6 +242,8 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
   let inCodeBlock = false;
   let codeBlockLines: string[] = [];
   let codeBlockStart = 0;
+  let tableRows: string[] = [];
+  let tableKey = 0;
 
   const flushList = () => {
     if (listItems.length === 0) return;
@@ -150,6 +289,13 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
     codeBlockLines = [];
   };
 
+  const flushTable = () => {
+    if (tableRows.length === 0) return;
+    elements.push(renderTable(tableRows, tableKey));
+    tableRows = [];
+    tableKey++;
+  };
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
@@ -160,6 +306,7 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
         inCodeBlock = false;
       } else {
         flushList();
+        flushTable();
         inCodeBlock = true;
         codeBlockStart = i;
       }
@@ -170,6 +317,22 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
       codeBlockLines.push(line);
       continue;
     }
+
+    if (tableRows.length > 0 && (isTableRow(trimmed) || isSeparatorRow(trimmed))) {
+      tableRows.push(trimmed);
+      continue;
+    }
+
+    if (tableRows.length === 0 && isTableRow(trimmed)) {
+      const nextLine = i + 1 < lines.length ? lines[i + 1]?.trim() : '';
+      if (nextLine && isSeparatorRow(nextLine)) {
+        flushList();
+        tableRows.push(trimmed);
+        continue;
+      }
+    }
+
+    flushTable();
 
     const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)/);
     if (headingMatch) {
@@ -238,6 +401,7 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
   }
 
   flushList();
+  flushTable();
 
   return <div style={{ ...style, overflowWrap: 'anywhere' }}>{elements}</div>;
 }
