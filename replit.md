@@ -76,6 +76,7 @@ The AI can propose these actions, each requiring user confirmation:
 - `bulk-set-budget` — Set budget for multiple categories at once
 - `transfer-budget` — Transfer budget between categories
 - `create-goal` / `update-goal` / `delete-goal` — Savings goal management
+- `reorganize-categories` — Compound action: creates new groups, moves categories by name, deletes old empty groups — all in one confirmation
 
 ### Read-Only Query Actions (auto-execute, no confirmation)
 The AI can query data using these query types:

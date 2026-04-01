@@ -34,6 +34,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "create-category-group": params: {name, categories?} — Create a new category group. categories is an optional array of {name} objects to create categories inside the group.\n' +
       '- "move-category": params: {categoryId, categoryName, groupId, groupName} — Move an existing category to a different category group. Use the category ID and group ID from context.\n' +
       '- "delete-category-group": params: {groupId, groupName} — Delete an empty category group. Only use after all categories have been moved out.\n' +
+      '- "reorganize-categories": params: {newGroups: [{name, categories: ["categoryName"]}], deleteOldGroups?: ["groupName"]} — Reorganize categories in a single step. Creates new category groups, moves existing categories into them by name, then optionally deletes specified empty old groups. Use this for any reorganization, rearranging, or restructuring of categories into new groups. All steps execute automatically after one confirmation.\n' +
       '- "rename-payee": params: {payeeId, newName, oldName} — Rename an existing payee.\n' +
       '- "merge-payees": params: {targetId, targetName, mergeIds, mergeNames} — Merge multiple payees into a target. mergeIds is an array of payee IDs to merge into targetId.\n' +
       '- "copy-previous-month": params: {month} — Copy all budget values from the previous month to the specified month (YYYY-MM format).\n' +
@@ -56,12 +57,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Look up each category\'s current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total for each.\n' +
       'Use "transfer-budget" ONLY for simple one-to-one transfers between exactly two categories.\n\n' +
       'IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their categories into new groups, ' +
-      'you MUST use "move-category" to move existing categories instead of creating duplicate categories. ' +
-      'Follow this multi-step flow (one action per response): ' +
-      '1) Create each new category group using "create-category-group" (without the categories array). ' +
-      '2) Move each existing category to its new group using "move-category". ' +
-      '3) After all categories are moved, delete the now-empty old groups using "delete-category-group". ' +
-      'Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history.\n\n' +
+      'ALWAYS use the "reorganize-categories" action. This handles everything in a single step: creating new groups, moving existing categories by name, and deleting old empty groups. ' +
+      'Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history. ' +
+      'Do NOT use individual "create-category-group", "move-category", or "delete-category-group" actions for reorganization — use "reorganize-categories" instead.\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
       'Only include ONE action per response.\n\n' +
@@ -277,6 +275,7 @@ export function parseAction(content: string): BudgetAction | null {
         'create-goal',
         'update-goal',
         'delete-goal',
+        'reorganize-categories',
       ].includes(parsed.type)
     ) {
       return parsed;

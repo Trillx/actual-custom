@@ -269,64 +269,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           timestamp: Date.now(),
         };
 
-        const updatedMessages = await new Promise<ChatMessageType[]>(resolve => {
-          setMessages(prev => {
-            const updated = prev.map(m =>
-              m.id === messageId ? { ...m, actionStatus: 'executed' as const } : m,
-            );
-            const result2 = [...updated, resultMessage];
-            resolve(result2);
-            return result2;
-          });
+        setMessages(prev => {
+          const updated = prev.map(m =>
+            m.id === messageId ? { ...m, actionStatus: 'executed' as const } : m,
+          );
+          return [...updated, resultMessage];
         });
-
-        if (apiKey) {
-          setIsLoading(true);
-          const currentRequestId = ++requestIdRef.current;
-          try {
-            const context = await gatherContext();
-            const continueMsg: ChatMessageType = {
-              id: uuidv4(),
-              role: 'user',
-              content: 'Continue with the next step if there are more actions to complete. If everything is done, summarize what was accomplished.',
-              timestamp: Date.now(),
-            };
-
-            const allMessages = [...updatedMessages, continueMsg];
-
-            const rawResponse = await sendChatMessage(
-              apiKey,
-              allMessages,
-              context,
-              endpointUrl || undefined,
-              modelName || undefined,
-            );
-
-            if (currentRequestId !== requestIdRef.current) return;
-
-            const action = parseAction(rawResponse);
-            const stripped = stripActionBlock(rawResponse);
-            const isWriteAction = action && action.type !== 'query';
-            const displayContent = stripped || (isWriteAction ? action!.description : rawResponse);
-
-            const followUpMessage: ChatMessageType = {
-              id: uuidv4(),
-              role: 'assistant',
-              content: displayContent,
-              timestamp: Date.now(),
-              pendingAction: isWriteAction ? action! : undefined,
-              actionStatus: isWriteAction ? 'pending' : undefined,
-            };
-
-            setMessages(prev => [...prev, followUpMessage]);
-          } catch (err) {
-            if (currentRequestId !== requestIdRef.current) return;
-          } finally {
-            if (currentRequestId === requestIdRef.current) {
-              setIsLoading(false);
-            }
-          }
-        }
       } catch (err) {
         const errorMsg =
           err instanceof Error ? err.message : 'Action failed';
@@ -338,7 +286,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         );
       }
     },
-    [messages, apiKey, endpointUrl, modelName, gatherContext],
+    [messages],
   );
 
   const handleRejectAction = useCallback((messageId: string) => {

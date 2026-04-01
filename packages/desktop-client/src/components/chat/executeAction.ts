@@ -442,6 +442,18 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Delete Category Group`);
       if (p.groupName) lines.push(`Group: ${p.groupName}`);
       break;
+    case 'reorganize-categories':
+      lines.push(`Type: Reorganize Categories`);
+      if (Array.isArray(p.newGroups)) {
+        for (const g of p.newGroups as Array<{ name: string; categories?: string[] }>) {
+          const cats = Array.isArray(g.categories) ? g.categories.join(', ') : '';
+          lines.push(`Create group "${g.name}"${cats ? `: ${cats}` : ''}`);
+        }
+      }
+      if (Array.isArray(p.deleteOldGroups) && (p.deleteOldGroups as string[]).length > 0) {
+        lines.push(`Delete old groups: ${(p.deleteOldGroups as string[]).join(', ')}`);
+      }
+      break;
     case 'rename-payee':
       lines.push(`Type: Rename Payee`);
       if (p.oldName) lines.push(`From: ${p.oldName}`);
@@ -742,6 +754,112 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const deleted = deleteGoal(validated.goalId);
       if (!deleted) throw new Error('Goal not found.');
       return `Savings goal "${validated.goalName}" deleted successfully.`;
+    }
+    case 'reorganize-categories': {
+      const newGroups = action.params.newGroups;
+      const deleteOldGroups = action.params.deleteOldGroups;
+
+      if (!Array.isArray(newGroups) || newGroups.length === 0) {
+        throw new Error('reorganize-categories requires a non-empty newGroups array.');
+      }
+      for (let i = 0; i < newGroups.length; i++) {
+        const g = newGroups[i] as { name?: unknown; categories?: unknown };
+        if (!g || typeof g.name !== 'string' || !g.name.trim()) {
+          throw new Error(`newGroups[${i}] must have a non-empty string "name".`);
+        }
+        if (g.categories !== undefined && !Array.isArray(g.categories)) {
+          throw new Error(`newGroups[${i}].categories must be an array of category name strings.`);
+        }
+        if (Array.isArray(g.categories)) {
+          for (let j = 0; j < (g.categories as unknown[]).length; j++) {
+            if (typeof (g.categories as unknown[])[j] !== 'string') {
+              throw new Error(`newGroups[${i}].categories[${j}] must be a string.`);
+            }
+          }
+        }
+      }
+      if (deleteOldGroups !== undefined && !Array.isArray(deleteOldGroups)) {
+        throw new Error('deleteOldGroups must be an array of group name strings.');
+      }
+
+      const typedNewGroups = newGroups as Array<{ name: string; categories?: string[] }>;
+      const typedDeleteOldGroups = deleteOldGroups as string[] | undefined;
+
+      const allCategories = await send('api/categories-get', { grouped: false }) as Array<{ id: string; name: string; group_id?: string }>;
+      const groupLookup = new Map<string, string>();
+      const existingGroups = await send('api/categories-get', { grouped: true }) as Array<{ id: string; name: string }>;
+      for (const g of existingGroups) {
+        groupLookup.set(g.name.toLowerCase(), g.id);
+      }
+
+      const catsByName = new Map<string, Array<{ id: string; name: string }>>();
+      for (const c of allCategories) {
+        const key = c.name.toLowerCase();
+        if (!catsByName.has(key)) catsByName.set(key, []);
+        catsByName.get(key)!.push(c);
+      }
+
+      const summary: string[] = [];
+
+      for (const group of typedNewGroups) {
+        const existingGroupId = groupLookup.get(group.name.toLowerCase());
+        let groupId: string;
+
+        if (existingGroupId) {
+          groupId = existingGroupId;
+        } else {
+          groupId = await send('api/category-group-create', {
+            group: { name: group.name },
+          }) as unknown as string;
+          groupLookup.set(group.name.toLowerCase(), groupId);
+          summary.push(`Created group "${group.name}"`);
+        }
+
+        if (Array.isArray(group.categories)) {
+          for (const catName of group.categories) {
+            const matches = catsByName.get(catName.toLowerCase());
+            if (!matches || matches.length === 0) {
+              summary.push(`Warning: category "${catName}" not found, skipped`);
+              continue;
+            }
+            if (matches.length > 1) {
+              summary.push(`Warning: multiple categories named "${catName}" found, skipped (ambiguous)`);
+              continue;
+            }
+            const cat = matches[0];
+            await send('api/category-update', {
+              id: cat.id,
+              fields: { group_id: groupId },
+            });
+            summary.push(`Moved "${cat.name}" → "${group.name}"`);
+          }
+        }
+      }
+
+      if (Array.isArray(typedDeleteOldGroups) && typedDeleteOldGroups.length > 0) {
+        const refreshedGroups = await send('api/categories-get', { grouped: true }) as Array<{ id: string; name: string; categories?: Array<{ id: string; name: string; hidden?: boolean }> }>;
+        for (const groupName of typedDeleteOldGroups) {
+          const matches = refreshedGroups.filter(g => g.name.toLowerCase() === groupName.toLowerCase());
+          if (matches.length === 0) {
+            summary.push(`Warning: group "${groupName}" not found, skipped deletion`);
+            continue;
+          }
+          if (matches.length > 1) {
+            summary.push(`Warning: multiple groups named "${groupName}" found, skipped deletion (ambiguous)`);
+            continue;
+          }
+          const grp = matches[0];
+          const visibleCats = (grp.categories || []).filter(c => !c.hidden);
+          if (visibleCats.length > 0) {
+            summary.push(`Warning: group "${groupName}" still has ${visibleCats.length} categories, skipped deletion`);
+            continue;
+          }
+          await send('api/category-group-delete', { id: grp.id });
+          summary.push(`Deleted old group "${groupName}"`);
+        }
+      }
+
+      return `Reorganization complete:\n${summary.join('\n')}`;
     }
     default:
       throw new Error(`Unknown action type: ${action.type}`);
