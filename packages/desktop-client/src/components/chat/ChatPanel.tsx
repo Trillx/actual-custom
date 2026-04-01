@@ -145,6 +145,36 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       let currentContext = context;
       const MAX_QUERY_ROUNDS = 4;
 
+      const WAITING_PATTERN = /(?:please\s+hold|let\s+me\s+(?:gather|look|analyze|check|pull|fetch|find|get)|hold\s+on\s+while|I\s+will\s+(?:analyze|look|gather|check|pull|fetch|find|get)|while\s+I\s+(?:gather|look|analyze|check|pull|fetch|find|get)|I'?m\s+(?:gathering|looking|analyzing|checking|pulling|fetching|finding|getting))/i;
+      if (!action && WAITING_PATTERN.test(rawResponse)) {
+        const narrativeMsg: ChatMessageType = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: rawResponse,
+          timestamp: Date.now(),
+        };
+        apiHistory = [...apiHistory, narrativeMsg];
+
+        const retryMsg: ChatMessageType = {
+          id: uuidv4(),
+          role: 'user',
+          content: 'You must emit the query action block now. Do not describe what you will do — use the appropriate query type and respond with the ```action block immediately.',
+          timestamp: Date.now(),
+        };
+        apiHistory = [...apiHistory, retryMsg];
+
+        if (currentRequestId !== requestIdRef.current) return;
+
+        rawResponse = await sendChatMessage(
+          apiKey,
+          apiHistory,
+          currentContext,
+          endpointUrl || undefined,
+          modelName || undefined,
+        );
+        action = parseAction(rawResponse);
+      }
+
       for (let round = 0; round < MAX_QUERY_ROUNDS; round++) {
         const queryAction = action ? parseQueryAction(action) : null;
         if (!queryAction || !action) break;

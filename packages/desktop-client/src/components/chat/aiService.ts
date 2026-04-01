@@ -89,6 +89,10 @@ function buildSystemPrompt(context: BudgetContext): string {
       'CRITICAL: If you see a "Query Result" section in the context below, that means your previous query has ALREADY been executed and the data is available. ' +
       'Do NOT issue another query action for the same data — instead, read the query result and present it to the user in a clear, formatted response. ' +
       'Never re-query for data that is already provided in the Query Result section.\n\n' +
+      'NEVER respond with "please hold", "let me gather", "I will look up", "let me analyze", "hold on while I", ' +
+      '"let me check", or similar waiting/gathering narrative text WITHOUT an action block. ' +
+      'When the user asks for analysis or data lookup, you MUST emit the query action block IMMEDIATELY in your response. ' +
+      'Act, don\'t announce. Do not narrate what you plan to do — just do it by including the action block.\n\n' +
       'Date format for filters: "YYYY-MM-DD". Amount filters are in cents (negative for expenses, positive for income). ' +
       'For example, to find expenses over $50, use amountMax: -5000 (since expenses are negative).\n\n' +
       'Examples of queries:\n' +
