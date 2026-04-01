@@ -1,3 +1,4 @@
+import { getMemories } from './memoryStorage';
 import type { BudgetAction, BudgetContext, ChatMessage, QueryAction } from './types';
 
 const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
@@ -43,7 +44,10 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "transfer-budget": params: {month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName} — Transfer budget amount (in cents) from one category to another. This is INCREMENTAL — it moves the specified amount. Only use for simple one-to-one transfers. For multi-category redistribution, use bulk-set-budget instead.\n' +
       '- "create-goal": params: {name, targetAmount, targetDate, associatedAccountIds?, associatedCategoryIds?} — Create a savings goal. targetAmount in cents. targetDate as "YYYY-MM-DD".\n' +
       '- "update-goal": params: {goalId, name?, targetAmount?, targetDate?, associatedAccountIds?, associatedCategoryIds?} — Update an existing goal.\n' +
-      '- "delete-goal": params: {goalId, goalName} — Delete a savings goal.\n\n' +
+      '- "delete-goal": params: {goalId, goalName} — Delete a savings goal.\n' +
+      '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
+      '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
+      '- "list-memories": params: {} — List all saved memories. This is a query action (executes automatically).\n\n' +
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
@@ -119,6 +123,15 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- When mentioning projections, always state assumptions clearly (e.g., "Based on 15 days of spending at $X/day").\n' +
       '- When the user asks about spending and has active goals, proactively mention relevant goal progress.\n' +
       '- Goals persist across sessions. Users can create, update, and delete goals.\n\n' +
+      'MEMORY SYSTEM:\n' +
+      'You have a persistent memory system. Memories survive across chat sessions and page reloads.\n' +
+      '- When the user teaches you a pattern, rule, or preference (e.g., "Starbucks should always be Dining Out", "I get paid on the 15th", "ignore transactions under $1"), ' +
+      'propose a "save-memory" action to remember it.\n' +
+      '- When making categorization suggestions or performing actions, consult your memories (listed below in context) and apply any relevant rules.\n' +
+      '- When the user says "forget" or "stop remembering" something, use "delete-memory" with the appropriate memoryId.\n' +
+      '- When the user asks "what do you remember?" or "show my memories", use "list-memories".\n' +
+      '- Memory categories: "categorization" for transaction/category rules, "preference" for general preferences, "context" for personal financial context.\n' +
+      '- Only save genuinely useful, lasting preferences — not one-time instructions.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
@@ -239,6 +252,15 @@ function buildSystemPrompt(context: BudgetContext): string {
     parts.push(`\n\n${context.debtAccounts}`);
   }
 
+  const memories = getMemories();
+  if (memories.length > 0) {
+    parts.push('\n\nYour Memories & Preferences (use these when relevant):');
+    for (let i = 0; i < memories.length; i++) {
+      const m = memories[i];
+      parts.push(`${i + 1}. [${m.category}] ${m.content} (id: ${m.id})`);
+    }
+  }
+
   if (context.queryResult) {
     parts.push(`\n\nQuery Result (from your previous query):\n${context.queryResult}`);
   }
@@ -272,6 +294,9 @@ const VALID_ACTION_TYPES = [
   'update-goal',
   'delete-goal',
   'reorganize-categories',
+  'save-memory',
+  'delete-memory',
+  'list-memories',
 ];
 
 const QUERY_TYPE_NAMES = [

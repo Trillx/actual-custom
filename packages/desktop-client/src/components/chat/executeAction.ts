@@ -1,6 +1,7 @@
 import { send } from 'loot-core/platform/client/connection';
 
 import { createGoal, deleteGoal, updateGoal } from './goalStorage';
+import { addMemory, deleteMemory as deleteMemoryById, getMemories } from './memoryStorage';
 import type { BudgetAction } from './types';
 
 function validateSetBudgetAmount(params: Record<string, unknown>): {
@@ -536,6 +537,18 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Delete Savings Goal`);
       if (p.goalName) lines.push(`Goal: ${p.goalName}`);
       break;
+    case 'save-memory':
+      lines.push(`Type: Save Memory`);
+      if (p.content) lines.push(`Memory: ${p.content}`);
+      if (p.category) lines.push(`Category: ${p.category}`);
+      break;
+    case 'delete-memory':
+      lines.push(`Type: Delete Memory`);
+      if (p.memoryId) lines.push(`Memory ID: ${p.memoryId}`);
+      break;
+    case 'list-memories':
+      lines.push(`Type: List Memories`);
+      break;
   }
 
   return lines;
@@ -894,6 +907,39 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
 
       return `Reorganization complete:\n${summary.join('\n')}`;
+    }
+    case 'save-memory': {
+      const content = action.params.content;
+      const category = action.params.category;
+      if (typeof content !== 'string' || !content.trim()) {
+        throw new Error('Missing or invalid "content" parameter for save-memory.');
+      }
+      const validCategories = ['categorization', 'preference', 'context'];
+      const cat = typeof category === 'string' && validCategories.includes(category)
+        ? (category as 'categorization' | 'preference' | 'context')
+        : 'preference';
+      const memory = addMemory({ content: content.trim(), category: cat, source: 'ai' });
+      return `Memory saved: "${memory.content}"`;
+    }
+    case 'delete-memory': {
+      const memoryId = action.params.memoryId;
+      if (typeof memoryId !== 'string' || !memoryId) {
+        throw new Error('Missing or invalid "memoryId" parameter for delete-memory.');
+      }
+      const deleted = deleteMemoryById(memoryId);
+      if (!deleted) throw new Error('Memory not found.');
+      return 'Memory deleted successfully.';
+    }
+    case 'list-memories': {
+      const allMemories = getMemories();
+      if (allMemories.length === 0) {
+        return 'No memories saved yet. You can teach me preferences by telling me things like "remember that Starbucks should be Dining Out".';
+      }
+      const lines: string[] = [`You have ${allMemories.length} saved memor${allMemories.length === 1 ? 'y' : 'ies'}:\n`];
+      for (const m of allMemories) {
+        lines.push(`- [${m.category}] ${m.content} (id: ${m.id}, ${m.source === 'ai' ? 'via AI' : 'manual'})`);
+      }
+      return lines.join('\n');
     }
     default:
       throw new Error(`Unknown action type: ${action.type}`);

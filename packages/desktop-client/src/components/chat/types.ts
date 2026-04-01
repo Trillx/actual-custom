@@ -33,7 +33,10 @@ export type BudgetAction = {
     | 'create-goal'
     | 'update-goal'
     | 'delete-goal'
-    | 'reorganize-categories';
+    | 'reorganize-categories'
+    | 'save-memory'
+    | 'delete-memory'
+    | 'list-memories';
   description: string;
   params: Record<string, unknown>;
 };

@@ -77,6 +77,8 @@ The AI can propose these actions, each requiring user confirmation:
 - `transfer-budget` — Transfer budget between categories
 - `create-goal` / `update-goal` / `delete-goal` — Savings goal management
 - `reorganize-categories` — Compound action: creates new groups, moves categories by name, deletes old empty groups — all in one confirmation
+- `save-memory` — Save an AI memory/preference (categorization rules, preferences, context)
+- `delete-memory` — Delete a saved memory by ID
 
 ### Read-Only Query Actions (auto-execute, no confirmation)
 The AI can query data using these query types:
@@ -90,6 +92,7 @@ The AI can query data using these query types:
 - `detect-anomalies` — Identify unusual spending patterns vs historical averages
 - `spending-trend` — Analyze month-over-month spending trends by category or payee
 - `historical-comparison` — Compare current month spending to historical averages
+- `list-memories` — List all saved AI memories (auto-executes like other queries)
 
 Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint for server-side transaction filtering and the `api/budget-month` endpoint for budget data. The flow is: AI returns a query action → ChatPanel auto-executes it (up to 2 rounds) → result is injected into context → AI summarizes the result for the user.
 
@@ -110,10 +113,21 @@ The AI assistant supports forward-looking financial insights:
 - Debt payoff timelines based on account balances with negative balances
 - What-if scenarios (e.g., "cut dining by 50%") show projected impact on budget and goals
 
+### AI Memory System
+The AI has a persistent memory system for learning user preferences, categorization rules, and personal context:
+- **Memory Storage**: `memoryStorage.ts` — localStorage-based CRUD for memories, scoped per budget file (same pattern as goals)
+- **Memory Panel**: `MemoryPanel.tsx` — UI for viewing, adding, and deleting memories. Accessed via 🧠 button in chat header.
+- **Memory Types**: `categorization` (transaction/category rules), `preference` (general preferences), `context` (personal financial context)
+- **AI Integration**: Memories are injected into the system prompt so the AI references them when relevant. AI proposes `save-memory` when users teach it patterns.
+- **Actions**: `save-memory` (write, requires confirmation), `delete-memory` (write, requires confirmation), `list-memories` (auto-executes like queries)
+- **Max**: 100 memories per budget (oldest dropped when limit reached)
+- **localStorage key**: `actual-budget-chat-memories:<budget-fingerprint>`
+
 ### Chat State
 - Messages persist in a session store (`chatState.ts`) — closing and reopening the panel preserves conversation history within the session
 - State is module-level (not localStorage), so it resets on page reload
 - Goals persist across sessions via localStorage (scoped per budget file)
+- Memories persist across sessions via localStorage (scoped per budget file)
 
 ### Configuration
 - API key is stored in `LocalPrefs['ai.apiKey']` (device-local, not synced)

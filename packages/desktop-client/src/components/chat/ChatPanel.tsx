@@ -20,6 +20,7 @@ import {
   setSessionMessages,
 } from './chatState';
 import { executeAction } from './executeAction';
+import { MemoryPanel } from './MemoryPanel';
 import type { BudgetContext, ChatMessage as ChatMessageType } from './types';
 import { useBudgetContext } from './useBudgetContext';
 
@@ -83,6 +84,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+  const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const requestIdRef = useRef(0);
@@ -104,6 +106,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   useEffect(() => {
     inputRef.current?.focus();
+    void gatherContext();
   }, []);
 
   const handleSend = useCallback(async () => {
@@ -308,8 +311,40 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         action = parseAction(rawResponse);
       }
 
+      if (action && action.type === 'list-memories') {
+        try {
+          const memResult = await executeAction(action);
+          const strippedText = stripActionBlock(rawResponse);
+          const memHistoryMsg: ChatMessageType = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: strippedText || 'Let me check your memories.',
+            timestamp: Date.now(),
+          };
+          apiHistory = [...apiHistory, memHistoryMsg];
+          currentContext = { ...currentContext, queryResult: memResult };
+
+          rawResponse = await sendChatMessage(
+            apiKey,
+            apiHistory,
+            currentContext,
+            endpointUrl || undefined,
+            modelName || undefined,
+          );
+          action = parseAction(rawResponse);
+        } catch (memErr) {
+          const memErrMsg = memErr instanceof Error ? memErr.message : 'Failed to list memories.';
+          if (currentRequestId !== requestIdRef.current) return;
+          setMessages(prev => [
+            ...prev,
+            { id: uuidv4(), role: 'assistant', content: memErrMsg, timestamp: Date.now() },
+          ]);
+          return;
+        }
+      }
+
       const stripped = stripActionBlock(rawResponse);
-      const isWriteAction = action && action.type !== 'query';
+      const isWriteAction = action && action.type !== 'query' && action.type !== 'list-memories';
       let displayContent: string;
       if (action && action.type === 'query') {
         if (currentContext.queryResult) {
@@ -538,6 +573,21 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           AI Budget Assistant
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Button
+            variant="bare"
+            onPress={() => setShowMemoryPanel(prev => !prev)}
+            aria-label="AI Memories"
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                lineHeight: '1',
+                opacity: showMemoryPanel ? 1 : 0.6,
+              }}
+            >
+              🧠
+            </Text>
+          </Button>
           {messages.length > 0 && (
             <Button
               variant="bare"
@@ -559,6 +609,13 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         </View>
       </View>
 
+      {showMemoryPanel ? (
+        <MemoryPanel
+          onClose={() => setShowMemoryPanel(false)}
+          isNarrowWidth={isNarrowWidth}
+        />
+      ) : (
+      <>
       <View
         style={{
           flex: 1,
@@ -749,6 +806,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           </button>
         </View>
       </View>
+      </>
+      )}
     </View>
   );
 }

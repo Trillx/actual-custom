@@ -10,6 +10,7 @@ import {
   projectMonthlySpending,
 } from './forecastEngine';
 import { getGoals, setBudgetId } from './goalStorage';
+import { setMemoryBudgetId } from './memoryStorage';
 import { executeQuery } from './queryHelpers';
 import {
   detectAnomalies,
@@ -32,10 +33,11 @@ export function useBudgetContext() {
       ]);
 
     const rawAccounts = accountsRaw as Array<{ id: string }>;
-    if (rawAccounts.length > 0) {
-      const budgetFingerprint = rawAccounts.map(a => a.id).sort().join(':');
-      setBudgetId(budgetFingerprint);
-    }
+    const budgetFingerprint = rawAccounts.length > 0
+      ? rawAccounts.map(a => a.id).sort().join(':')
+      : 'empty-budget';
+    setBudgetId(budgetFingerprint);
+    setMemoryBudgetId(budgetFingerprint);
 
     const allAccounts = accountsRaw as Array<{
       id: string;
