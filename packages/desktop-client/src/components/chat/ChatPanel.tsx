@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { Button } from '@actual-app/components/button';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
@@ -419,6 +419,62 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   const sendDisabled = isLoading || !input.trim() || !apiKey;
 
+  const PANEL_MIN = 300;
+  const PANEL_MAX = 700;
+  const PANEL_DEFAULT = 380;
+  const STORAGE_KEY = 'chat-panel-width';
+
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const n = parseInt(stored, 10);
+      if (!isNaN(n) && n >= PANEL_MIN && n <= PANEL_MAX) return n;
+    }
+    return PANEL_DEFAULT;
+  });
+
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(PANEL_DEFAULT);
+  const panelWidthRef = useRef(panelWidth);
+  panelWidthRef.current = panelWidth;
+
+  useLayoutEffect(() => {
+    if (isNarrowWidth) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      e.preventDefault();
+      const delta = dragStartX.current - e.clientX;
+      const newWidth = Math.min(PANEL_MAX, Math.max(PANEL_MIN, dragStartWidth.current + delta));
+      setPanelWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem(STORAGE_KEY, String(panelWidthRef.current));
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isNarrowWidth]);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = panelWidthRef.current;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
   const panelStyle = isNarrowWidth
     ? {
         position: 'fixed' as const,
@@ -432,19 +488,36 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         flexDirection: 'column' as const,
       }
     : {
-        width: 380,
-        minWidth: 380,
-        maxWidth: 380,
+        width: panelWidth,
+        minWidth: PANEL_MIN,
+        maxWidth: PANEL_MAX,
         height: '100%',
-        borderLeft: `1px solid ${theme.tableBorder}`,
         backgroundColor: theme.pageBackground,
         display: 'flex',
         flexDirection: 'column' as const,
         overflow: 'hidden',
+        position: 'relative' as const,
       };
 
   return (
     <View style={panelStyle}>
+      {!isNarrowWidth && (
+        <div
+          onMouseDown={handleResizeStart}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 5,
+            cursor: 'col-resize',
+            zIndex: 10,
+            borderLeft: `1px solid ${theme.tableBorder}`,
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderLeft = `2px solid ${theme.pageTextPositive}`; }}
+          onMouseLeave={e => { if (!isDragging.current) (e.currentTarget as HTMLDivElement).style.borderLeft = `1px solid ${theme.tableBorder}`; }}
+        />
+      )}
       <View
         style={{
           padding: '10px 12px 10px 16px',
