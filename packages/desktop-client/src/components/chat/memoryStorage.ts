@@ -10,6 +10,8 @@ export type Memory = {
 
 const STORAGE_KEY_PREFIX = 'actual-budget-chat-memories';
 const MAX_MEMORIES = 100;
+const VALID_CATEGORIES = ['categorization', 'preference', 'context'] as const;
+const VALID_SOURCES = ['user', 'ai'] as const;
 
 let currentBudgetId: string | null = null;
 
@@ -28,18 +30,41 @@ function generateId(): string {
   return `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isValidMemory(entry: unknown): entry is Memory {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const obj = entry as Record<string, unknown>;
+  return (
+    typeof obj.id === 'string' &&
+    obj.id.length > 0 &&
+    typeof obj.content === 'string' &&
+    obj.content.length > 0 &&
+    typeof obj.category === 'string' &&
+    (VALID_CATEGORIES as readonly string[]).includes(obj.category) &&
+    typeof obj.createdAt === 'number' &&
+    isFinite(obj.createdAt) &&
+    typeof obj.source === 'string' &&
+    (VALID_SOURCES as readonly string[]).includes(obj.source)
+  );
+}
+
 export function getMemories(): Memory[] {
   try {
     const raw = localStorage.getItem(getStorageKey());
     if (!raw) return [];
-    return JSON.parse(raw) as Memory[];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isValidMemory);
   } catch {
     return [];
   }
 }
 
 function saveMemories(memories: Memory[]): void {
-  localStorage.setItem(getStorageKey(), JSON.stringify(memories));
+  try {
+    localStorage.setItem(getStorageKey(), JSON.stringify(memories));
+  } catch {
+    // localStorage quota exceeded or unavailable
+  }
 }
 
 export function addMemory(params: {
@@ -63,6 +88,17 @@ export function addMemory(params: {
   return memory;
 }
 
+export function updateMemory(
+  id: string,
+  updates: Partial<Pick<Memory, 'content' | 'category'>>,
+): Memory | null {
+  const memories = getMemories();
+  const idx = memories.findIndex(m => m.id === id);
+  if (idx === -1) return null;
+  memories[idx] = { ...memories[idx], ...updates };
+  saveMemories(memories);
+  return memories[idx];
+}
 export function deleteMemory(id: string): boolean {
   const memories = getMemories();
   const filtered = memories.filter(m => m.id !== id);

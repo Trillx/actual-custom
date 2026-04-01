@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from 'react';
 
 import { Button } from '@actual-app/components/button';
-import { SvgClose, SvgTrash } from '@actual-app/components/icons/v1';
+import {
+  SvgClose,
+  SvgTrash,
+} from '@actual-app/components/icons/v1';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
@@ -26,9 +29,9 @@ const CATEGORY_LABELS: Record<MemoryCategory, string> = {
 };
 
 const CATEGORY_COLORS: Record<MemoryCategory, string> = {
-  categorization: '#4f9da6',
-  preference: '#a67f4f',
-  context: '#7f6faf',
+  categorization: '#4a90d9',
+  preference: '#7c3aed',
+  context: '#059669',
 };
 
 export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps) {
@@ -50,7 +53,7 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
   );
 
   const handleClearAll = useCallback(() => {
-    if (!window.confirm('Clear all memories? This cannot be undone.')) return;
+    if (!window.confirm('Delete all memories? This cannot be undone.')) return;
     clearMemories();
     refreshMemories();
   }, [refreshMemories]);
@@ -128,6 +131,69 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
         </View>
       </View>
 
+      {showAddForm && (
+        <View
+          style={{
+            padding: '10px 14px',
+            borderBottom: `1px solid ${theme.tableBorder}`,
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
+          <textarea
+            value={newContent}
+            onChange={e => setNewContent(e.target.value)}
+            placeholder="e.g., Starbucks transactions should be categorized as Dining Out"
+            rows={2}
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              border: `1px solid ${theme.formInputBorder}`,
+              borderRadius: 8,
+              backgroundColor: theme.formInputBackground,
+              color: theme.formInputText,
+              fontSize: 13,
+              fontFamily: 'inherit',
+              resize: 'none',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <select
+              value={newCategory}
+              onChange={e => setNewCategory(e.target.value as Memory['category'])}
+              style={{
+                padding: '4px 8px',
+                border: `1px solid ${theme.formInputBorder}`,
+                borderRadius: 6,
+                backgroundColor: theme.formInputBackground,
+                color: theme.formInputText,
+                fontSize: 12,
+                fontFamily: 'inherit',
+              }}
+            >
+              <option value="categorization">Categorization</option>
+              <option value="preference">Preference</option>
+              <option value="context">Context</option>
+            </select>
+            <Button
+              variant="primary"
+              onPress={handleAdd}
+              style={{ fontSize: 12, borderRadius: 8 }}
+            >
+              Save
+            </Button>
+            <Button
+              variant="bare"
+              onPress={() => { setShowAddForm(false); setNewContent(''); }}
+              style={{ fontSize: 12 }}
+            >
+              Cancel
+            </Button>
+          </View>
+        </View>
+      )}
       <View
         style={{
           flex: 1,
@@ -136,7 +202,7 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
           padding: isNarrowWidth ? '12px 10px' : '12px 14px',
         }}
       >
-        {memories.length === 0 && !showAddForm && (
+        {memories.length === 0 ? (
           <View
             style={{
               flex: 1,
@@ -157,157 +223,88 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
                 maxWidth: 280,
               }}
             >
-              No memories yet. Teach the AI your preferences by chatting
-              naturally, or add them manually below.
+              No memories yet. Teach the AI your preferences by chatting with it, or add memories manually.
             </Text>
           </View>
-        )}
-
-        {memories.map(memory => (
-          <View
-            key={memory.id}
-            style={{
-              padding: '8px 10px',
-              backgroundColor: theme.cardBackground,
-              border: `1px solid ${theme.cardBorder}`,
-              borderRadius: 10,
-              marginBottom: 8,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 4,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text
+        ) : (
+          <View style={{ gap: 6 }}>
+            {memories.map(memory => (
+              <View
+                key={memory.id}
+                style={{
+                  padding: '8px 10px',
+                  backgroundColor: theme.cardBackground,
+                  border: `1px solid ${theme.cardBorder}`,
+                  borderRadius: 10,
+                  gap: 4,
+                }}
+              >
+                <View
                   style={{
-                    fontSize: 10,
-                    color: CATEGORY_COLORS[memory.category],
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 6,
                   }}
                 >
-                  {CATEGORY_LABELS[memory.category]}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: 'white',
+                        backgroundColor: CATEGORY_COLORS[memory.category],
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        fontWeight: 500,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {CATEGORY_LABELS[memory.category]}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: theme.pageTextSubdued,
+                        opacity: 0.6,
+                      }}
+                    >
+                      {memory.source === 'ai' ? 'AI' : 'Manual'}
+                    </Text>
+                  </View>
+                  <Button
+                    variant="bare"
+                    onPress={() => handleDelete(memory.id)}
+                    aria-label="Delete memory"
+                  >
+                    <SvgClose
+                      style={{
+                        width: 12,
+                        height: 12,
+                        color: theme.pageTextSubdued,
+                      }}
+                    />
+                  </Button>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.pageText,
+                    lineHeight: '1.5',
+                  }}
+                >
+                  {memory.content}
                 </Text>
                 <Text
                   style={{
                     fontSize: 10,
                     color: theme.pageTextSubdued,
-                    opacity: 0.6,
+                    opacity: 0.5,
                   }}
                 >
-                  {memory.source === 'ai' ? 'via AI' : 'manual'}
+                  {new Date(memory.createdAt).toLocaleDateString()}
                 </Text>
               </View>
-              <Button
-                variant="bare"
-                onPress={() => handleDelete(memory.id)}
-                aria-label="Delete memory"
-              >
-                <SvgClose
-                  style={{
-                    width: 12,
-                    height: 12,
-                    color: theme.pageTextSubdued,
-                  }}
-                />
-              </Button>
-            </View>
-            <Text
-              style={{
-                fontSize: 12,
-                color: theme.pageText,
-                lineHeight: '1.5',
-              }}
-            >
-              {memory.content}
-            </Text>
-            <Text
-              style={{
-                fontSize: 10,
-                color: theme.pageTextSubdued,
-                marginTop: 4,
-                opacity: 0.5,
-              }}
-            >
-              {new Date(memory.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
-        ))}
-
-        {showAddForm && (
-          <View
-            style={{
-              padding: '10px 12px',
-              backgroundColor: theme.cardBackground,
-              border: `1px solid ${theme.cardBorder}`,
-              borderRadius: 10,
-              marginBottom: 8,
-              gap: 8,
-            }}
-          >
-            <textarea
-              value={newContent}
-              onChange={e => setNewContent(e.target.value)}
-              placeholder="e.g., Starbucks transactions should be categorized as Dining Out"
-              autoFocus
-              rows={2}
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                border: `1px solid ${theme.formInputBorder}`,
-                borderRadius: 8,
-                backgroundColor: theme.formInputBackground,
-                color: theme.formInputText,
-                fontSize: 12,
-                fontFamily: 'inherit',
-                resize: 'vertical',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-              <select
-                value={newCategory}
-                onChange={e => setNewCategory(e.target.value as MemoryCategory)}
-                style={{
-                  padding: '4px 8px',
-                  border: `1px solid ${theme.formInputBorder}`,
-                  borderRadius: 6,
-                  backgroundColor: theme.formInputBackground,
-                  color: theme.formInputText,
-                  fontSize: 11,
-                  fontFamily: 'inherit',
-                }}
-              >
-                <option value="categorization">Categorization</option>
-                <option value="preference">Preference</option>
-                <option value="context">Context</option>
-              </select>
-              <View style={{ flex: 1 }} />
-              <Button
-                variant="bare"
-                onPress={() => {
-                  setShowAddForm(false);
-                  setNewContent('');
-                }}
-                style={{ fontSize: 11 }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onPress={handleAdd}
-                style={{ fontSize: 11, borderRadius: 6 }}
-              >
-                Save
-              </Button>
-            </View>
+            ))}
           </View>
         )}
       </View>
@@ -319,7 +316,7 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
           flexShrink: 0,
         }}
       >
-        {!showAddForm && (
+        {!showAddForm ? (
           <Button
             variant="bare"
             onPress={() => setShowAddForm(true)}
@@ -335,6 +332,16 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
           >
             + Add memory manually
           </Button>
+        ) : (
+          <Text
+            style={{
+              fontSize: 11,
+              color: theme.pageTextSubdued,
+              textAlign: 'center',
+            }}
+          >
+            {memories.length} / 100 memories
+          </Text>
         )}
       </View>
     </View>

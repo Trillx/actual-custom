@@ -48,7 +48,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "delete-goal": params: {goalId, goalName} — Delete a savings goal.\n' +
       '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
       '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
-      '- "list-memories": params: {} — List all saved memories. This is a query action (executes automatically).\n\n' +
+      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n\n' +
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
@@ -128,15 +128,26 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- Goals persist across sessions. Users can create, update, and delete goals.\n\n' +
       'MEMORY SYSTEM:\n' +
       'You have a persistent memory system. Memories survive across chat sessions and page reloads.\n' +
-      '- When the user teaches you a pattern, rule, or preference (e.g., "Starbucks should always be Dining Out", "I get paid on the 15th", "ignore transactions under $1"), ' +
-      'propose a "save-memory" action to remember it.\n' +
-      '- When making categorization suggestions or performing actions, consult your memories (listed below in context) and apply any relevant rules.\n' +
+      '- When the user teaches you a pattern, rule, or preference (e.g., "Starbucks should always be Dining Out", "I prefer weekly summaries", "my partner\'s name is Alex"), ' +
+      'proactively propose a "save-memory" action to remember it.\n' +
+      '- When making categorization suggestions or performing actions, ALWAYS consult your memories (listed below in context) and apply any relevant rules.\n' +
       '- When the user says "forget" or "stop remembering" something, use "delete-memory" with the appropriate memoryId.\n' +
       '- When the user asks "what do you remember?" or "show my memories", use "list-memories".\n' +
       '- Memory categories: "categorization" for transaction/category rules, "preference" for general preferences, "context" for personal financial context.\n' +
+      '- Memories persist across chat sessions. Users can also manage memories from the memory panel.\n' +
+      '- "list-memories" is a read-only action that auto-executes without confirmation, like query actions.\n' +
+      '- "save-memory" and "delete-memory" are write actions that require user confirmation.\n' +
       '- Only save genuinely useful, lasting preferences — not one-time instructions.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
+
+  const memories = getMemories();
+  if (memories.length > 0) {
+    parts.push('\n\nMemories & Preferences:');
+    memories.forEach((m, i) => {
+      parts.push(`${i + 1}. [${m.category}] ${m.content} (id: ${m.id})`);
+    });
+  }
 
   if (context.accounts.length > 0) {
     parts.push('\n\nAccounts:');

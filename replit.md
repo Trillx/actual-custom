@@ -114,20 +114,19 @@ The AI assistant supports forward-looking financial insights:
 - What-if scenarios (e.g., "cut dining by 50%") show projected impact on budget and goals
 
 ### AI Memory System
-The AI has a persistent memory system for learning user preferences, categorization rules, and personal context:
-- **Memory Storage**: `memoryStorage.ts` — localStorage-based CRUD for memories, scoped per budget file (same pattern as goals)
+The AI assistant has a persistent memory system for learning user preferences, categorization rules, and personal context:
+- **Memory Storage**: `memoryStorage.ts` — localStorage-based CRUD for memories, scoped per budget file via fingerprint (`actual-budget-chat-memories:<fingerprint>`)
 - **Memory Panel**: `MemoryPanel.tsx` — UI for viewing, adding, and deleting memories. Accessed via 🧠 button in chat header.
 - **Memory Types**: `categorization` (transaction/category rules), `preference` (general preferences), `context` (personal financial context)
-- **AI Integration**: Memories are injected into the system prompt so the AI references them when relevant. AI proposes `save-memory` when users teach it patterns.
-- **Actions**: `save-memory` (write, requires confirmation), `delete-memory` (write, requires confirmation), `list-memories` (auto-executes like queries)
-- **Max**: 100 memories per budget (oldest dropped when limit reached)
+- **AI Integration**: Memories are injected into the system prompt so the AI references them when relevant. The AI proactively proposes `save-memory` when users teach it patterns (e.g., "always categorize Starbucks as Dining Out").
+- **Actions**: `save-memory` (write, requires confirmation), `delete-memory` (write, requires confirmation), `list-memories` (read-only, auto-executes like other queries)
+- **Max**: 100 memories per budget (oldest dropped when limit reached) to keep context window manageable.
 - **localStorage key**: `actual-budget-chat-memories:<budget-fingerprint>`
 
 ### Chat State
 - Messages persist in a session store (`chatState.ts`) — closing and reopening the panel preserves conversation history within the session
 - State is module-level (not localStorage), so it resets on page reload
-- Goals persist across sessions via localStorage (scoped per budget file)
-- Memories persist across sessions via localStorage (scoped per budget file)
+- Goals and memories persist across sessions via localStorage (scoped per budget file)
 
 ### Configuration
 - API key is stored in `LocalPrefs['ai.apiKey']` (device-local, not synced)

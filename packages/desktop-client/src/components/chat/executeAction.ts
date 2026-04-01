@@ -551,7 +551,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
       break;
     case 'save-memory':
       lines.push(`Type: Save Memory`);
-      if (p.content) lines.push(`Memory: ${p.content}`);
+      if (p.content) lines.push(`Content: ${p.content}`);
       if (p.category) lines.push(`Category: ${p.category}`);
       break;
     case 'delete-memory':

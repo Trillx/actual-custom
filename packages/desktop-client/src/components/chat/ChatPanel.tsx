@@ -93,7 +93,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
   const [modelName] = useLocalPref('ai.modelName');
-  const { gatherContext, runQuery } = useBudgetContext();
+  const { gatherContext, runQuery, initBudgetScope } = useBudgetContext();
   const { isNarrowWidth } = useResponsive();
 
   useEffect(() => {
@@ -314,15 +314,18 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       if (action && action.type === 'list-memories') {
         try {
           const memResult = await executeAction(action);
+          currentContext = { ...currentContext, queryResult: memResult };
           const strippedText = stripActionBlock(rawResponse);
-          const memHistoryMsg: ChatMessageType = {
+          const memStatusMsg: ChatMessageType = {
             id: uuidv4(),
             role: 'assistant',
             content: strippedText || 'Let me check your memories.',
             timestamp: Date.now(),
           };
-          apiHistory = [...apiHistory, memHistoryMsg];
-          currentContext = { ...currentContext, queryResult: memResult };
+          displayMessages = [...displayMessages, memStatusMsg];
+          if (currentRequestId !== requestIdRef.current) return;
+          setMessages(displayMessages);
+          apiHistory = [...apiHistory, memStatusMsg];
 
           rawResponse = await sendChatMessage(
             apiKey,
@@ -553,6 +556,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           onMouseLeave={e => { if (!isDragging.current) (e.currentTarget as HTMLDivElement).style.borderLeft = `1px solid ${theme.tableBorder}`; }}
         />
       )}
+      {showMemoryPanel && (
+        <MemoryPanel
+          onClose={() => setShowMemoryPanel(false)}
+          isNarrowWidth={isNarrowWidth}
+        />
+      )}
       <View
         style={{
           padding: '10px 12px 10px 16px',
@@ -585,7 +594,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
                 opacity: showMemoryPanel ? 1 : 0.6,
               }}
             >
-              🧠
+              {'🧠'}
             </Text>
           </Button>
           {messages.length > 0 && (

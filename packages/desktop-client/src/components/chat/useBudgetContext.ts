@@ -405,5 +405,19 @@ export function useBudgetContext() {
     [],
   );
 
-  return { gatherContext, runQuery };
+  const initBudgetScope = useCallback(async () => {
+    try {
+      const accountsRaw = await send('api/accounts-get');
+      const rawAccounts = accountsRaw as Array<{ id: string }>;
+      if (rawAccounts.length > 0) {
+        const budgetFingerprint = rawAccounts.map(a => a.id).sort().join(':');
+        setBudgetId(budgetFingerprint);
+        setMemoryBudgetId(budgetFingerprint);
+      }
+    } catch {
+      // Accounts not available yet
+    }
+  }, []);
+
+  return { gatherContext, runQuery, initBudgetScope };
 }
