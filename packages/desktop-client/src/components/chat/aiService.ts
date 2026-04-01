@@ -246,49 +246,70 @@ function buildSystemPrompt(context: BudgetContext): string {
   return parts.join('\n');
 }
 
-export function parseAction(content: string): BudgetAction | null {
-  const actionMatch = content.match(/```action\s*\n([\s\S]*?)\n```/);
-  if (!actionMatch) return null;
+const VALID_ACTION_TYPES = [
+  'set-budget-amount',
+  'add-transaction',
+  'update-transaction',
+  'delete-transaction',
+  'transfer-between-accounts',
+  'create-category',
+  'create-account',
+  'rename-category',
+  'delete-category',
+  'create-category-group',
+  'move-category',
+  'delete-category-group',
+  'rename-payee',
+  'merge-payees',
+  'copy-previous-month',
+  'set-budget-average',
+  'bulk-set-budget',
+  'transfer-budget',
+  'query',
+  'close-account',
+  'reopen-account',
+  'create-goal',
+  'update-goal',
+  'delete-goal',
+  'reorganize-categories',
+];
 
+function tryParseActionJson(json: string): BudgetAction | null {
   try {
-    const parsed = JSON.parse(actionMatch[1]) as BudgetAction;
+    const parsed = JSON.parse(json) as BudgetAction;
     if (
       parsed.type &&
       parsed.description &&
       parsed.params &&
-      [
-        'set-budget-amount',
-        'add-transaction',
-        'update-transaction',
-        'delete-transaction',
-        'transfer-between-accounts',
-        'create-category',
-        'create-account',
-        'rename-category',
-        'delete-category',
-        'create-category-group',
-        'move-category',
-        'delete-category-group',
-        'rename-payee',
-        'merge-payees',
-        'copy-previous-month',
-        'set-budget-average',
-        'bulk-set-budget',
-        'transfer-budget',
-        'query',
-        'close-account',
-        'reopen-account',
-        'create-goal',
-        'update-goal',
-        'delete-goal',
-        'reorganize-categories',
-      ].includes(parsed.type)
+      VALID_ACTION_TYPES.includes(parsed.type)
     ) {
       return parsed;
     }
   } catch {
-    // Invalid JSON in action block
+    // Invalid JSON
   }
+  return null;
+}
+
+export function parseAction(content: string): BudgetAction | null {
+  const actionMatch = content.match(/```action\s*\n([\s\S]*?)\n```/);
+  if (actionMatch) {
+    const result = tryParseActionJson(actionMatch[1]);
+    if (result) return result;
+  }
+
+  const jsonMatch = content.match(/```json\s*\n([\s\S]*?)\n```/);
+  if (jsonMatch) {
+    const result = tryParseActionJson(jsonMatch[1]);
+    if (result) return result;
+  }
+
+  const bareMatch = content.match(/(\{[\s\S]*"type"\s*:\s*"[a-z-]+"[\s\S]*\})/);
+  if (bareMatch) {
+    const result = tryParseActionJson(bareMatch[1]);
+    if (result) return result;
+  }
+
   return null;
 }
 
@@ -332,7 +353,17 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
 }
 
 export function stripActionBlock(content: string): string {
-  return content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  if (result === content.trim()) {
+    result = content.replace(/```json\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  }
+  if (result === content.trim()) {
+    const bareMatch = content.match(/(\{[\s\S]*"type"\s*:\s*"[a-z-]+"[\s\S]*\})/);
+    if (bareMatch && tryParseActionJson(bareMatch[1])) {
+      result = content.replace(bareMatch[1], '').trim();
+    }
+  }
+  return result;
 }
 
 export async function sendChatMessage(
