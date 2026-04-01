@@ -445,6 +445,18 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Delete Category Group`);
       if (p.groupName) lines.push(`Group: ${p.groupName}`);
       break;
+    case 'bulk-create-category-groups': {
+      lines.push(`Type: Bulk Create Category Groups`);
+      if (Array.isArray(p.groups)) {
+        for (const g of p.groups as Array<{ name: string; categories?: string[] }>) {
+          const catList = Array.isArray(g.categories) && g.categories.length > 0
+            ? `: ${g.categories.join(', ')}`
+            : '';
+          lines.push(`  ${g.name}${catList}`);
+        }
+      }
+      break;
+    }
     case 'reorganize-categories': {
       lines.push(`Type: Reorganize Categories`);
       const newGroupNames: string[] = [];
@@ -802,6 +814,55 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       if (!deleted) throw new Error('Goal not found.');
       return `Savings goal "${validated.goalName}" deleted successfully.`;
     }
+    case 'bulk-create-category-groups': {
+      const groups = action.params.groups;
+      if (!Array.isArray(groups) || groups.length === 0) {
+        throw new Error('bulk-create-category-groups requires a non-empty "groups" array.');
+      }
+      for (let i = 0; i < groups.length; i++) {
+        const g = groups[i] as { name?: unknown; categories?: unknown };
+        if (!g || typeof g.name !== 'string' || !g.name.trim()) {
+          throw new Error(`groups[${i}] must have a non-empty string "name".`);
+        }
+        if (g.categories !== undefined && !Array.isArray(g.categories)) {
+          throw new Error(`groups[${i}].categories must be an array of category name strings.`);
+        }
+        if (Array.isArray(g.categories)) {
+          for (let j = 0; j < (g.categories as unknown[]).length; j++) {
+            const catVal = (g.categories as unknown[])[j];
+            if (typeof catVal !== 'string' || !(catVal as string).trim()) {
+              throw new Error(`groups[${i}].categories[${j}] must be a non-empty string.`);
+            }
+          }
+        }
+      }
+
+      const typedGroups = (groups as Array<{ name: string; categories?: string[] }>).map(g => ({
+        name: g.name.trim(),
+        categories: Array.isArray(g.categories) ? g.categories.map(c => c.trim()) : undefined,
+      }));
+      const summary: string[] = [];
+
+      for (const group of typedGroups) {
+        const groupId = await send('api/category-group-create', {
+          group: { name: group.name },
+        }) as unknown as string;
+
+        const catCount = Array.isArray(group.categories) ? group.categories.length : 0;
+        if (Array.isArray(group.categories) && group.categories.length > 0) {
+          for (const catName of group.categories) {
+            await send('api/category-create', {
+              category: { name: catName, group_id: groupId, hidden: false },
+            });
+          }
+          summary.push(`"${group.name}" with ${catCount} categor${catCount === 1 ? 'y' : 'ies'}: ${group.categories.join(', ')}`);
+        } else {
+          summary.push(`"${group.name}" (empty)`);
+        }
+      }
+
+      return `Created ${typedGroups.length} category group${typedGroups.length === 1 ? '' : 's'}:\n${summary.join('\n')}`;
+    }
     case 'reorganize-categories': {
       const newGroups = action.params.newGroups;
       const deleteOldGroups = action.params.deleteOldGroups;
@@ -866,7 +927,10 @@ export async function executeAction(action: BudgetAction): Promise<string> {
           for (const catName of group.categories) {
             const matches = catsByName.get(catName.toLowerCase());
             if (!matches || matches.length === 0) {
-              summary.push(`Warning: category "${catName}" not found, skipped`);
+              await send('api/category-create', {
+                category: { name: catName, group_id: groupId, hidden: false },
+              });
+              summary.push(`Created "${catName}" in "${group.name}"`);
               continue;
             }
             if (matches.length > 1) {

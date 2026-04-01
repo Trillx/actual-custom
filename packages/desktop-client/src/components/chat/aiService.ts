@@ -32,7 +32,8 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "reopen-account": params: {accountId}\n' +
       '- "rename-category": params: {categoryId, newName, oldName} — Rename an existing category. Use the category ID from context.\n' +
       '- "delete-category": params: {categoryId, categoryName, transferCategoryId?, transactionCount} — Delete a category. Set transactionCount to warn user. Optionally transfer transactions to another category via transferCategoryId.\n' +
-      '- "create-category-group": params: {name, categories?} — Create a new category group. categories is an optional array of {name} objects to create categories inside the group.\n' +
+      '- "create-category-group": params: {name, categories?} — Create a single new category group. categories is an optional array of {name} objects to create categories inside the group.\n' +
+      '- "bulk-create-category-groups": params: {groups} — Create multiple category groups at once. groups is an array of {name, categories?} where categories is an optional array of category name strings. Use this when the user asks to create multiple category groups from scratch (e.g., "set up Housing, Groceries, Entertainment groups"). This avoids tedious one-by-one confirmations.\n' +
       '- "move-category": params: {categoryId, categoryName, groupId, groupName} — Move an existing category to a different category group. Use the category ID and group ID from context.\n' +
       '- "delete-category-group": params: {groupId, groupName} — Delete an empty category group. Only use after all categories have been moved out.\n' +
       '- "reorganize-categories": params: {newGroups: [{name, categories: ["categoryName"]}], deleteOldGroups?: ["groupName"]} — Reorganize categories in a single step. Creates new category groups, moves existing categories into them by name, then optionally deletes specified empty old groups. Use this for any reorganization, rearranging, or restructuring of categories into new groups. All steps execute automatically after one confirmation.\n' +
@@ -60,13 +61,15 @@ function buildSystemPrompt(context: BudgetContext): string {
       'For multi-category redistribution or rebalancing (adjusting 2+ categories at once), ALWAYS use "bulk-set-budget" so the user only needs to confirm ONCE. ' +
       'Look up each category\'s current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total for each.\n' +
       'Use "transfer-budget" ONLY for simple one-to-one transfers between exactly two categories.\n\n' +
-      'IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their categories into new groups, ' +
-      'ALWAYS use the "reorganize-categories" action. This handles everything in a single step: creating new groups, moving existing categories by name, and deleting old empty groups. ' +
+      'IMPORTANT — Creating multiple category groups from scratch: When the user asks to create or set up multiple new category groups (e.g., "create Housing, Groceries, Entertainment groups with subcategories"), ' +
+      'ALWAYS use "bulk-create-category-groups" to create them all in one action. Do NOT use individual "create-category-group" actions one at a time.\n\n' +
+      'IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their EXISTING categories into new groups, ' +
+      'ALWAYS use the "reorganize-categories" action. This handles everything in a single step: creating new groups, moving existing categories by name (or creating them if they do not already exist), and deleting old empty groups. ' +
       'Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history. ' +
       'Do NOT use individual "create-category-group", "move-category", or "delete-category-group" actions for reorganization — use "reorganize-categories" instead.\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
-      'Only include ONE action per response. Note: "reorganize-categories" counts as a single action even though it performs multiple steps internally.\n\n' +
+      'Only include ONE action per response. Note: "reorganize-categories" and "bulk-create-category-groups" each count as a single action even though they perform multiple steps internally.\n\n' +
       'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
       '(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), ' +
       'you MUST respond with a QUERY action block:\n' +
@@ -294,6 +297,7 @@ const VALID_ACTION_TYPES = [
   'update-goal',
   'delete-goal',
   'reorganize-categories',
+  'bulk-create-category-groups',
   'save-memory',
   'delete-memory',
   'list-memories',

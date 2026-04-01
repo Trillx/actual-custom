@@ -34,6 +34,7 @@ export type BudgetAction = {
     | 'update-goal'
     | 'delete-goal'
     | 'reorganize-categories'
+    | 'bulk-create-category-groups'
     | 'save-memory'
     | 'delete-memory'
     | 'list-memories';
