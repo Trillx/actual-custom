@@ -274,16 +274,68 @@ const VALID_ACTION_TYPES = [
   'reorganize-categories',
 ];
 
+const QUERY_TYPE_NAMES = [
+  'search-transactions',
+  'spending-by-category',
+  'spending-by-payee',
+  'spending-by-month',
+  'budget-vs-actual',
+  'top-payees',
+  'top-categories',
+  'budget-month',
+  'budget-trend',
+  'spending-by-week',
+  'spending-by-quarter',
+  'spending-by-account',
+  'detect-subscriptions',
+  'detect-anomalies',
+  'spending-trend',
+  'historical-comparison',
+];
+
 function tryParseActionJson(json: string): BudgetAction | null {
   try {
-    const parsed = JSON.parse(json) as BudgetAction;
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const rawType = parsed.type as string;
+    if (!rawType) return null;
+
+    if (QUERY_TYPE_NAMES.includes(rawType)) {
+      const FILTER_KEYS = ['startDate', 'endDate', 'payee', 'payeeId', 'category', 'categoryId', 'accountId', 'amountMin', 'amountMax', 'notes'];
+      const META_KEYS = ['type', 'description', 'params'];
+      const hasParams = parsed.params && typeof parsed.params === 'object';
+      const sourceParams = hasParams
+        ? (parsed.params as Record<string, unknown>)
+        : Object.fromEntries(
+            Object.entries(parsed).filter(([k]) => !META_KEYS.includes(k))
+          );
+
+      const filters: Record<string, unknown> = {};
+      const queryParams: Record<string, unknown> = { queryType: rawType };
+
+      for (const [key, value] of Object.entries(sourceParams)) {
+        if (FILTER_KEYS.includes(key)) {
+          filters[key] = value;
+        } else {
+          queryParams[key] = value;
+        }
+      }
+      if (Object.keys(filters).length > 0) {
+        queryParams.filters = filters;
+      }
+
+      return {
+        type: 'query',
+        description: (parsed.description as string) || `Query: ${rawType}`,
+        params: queryParams,
+      };
+    }
+
     if (
-      parsed.type &&
+      VALID_ACTION_TYPES.includes(rawType) &&
       parsed.description &&
-      parsed.params &&
-      VALID_ACTION_TYPES.includes(parsed.type)
+      parsed.params
     ) {
-      return parsed;
+      return parsed as unknown as BudgetAction;
     }
   } catch {
     // Invalid JSON
@@ -320,25 +372,7 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
   const queryType = params.queryType as QueryAction['queryType'];
   if (!queryType) return null;
 
-  const validTypes = [
-    'search-transactions',
-    'spending-by-category',
-    'spending-by-payee',
-    'spending-by-month',
-    'budget-vs-actual',
-    'top-payees',
-    'top-categories',
-    'budget-month',
-    'budget-trend',
-    'spending-by-week',
-    'spending-by-quarter',
-    'spending-by-account',
-    'detect-subscriptions',
-    'detect-anomalies',
-    'spending-trend',
-    'historical-comparison',
-  ];
-  if (!validTypes.includes(queryType)) return null;
+  if (!QUERY_TYPE_NAMES.includes(queryType)) return null;
 
   return {
     queryType,
