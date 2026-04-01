@@ -88,7 +88,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       'you MUST summarize the results in a natural, helpful way for the user. ' +
       'CRITICAL: If you see a "Query Result" section in the context below, that means your previous query has ALREADY been executed and the data is available. ' +
       'Do NOT issue another query action for the same data — instead, read the query result and present it to the user in a clear, formatted response. ' +
-      'Never re-query for data that is already provided in the Query Result section.\n\n' +
+      'Never re-query for data that is already provided in the Query Result section. ' +
+      'After a query has been executed and results are provided, you MUST present the results immediately in your response. ' +
+      'Do NOT issue another query action — summarize what was found. If you keep issuing query actions instead of summarizing, the system will fail.\n\n' +
       'NEVER respond with "please hold", "let me gather", "I will look up", "let me analyze", "hold on while I", ' +
       '"let me check", or similar waiting/gathering narrative text WITHOUT an action block. ' +
       'When the user asks for analysis or data lookup, you MUST emit the query action block IMMEDIATELY in your response. ' +

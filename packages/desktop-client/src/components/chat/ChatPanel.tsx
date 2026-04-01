@@ -255,11 +255,47 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         }
       }
 
+      if (action && action.type === 'query' && currentContext.queryResult) {
+        const forceSummarizeMsg: ChatMessageType = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: stripActionBlock(rawResponse) || 'I have the data.',
+          timestamp: Date.now(),
+        };
+        apiHistory = [...apiHistory, forceSummarizeMsg];
+
+        const forceMsg: ChatMessageType = {
+          id: uuidv4(),
+          role: 'user',
+          content: 'STOP issuing query actions. The data has already been fetched. You MUST now present the query results to the user in a clear, formatted response. Do NOT emit any action blocks. Just summarize the data.',
+          timestamp: Date.now(),
+        };
+        apiHistory = [...apiHistory, forceMsg];
+
+        if (currentRequestId !== requestIdRef.current) return;
+
+        rawResponse = await sendChatMessage(
+          apiKey,
+          apiHistory,
+          currentContext,
+          endpointUrl || undefined,
+          modelName || undefined,
+        );
+        action = parseAction(rawResponse);
+      }
+
       const stripped = stripActionBlock(rawResponse);
       const isWriteAction = action && action.type !== 'query';
       let displayContent: string;
       if (action && action.type === 'query') {
-        displayContent = stripped || 'I was unable to complete the data lookup. Please try rephrasing your question.';
+        if (currentContext.queryResult) {
+          const truncated = currentContext.queryResult.length > 3000
+            ? currentContext.queryResult.substring(0, 3000) + '\n... (data truncated for display)'
+            : currentContext.queryResult;
+          displayContent = `Here are the results from your query:\n\n${truncated}`;
+        } else {
+          displayContent = stripped || 'I was unable to complete the data lookup. Please try rephrasing your question.';
+        }
       } else {
         displayContent = stripped || (isWriteAction ? action!.description : rawResponse);
       }
