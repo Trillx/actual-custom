@@ -1,0 +1,184 @@
+05:55:27
+ INFO Sending signal SIGINT to main child process w/ PID 636
+05:55:27
+ INFO Main child exited normally with code: 130
+05:55:27
+ INFO Starting clean up.
+05:55:27
+[  467.518833] reboot: Restarting system
+05:55:39
+Starting machine
+05:55:39
+2026-04-01T05:55:39.361411085 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Running Firecracker v1.14.2
+05:55:39
+2026-04-01T05:55:39.361705659 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Listening on API socket ("/fc.sock").
+05:55:40
+ INFO Starting init (commit: 4413dd0)...
+05:55:40
+ INFO Preparing to run: `/usr/bin/tini -g -- node app.js` as actual
+05:55:40
+ INFO [fly api proxy] listening at /.fly/api
+05:55:40
+[WARN  tini (635)] Tini is not running as PID 1 and isn't registered as a child subreaper.
+05:55:40
+Zombie processes will not be re-parented to Tini, so zombie reaping won't work.
+05:55:40
+To fix the problem, use the -s option or set the environment variable TINI_SUBREAPER to register Tini as a child subreaper, or run Tini as PID 1.
+05:55:40
+Machine started in 1.422s
+05:55:40
+machine started in 1.57825027s
+05:55:40
+2026/04/01 05:55:40 INFO SSH listening listen_address=[fdaa:59:356e:a7b:70e:a8ab:33e1:2]:22
+05:55:41
+Checking if there are any migrations to run for direction "up"...
+05:55:41
+Migrations: DONE
+05:55:44
+Running in production mode - Serving static React app
+05:55:44
+Listening on :::5006...
+05:55:45
+machine became reachable in 4.506716028s
+05:55:45
+machine became reachable in 4.5174264s
+06:03:01
+App actual-custom has excess capacity, autostopping machine 2879267b627018. 0 out of 1 machines left running (region=dfw, process group=app)
+06:03:01
+ INFO Sending signal SIGINT to main child process w/ PID 635
+06:03:01
+ INFO Main child exited normally with code: 130
+06:03:01
+ INFO Starting clean up.
+06:03:01
+[  442.475187] reboot: Restarting system
+06:03:57
+Starting machine
+06:03:58
+2026-04-01T06:03:58.175511627 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Running Firecracker v1.14.2
+06:03:58
+2026-04-01T06:03:58.175719477 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Listening on API socket ("/fc.sock").
+06:03:59
+ INFO Starting init (commit: 4413dd0)...
+06:03:59
+ INFO Preparing to run: `/usr/bin/tini -g -- node app.js` as actual
+06:03:59
+ INFO [fly api proxy] listening at /.fly/api
+06:03:59
+[WARN  tini (634)] Tini is not running as PID 1 and isn't registered as a child subreaper.
+06:03:59
+Zombie processes will not be re-parented to Tini, so zombie reaping won't work.
+06:03:59
+To fix the problem, use the -s option or set the environment variable TINI_SUBREAPER to register Tini as a child subreaper, or run Tini as PID 1.
+06:03:59
+Machine started in 1.539s
+06:03:59
+machine started in 2.02218607s
+06:03:59
+2026/04/01 06:03:59 INFO SSH listening listen_address=[fdaa:59:356e:a7b:70e:a8ab:33e1:2]:22
+06:03:59
+Checking if there are any migrations to run for direction "up"...
+06:04:00
+Migrations: DONE
+06:04:03
+Running in production mode - Serving static React app
+06:04:03
+Listening on :::5006...
+06:04:03
+machine became reachable in 4.146365872s
+06:04:03
+2026-04-01T06:04:03.580Z info: GET 401 /account/validate
+06:04:03
+machine became reachable in 4.196274026s
+06:04:03
+machine became reachable in 4.312039954s
+06:04:03
+2026-04-01T06:04:03.711Z info: GET 200 /account/needs-bootstrap
+06:04:03
+machine became reachable in 4.396785731s
+06:04:03
+machine became reachable in 4.402657092s
+06:04:03
+machine became reachable in 4.531855231s
+06:09:21
+App actual-custom has excess capacity, autostopping machine 2879267b627018. 0 out of 1 machines left running (region=dfw, process group=app)
+06:09:21
+ INFO Sending signal SIGINT to main child process w/ PID 634
+06:09:22
+ INFO Main child exited normally with code: 130
+06:09:22
+ INFO Starting clean up.
+06:09:22
+[  324.330542] reboot: Restarting system
+13:47:55
+Starting machine
+13:47:56
+2026-04-01T13:47:56.232514200 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Running Firecracker v1.14.2
+13:47:56
+2026-04-01T13:47:56.232728681 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Listening on API socket ("/fc.sock").
+13:47:57
+ INFO Starting init (commit: 4413dd0)...
+13:47:57
+ INFO Preparing to run: `/usr/bin/tini -g -- node app.js` as actual
+13:47:57
+ INFO [fly api proxy] listening at /.fly/api
+13:47:57
+[WARN  tini (635)] Tini is not running as PID 1 and isn't registered as a child subreaper.
+13:47:57
+Zombie processes will not be re-parented to Tini, so zombie reaping won't work.
+13:47:57
+To fix the problem, use the -s option or set the environment variable TINI_SUBREAPER to register Tini as a child subreaper, or run Tini as PID 1.
+13:47:57
+Machine started in 1.41s
+13:47:57
+machine started in 1.591339998s
+13:47:57
+2026/04/01 13:47:57 INFO SSH listening listen_address=[fdaa:59:356e:a7b:70e:a8ab:33e1:2]:22
+13:47:58
+Checking if there are any migrations to run for direction "up"...
+13:47:58
+Migrations: DONE
+13:48:01
+Running in production mode - Serving static React app
+13:48:01
+Listening on :::5006...
+13:48:01
+machine became reachable in 4.263385744s
+13:54:29
+App actual-custom has excess capacity, autostopping machine 2879267b627018. 0 out of 1 machines left running (region=dfw, process group=app)
+13:54:29
+ INFO Sending signal SIGINT to main child process w/ PID 635
+13:54:29
+ INFO Main child exited normally with code: 130
+13:54:29
+ INFO Starting clean up.
+13:54:29
+[  393.558891] reboot: Restarting system
+14:43:55
+2026-04-01T14:43:55.725432108 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Running Firecracker v1.14.2
+14:43:55
+2026-04-01T14:43:55.725665250 [01KN3SA0Y5A1DNE5M9DE5CM8PS:main] Listening on API socket ("/fc.sock").
+14:43:56
+ INFO Starting init (commit: 4413dd0)...
+14:43:56
+ INFO Preparing to run: `/usr/bin/tini -g -- node app.js` as actual
+14:43:56
+ INFO [fly api proxy] listening at /.fly/api
+14:43:56
+[WARN  tini (636)] Tini is not running as PID 1 and isn't registered as a child subreaper.
+14:43:56
+Zombie processes will not be re-parented to Tini, so zombie reaping won't work.
+14:43:56
+To fix the problem, use the -s option or set the environment variable TINI_SUBREAPER to register Tini as a child subreaper, or run Tini as PID 1.
+14:43:57
+2026/04/01 14:43:57 INFO SSH listening listen_address=[fdaa:59:356e:a7b:70e:a8ab:33e1:2]:22
+14:43:58
+Checking if there are any migrations to run for direction "up"...
+14:43:58
+Machine started in 1.407s
+14:43:58
+Migrations: DONE
+14:44:01
+Running in production mode - Serving static React app
+14:44:01
+Listening on :::5006...
