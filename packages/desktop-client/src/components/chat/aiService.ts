@@ -25,7 +25,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "update-transaction": params: {transactionId, date?, amount?, payee_name?, category_id?, notes?} (only include fields to change, amount in cents)\n' +
       '- "delete-transaction": params: {transactionId} (use the transaction ID from recent transactions)\n' +
       '- "transfer-between-accounts": params: {fromAccountId, toAccountId, amount, date, notes?} (amount in cents, positive value)\n' +
-      '- "create-category": params: {name, group_id}\n' +
+      '- "create-category": params: {name, group_id} — IMPORTANT: group_id MUST be a valid category group ID from the context above. Look up the group ID from "Category Groups and Categories" section.\n' +
       '- "create-account": params: {name, balance, offBudget} (balance in cents)\n' +
       '- "close-account": params: {accountId, transferAccountId?} (transferAccountId required if account has non-zero balance)\n' +
       '- "reopen-account": params: {accountId}\n' +

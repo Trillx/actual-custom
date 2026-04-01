@@ -91,10 +91,12 @@ function validateCreateCategory(params: Record<string, unknown>): {
   name: string;
   group_id: string;
 } {
-  const { name, group_id } = params;
+  const { name, group_id, group_name, groupId, groupName } = params;
   if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
-  if (typeof group_id !== 'string' || !group_id) throw new Error('Missing or invalid "group_id" parameter.');
-  return { name, group_id };
+  const candidates = [group_id, groupId, group_name, groupName];
+  const gid = candidates.find(c => typeof c === 'string' && c.trim().length > 0);
+  if (!gid) throw new Error('Missing or invalid "group_id" parameter. Please specify which category group to add this category to.');
+  return { name, group_id: (gid as string).trim() };
 }
 
 function validateCreateAccount(params: Record<string, unknown>): {
@@ -608,10 +610,30 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'create-category': {
       const validated = validateCreateCategory(action.params);
+      let resolvedGroupId = validated.group_id;
+
+      const allGroups = await send('api/category-groups-get') as Array<{ id: string; name: string; is_income?: boolean; hidden?: boolean }>;
+      const visibleGroups = allGroups.filter(g => !g.is_income && !g.hidden);
+
+      const groupExists = allGroups.some(g => g.id === resolvedGroupId);
+      if (!groupExists) {
+        const byName = allGroups.find(g => g.name.toLowerCase() === resolvedGroupId.toLowerCase());
+        if (byName) {
+          resolvedGroupId = byName.id;
+        } else if (visibleGroups.length > 0) {
+          resolvedGroupId = visibleGroups[0].id;
+        } else if (allGroups.length > 0) {
+          resolvedGroupId = allGroups[0].id;
+        } else {
+          throw new Error('No category groups exist. Please create a category group first.');
+        }
+      }
+
       await send('api/category-create', {
-        category: { name: validated.name, group_id: validated.group_id, hidden: false },
+        category: { name: validated.name, group_id: resolvedGroupId, hidden: false },
       });
-      return `Category "${validated.name}" created successfully.`;
+      const targetGroup = allGroups.find(g => g.id === resolvedGroupId);
+      return `Category "${validated.name}" created successfully${targetGroup ? ` in group "${targetGroup.name}"` : ''}.`;
     }
     case 'create-account': {
       const validated = validateCreateAccount(action.params);
