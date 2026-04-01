@@ -356,10 +356,21 @@ export function parseAction(content: string): BudgetAction | null {
     if (result) return result;
   }
 
-  const bareMatch = content.match(/(\{[\s\S]*"type"\s*:\s*"[a-z-]+"[\s\S]*\})/);
-  if (bareMatch) {
-    const result = tryParseActionJson(bareMatch[1]);
-    if (result) return result;
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] !== '{') continue;
+    let depth = 0;
+    for (let j = i; j < content.length; j++) {
+      if (content[j] === '{') depth++;
+      else if (content[j] === '}') depth--;
+      if (depth === 0) {
+        const candidate = content.substring(i, j + 1);
+        if (candidate.includes('"type"')) {
+          const result = tryParseActionJson(candidate);
+          if (result) return result;
+        }
+        break;
+      }
+    }
   }
 
   return null;
@@ -387,16 +398,30 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
 }
 
 export function stripActionBlock(content: string): string {
-  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  let result = content
+    .replace(/```action\s*\n[\s\S]*?\n```\s*/g, '')
+    .replace(/```json\s*\n[\s\S]*?\n```\s*/g, '')
+    .trim();
+
   if (result === content.trim()) {
-    result = content.replace(/```json\s*\n[\s\S]*?\n```\s*/g, '').trim();
-  }
-  if (result === content.trim()) {
-    const bareMatch = content.match(/(\{[\s\S]*"type"\s*:\s*"[a-z-]+"[\s\S]*\})/);
-    if (bareMatch && tryParseActionJson(bareMatch[1])) {
-      result = content.replace(bareMatch[1], '').trim();
+    for (let i = 0; i < result.length; i++) {
+      if (result[i] !== '{') continue;
+      let depth = 0;
+      for (let j = i; j < result.length; j++) {
+        if (result[j] === '{') depth++;
+        else if (result[j] === '}') depth--;
+        if (depth === 0) {
+          const candidate = result.substring(i, j + 1);
+          if (candidate.includes('"type"') && tryParseActionJson(candidate)) {
+            result = (result.substring(0, i) + result.substring(j + 1)).trim();
+          }
+          break;
+        }
+      }
+      break;
     }
   }
+
   return result;
 }
 

@@ -187,7 +187,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         const queryAction = action ? parseQueryAction(action) : null;
         if (!queryAction || !action) break;
 
-        const queryResult = await runQuery(queryAction, currentContext);
+        let queryResult: string;
+        try {
+          queryResult = await runQuery(queryAction, currentContext);
+        } catch (queryErr) {
+          queryResult = `Query failed: ${queryErr instanceof Error ? queryErr.message : 'Unknown error'}. The data could not be retrieved.`;
+        }
         currentContext = { ...currentContext, queryResult };
 
         const queryDescription = action.description || 'Looking up data...';
@@ -222,7 +227,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       if (action && action.type === 'query') {
         const finalQuery = parseQueryAction(action);
         if (finalQuery) {
-          const finalResult = await runQuery(finalQuery, currentContext);
+          let finalResult: string;
+          try {
+            finalResult = await runQuery(finalQuery, currentContext);
+          } catch (queryErr) {
+            finalResult = `Query failed: ${queryErr instanceof Error ? queryErr.message : 'Unknown error'}. The data could not be retrieved.`;
+          }
           currentContext = { ...currentContext, queryResult: finalResult };
 
           const desc = action.description || 'Looking up data...';
@@ -326,18 +336,21 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   const handleConfirmAction = useCallback(
     async (messageId: string) => {
-      const msg = messages.find(m => m.id === messageId);
-      if (!msg?.pendingAction) return;
+      let pendingAction: ChatMessageType['pendingAction'] | undefined;
+      setMessages(prev => {
+        const msg = prev.find(m => m.id === messageId);
+        pendingAction = msg?.pendingAction;
+        if (!pendingAction) return prev;
+        return prev.map(m =>
+          m.id === messageId ? { ...m, actionStatus: 'confirmed' as const } : m,
+        );
+      });
 
+      if (!pendingAction) return;
       setError(null);
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === messageId ? { ...m, actionStatus: 'confirmed' } : m,
-        ),
-      );
 
       try {
-        const result = await executeAction(msg.pendingAction);
+        const result = await executeAction(pendingAction);
         const resultMessage: ChatMessageType = {
           id: uuidv4(),
           role: 'assistant',
@@ -362,7 +375,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         );
       }
     },
-    [messages],
+    [],
   );
 
   const handleRejectAction = useCallback((messageId: string) => {
