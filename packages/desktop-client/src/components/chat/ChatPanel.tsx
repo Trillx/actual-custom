@@ -140,47 +140,91 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       );
 
       let action = parseAction(rawResponse);
-      let currentMessages = newMessages;
+      let displayMessages = newMessages;
+      let apiHistory = newMessages;
       let currentContext = context;
-      const MAX_QUERY_ROUNDS = 2;
+      const MAX_QUERY_ROUNDS = 4;
 
       for (let round = 0; round < MAX_QUERY_ROUNDS; round++) {
         const queryAction = action ? parseQueryAction(action) : null;
         if (!queryAction || !action) break;
 
         const queryResult = await runQuery(queryAction, currentContext);
-
-        currentContext = {
-          ...currentContext,
-          queryResult,
-        };
+        currentContext = { ...currentContext, queryResult };
 
         const queryDescription = action.description || 'Looking up data...';
-        const queryInfoMessage: ChatMessageType = {
+        const strippedAiText = stripActionBlock(rawResponse);
+
+        const displayMsg: ChatMessageType = {
           id: uuidv4(),
           role: 'assistant',
           content: `Querying: ${queryDescription}`,
           timestamp: Date.now(),
         };
-
-        currentMessages = [...currentMessages, queryInfoMessage];
+        displayMessages = [...displayMessages, displayMsg];
         if (currentRequestId !== requestIdRef.current) return;
-        setMessages(currentMessages);
+        setMessages(displayMessages);
+
+        const historyMsg: ChatMessageType = {
+          ...displayMsg,
+          content: strippedAiText || `I looked up: ${queryDescription}`,
+        };
+        apiHistory = [...apiHistory, historyMsg];
 
         rawResponse = await sendChatMessage(
           apiKey,
-          currentMessages,
+          apiHistory,
           currentContext,
           endpointUrl || undefined,
           modelName || undefined,
         );
-
         action = parseAction(rawResponse);
+      }
+
+      if (action && action.type === 'query') {
+        const finalQuery = parseQueryAction(action);
+        if (finalQuery) {
+          const finalResult = await runQuery(finalQuery, currentContext);
+          currentContext = { ...currentContext, queryResult: finalResult };
+
+          const desc = action.description || 'Looking up data...';
+          const strippedText = stripActionBlock(rawResponse);
+
+          const displayMsg: ChatMessageType = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: `Querying: ${desc}`,
+            timestamp: Date.now(),
+          };
+          displayMessages = [...displayMessages, displayMsg];
+          if (currentRequestId !== requestIdRef.current) return;
+          setMessages(displayMessages);
+
+          const historyMsg: ChatMessageType = {
+            ...displayMsg,
+            content: strippedText || `I looked up: ${desc}`,
+          };
+          apiHistory = [...apiHistory, historyMsg];
+
+          rawResponse = await sendChatMessage(
+            apiKey,
+            apiHistory,
+            currentContext,
+            endpointUrl || undefined,
+            modelName || undefined,
+          );
+          action = parseAction(rawResponse);
+        }
       }
 
       const stripped = stripActionBlock(rawResponse);
       const isWriteAction = action && action.type !== 'query';
-      const displayContent = stripped || (isWriteAction ? action!.description : rawResponse);
+      let displayContent: string;
+      if (action && action.type === 'query') {
+        displayContent = stripped || 'I was unable to complete the data lookup. Please try rephrasing your question.';
+      } else {
+        displayContent = stripped || (isWriteAction ? action!.description : rawResponse);
+      }
 
       const assistantMessage: ChatMessageType = {
         id: uuidv4(),

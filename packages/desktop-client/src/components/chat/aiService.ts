@@ -80,7 +80,10 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "spending-trend": Analyze month-over-month spending trends. params: {category: "name", payee: "name", lookbackMonths: N} (use category OR payee filter, omit both for all categories)\n' +
       '- "historical-comparison": Compare current month spending to historical averages by category. params: {lookbackMonths: 3|6|12} (default 3)\n\n' +
       'Query actions execute automatically without user confirmation. After the query result is returned to you, ' +
-      'summarize the results in a natural, helpful way for the user.\n\n' +
+      'you MUST summarize the results in a natural, helpful way for the user. ' +
+      'CRITICAL: If you see a "Query Result" section in the context below, that means your previous query has ALREADY been executed and the data is available. ' +
+      'Do NOT issue another query action for the same data — instead, read the query result and present it to the user in a clear, formatted response. ' +
+      'Never re-query for data that is already provided in the Query Result section.\n\n' +
       'Date format for filters: "YYYY-MM-DD". Amount filters are in cents (negative for expenses, positive for income). ' +
       'For example, to find expenses over $50, use amountMax: -5000 (since expenses are negative).\n\n' +
       'Examples of queries:\n' +
@@ -330,10 +333,11 @@ export async function sendChatMessage(
   const systemPrompt = buildSystemPrompt(context);
   const endpoint = endpointUrl?.trim() || DEFAULT_ENDPOINT;
 
+  const QUERYING_PREFIX = 'Querying: ';
   const apiMessages = [
     { role: 'system' as const, content: systemPrompt },
     ...messages
-      .filter(m => m.role !== 'system')
+      .filter(m => m.role !== 'system' && !m.content.startsWith(QUERYING_PREFIX))
       .map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
