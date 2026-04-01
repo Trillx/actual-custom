@@ -144,6 +144,19 @@ Production deployment runs the full Actual Budget sync server, enabling:
 - Auth: password-based by default (set password on first visit)
 - Config via env vars: `ACTUAL_DATA_DIR`, `ACTUAL_PORT`, `ACTUAL_HOSTNAME`, `ACTUAL_LOGIN_METHOD`
 
+### Fly.io Deployment
+For distributing to end users, deploy via Fly.io:
+1. Install flyctl: `curl -L https://fly.io/install.sh | sh`
+2. Login: `flyctl auth login`
+3. Create app: `flyctl apps create your-app-name`
+4. Create volume for data persistence: `flyctl volumes create actual_data --size 1 --region iad -a your-app-name`
+5. Deploy: `flyctl deploy -a your-app-name`
+
+Files:
+- `Dockerfile.fly` — Multi-stage production build (deps → build frontend + sync server → minimal runtime)
+- `fly.toml` — Fly.io config (shared-cpu-1x, 512MB, persistent volume at /data)
+- `.dockerignore` — Keeps Docker build context small
+
 ## Notes
 
 - The app is local-first — data is stored in browser IndexedDB AND synced to the server

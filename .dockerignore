@@ -1,0 +1,12 @@
+node_modules
+.git
+.replit
+replit.nix
+replit.md
+*.log
+.cache
+.local
+attached_assets
+packages/desktop-client/build
+packages/loot-core/lib-dist
+packages/sync-server/build
