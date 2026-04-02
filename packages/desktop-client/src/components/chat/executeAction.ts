@@ -583,7 +583,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
           newGroupNames.push(g.name);
           if (Array.isArray(g.categories)) {
             for (const cat of g.categories) {
-              moveLines.push(`  ${cat} 'u2192' ${g.name}`);
+              moveLines.push(`  ${cat} → ${g.name}`);
             }
           }
         }
@@ -1107,7 +1107,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       await addMemory({
         content,
         category: (category as 'categorization' | 'preference' | 'context') || 'categorization',
-        source: 'user',
+        source: 'ai',
       });
       return 'Memory saved successfully.';
     }

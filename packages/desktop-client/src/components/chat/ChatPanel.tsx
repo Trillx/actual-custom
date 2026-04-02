@@ -556,12 +556,6 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           onMouseLeave={e => { if (!isDragging.current) (e.currentTarget as HTMLDivElement).style.borderLeft = `1px solid ${theme.tableBorder}`; }}
         />
       )}
-      {showMemoryPanel && (
-        <MemoryPanel
-          onClose={() => setShowMemoryPanel(false)}
-          isNarrowWidth={isNarrowWidth}
-        />
-      )}
       <View
         style={{
           padding: '10px 12px 10px 16px',
