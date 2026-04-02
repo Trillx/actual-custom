@@ -79,6 +79,7 @@ The AI can propose these actions, each requiring user confirmation:
 - `reorganize-categories` — Compound action: creates new groups, moves categories by name, deletes old empty groups — all in one confirmation
 - `save-memory` — Save an AI memory/preference (categorization rules, preferences, context)
 - `delete-memory` — Delete a saved memory by ID
+- `bulk-update-transactions` — Update multiple transactions at once (bulk categorization, payee changes, etc.)
 - `create-schedule` / `update-schedule` / `delete-schedule` — Schedule management for recurring transactions
 - `create-schedules-batch` — Compound action: creates multiple schedules at once (used for subscription-to-schedule conversion)
 
@@ -115,6 +116,24 @@ The AI assistant supports forward-looking financial insights:
 - Category-level forecasts identify which categories are likely to go over budget
 - Debt payoff timelines based on account balances with negative balances
 - What-if scenarios (e.g., "cut dining by 50%") show projected impact on budget and goals
+
+### Actual Budget Knowledge Base
+The AI has a condensed knowledge base of Actual Budget's official documentation (`actualDocsKnowledge.ts`), covering:
+- Envelope/zero-sum budgeting philosophy and workflow
+- Accounts (on/off budget, reconciliation, closing)
+- Categories (groups, merge, hide, pin, notes)
+- Transactions (manual entry, splits, cleared status, importing)
+- Transfers (on-budget vs off-budget, matching)
+- Payees (merge, rename, favorites, transfer payees)
+- Bulk editing
+- Rules (conditions, actions, stages, automatic rules, category learning)
+- Schedules (recurring, one-time, auto-enter, approximate amounts)
+- Credit cards (payment workflow, carrying debt)
+- Returns & reimbursements
+- Reports (net worth, cash flow, spending, custom)
+- Multi-currency, joint accounts, syncing, tips & tricks
+
+This knowledge is injected into the system prompt so the AI can give accurate guidance on Actual Budget features without needing to look things up externally.
 
 ### AI Memory System
 The AI assistant has a persistent memory system for learning user preferences, categorization rules, and personal context:

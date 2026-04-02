@@ -1,3 +1,4 @@
+import { ACTUAL_DOCS_KNOWLEDGE } from './actualDocsKnowledge';
 import { getMemories } from './memoryStorage';
 import type { BudgetAction, BudgetContext, ChatMessage, QueryAction } from './types';
 
@@ -14,6 +15,8 @@ function buildSystemPrompt(context: BudgetContext): string {
   parts.push(
     'You are a helpful personal finance assistant for the Actual Budget app. ' +
       'You help users understand their budget, spending, and finances. ' +
+      'You have deep knowledge of Actual Budget features from the official documentation (provided below as a knowledge base). ' +
+      'Use this knowledge to give accurate guidance on budgeting concepts, features like rules, schedules, transfers, credit cards, payees, and more. ' +
       'Be concise and helpful. Format currency amounts with $ and two decimal places. ' +
       'All amounts in the data are in cents (divide by 100 for dollars). ' +
       'Negative amounts represent money spent/outflow, positive amounts represent income/inflow.\n\n' +
@@ -158,6 +161,8 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- Clearly separate "confirmed" subscriptions (already matching a schedule) from "detected" ones in your response.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
+
+  parts.push('\n\n' + ACTUAL_DOCS_KNOWLEDGE);
 
   const memories = getMemories();
   if (memories.length > 0) {
