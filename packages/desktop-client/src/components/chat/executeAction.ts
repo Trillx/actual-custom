@@ -1038,8 +1038,9 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         payeeId = await send('payee-create', { name: validated.payee_name }) as string;
       }
       const dateValue = buildScheduleDateValue(validated.date, validated.frequency, validated.interval);
+      const scheduleName = validated.name || validated.payee_name;
       await send('api/schedule-create', {
-        name: validated.name || undefined,
+        name: scheduleName,
         payee: payeeId,
         account: resolvedAccountId,
         amount: validated.amount,
@@ -1113,8 +1114,9 @@ export async function executeAction(action: BudgetAction): Promise<string> {
           payeeLookup.set(sched.payee_name.toLowerCase(), payeeId);
         }
         const dateValue = buildScheduleDateValue(sched.date, sched.frequency, sched.interval);
+        const scheduleName = sched.name || sched.payee_name;
         await send('api/schedule-create', {
-          name: sched.name || undefined,
+          name: scheduleName,
           payee: payeeId,
           account: accountId,
           amount: sched.amount,
