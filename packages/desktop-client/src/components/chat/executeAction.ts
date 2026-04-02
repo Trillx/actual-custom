@@ -711,6 +711,18 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'list-memories':
       lines.push(`Type: List Memories`);
       break;
+    case 'create-rule':
+      lines.push(`Type: Create Payee Rename Rule`);
+      if (Array.isArray(p.fromNames)) lines.push(`Match imported payees: ${(p.fromNames as string[]).join(', ')}`);
+      if (p.toPayee) lines.push(`Rename to: ${p.toPayee}`);
+      break;
+    case 'delete-rule':
+      lines.push(`Type: Delete Rule`);
+      if (p.ruleId) lines.push(`Rule ID: ${p.ruleId}`);
+      break;
+    case 'list-rules':
+      lines.push(`Type: List Rules`);
+      break;
     case 'create-schedule':
       lines.push(`Type: Create Schedule`);
       if (p.name) lines.push(`Name: ${p.name}`);
@@ -1177,6 +1189,83 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
 
       return `Created ${typedGroups.length} category group${typedGroups.length === 1 ? '' : 's'}:\n${summary.join('\n')}`;
+    }
+    case 'create-rule': {
+      const { fromNames, toPayee } = action.params;
+      if (!Array.isArray(fromNames) || fromNames.length === 0) {
+        throw new Error('create-rule requires a non-empty "fromNames" array of imported payee name patterns.');
+      }
+      if (typeof toPayee !== 'string' || !toPayee.trim()) {
+        throw new Error('create-rule requires a non-empty "toPayee" string.');
+      }
+      for (const name of fromNames as unknown[]) {
+        if (typeof name !== 'string' || !(name as string).trim()) {
+          throw new Error('Each entry in fromNames must be a non-empty string.');
+        }
+      }
+      const cleanToPayee = (toPayee as string).trim();
+      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      let payeeId: string;
+      const matchedPayee = allPayees.find(p => p.name.toLowerCase() === cleanToPayee.toLowerCase());
+      if (matchedPayee) {
+        payeeId = matchedPayee.id;
+      } else {
+        payeeId = await send('payee-create', { name: cleanToPayee }) as string;
+      }
+      await send('rule-add-payee-rename', {
+        fromNames: (fromNames as string[]).map(n => n.trim()),
+        to: payeeId,
+      });
+      return `Payee rename rule created: ${(fromNames as string[]).join(', ')} → ${cleanToPayee}`;
+    }
+    case 'delete-rule': {
+      const { ruleId } = action.params;
+      if (typeof ruleId !== 'string' || !ruleId.trim()) {
+        throw new Error('delete-rule requires a non-empty "ruleId" string.');
+      }
+      await send('rule-delete', ruleId);
+      return `Rule deleted successfully.`;
+    }
+    case 'list-rules': {
+      const rules = await send('rules-get') as Array<{
+        id: string;
+        stage?: string;
+        conditionsOp?: string;
+        conditions?: Array<{ field: string; op: string; value: unknown }>;
+        actions?: Array<{ field: string; op: string; value: unknown }>;
+      }>;
+      if (!rules || rules.length === 0) return 'No rules found.';
+      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const payeeIdToName = new Map<string, string>();
+      for (const p of allPayees) payeeIdToName.set(p.id, p.name);
+      const allCategories = await send('api/categories-get') as Array<{ id: string; name: string }>;
+      const catIdToName = new Map<string, string>();
+      if (Array.isArray(allCategories)) {
+        for (const c of allCategories) catIdToName.set(c.id, c.name);
+      }
+      const resolveValue = (field: string, value: unknown): string => {
+        if (field === 'payee' && typeof value === 'string') {
+          return payeeIdToName.get(value) || value;
+        }
+        if (field === 'category' && typeof value === 'string') {
+          return catIdToName.get(value) || value;
+        }
+        if (Array.isArray(value)) return value.join(', ');
+        return String(value);
+      };
+      const ruleLines: string[] = [`Found ${rules.length} rule(s):\n`];
+      for (const rule of rules) {
+        const condStr = (rule.conditions || [])
+          .map(c => `${c.field} ${c.op} ${resolveValue(c.field, c.value)}`)
+          .join(' AND ');
+        const actStr = (rule.actions || [])
+          .map(a => `set ${a.field} = ${resolveValue(a.field, a.value)}`)
+          .join(', ');
+        ruleLines.push(`• [${rule.stage || 'default'}] ID: ${rule.id}`);
+        ruleLines.push(`  If: ${condStr || '(no conditions)'}`);
+        ruleLines.push(`  Then: ${actStr || '(no actions)'}`);
+      }
+      return ruleLines.join('\n');
     }
     case 'save-memory': {
       const { content, category } = action.params;

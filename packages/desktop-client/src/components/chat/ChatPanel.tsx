@@ -314,21 +314,23 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         action = parseAction(rawResponse);
       }
 
-      if (action && action.type === 'list-memories') {
+      const autoExecTypes = ['list-memories', 'list-rules'];
+      if (action && autoExecTypes.includes(action.type)) {
         try {
-          const memResult = await executeAction(action);
-          currentContext = { ...currentContext, queryResult: memResult };
+          const autoResult = await executeAction(action);
+          currentContext = { ...currentContext, queryResult: autoResult };
           const strippedText = stripActionBlock(rawResponse);
-          const memStatusMsg: ChatMessageType = {
+          const statusLabel = action.type === 'list-rules' ? 'Let me check your rules.' : 'Let me check your memories.';
+          const autoStatusMsg: ChatMessageType = {
             id: uuidv4(),
             role: 'assistant',
-            content: strippedText || 'Let me check your memories.',
+            content: strippedText || statusLabel,
             timestamp: Date.now(),
           };
-          displayMessages = [...displayMessages, memStatusMsg];
+          displayMessages = [...displayMessages, autoStatusMsg];
           if (currentRequestId !== requestIdRef.current) return;
           setMessages(displayMessages);
-          apiHistory = [...apiHistory, memStatusMsg];
+          apiHistory = [...apiHistory, autoStatusMsg];
 
           rawResponse = await sendChatMessage(
             apiKey,
@@ -338,19 +340,19 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             modelName || undefined,
           );
           action = parseAction(rawResponse);
-        } catch (memErr) {
-          const memErrMsg = memErr instanceof Error ? memErr.message : 'Failed to list memories.';
+        } catch (autoErr) {
+          const autoErrMsg = autoErr instanceof Error ? autoErr.message : `Failed to execute ${action.type}.`;
           if (currentRequestId !== requestIdRef.current) return;
           setMessages(prev => [
             ...prev,
-            { id: uuidv4(), role: 'assistant', content: memErrMsg, timestamp: Date.now() },
+            { id: uuidv4(), role: 'assistant', content: autoErrMsg, timestamp: Date.now() },
           ]);
           return;
         }
       }
 
       const stripped = stripActionBlock(rawResponse);
-      const isWriteAction = action && action.type !== 'query' && action.type !== 'list-memories';
+      const isWriteAction = action && action.type !== 'query' && !autoExecTypes.includes(action.type);
       let displayContent: string;
       if (action && action.type === 'query') {
         if (currentContext.queryResult) {

@@ -42,7 +42,10 @@ export type BudgetAction = {
     | 'create-schedules-batch'
     | 'save-memory'
     | 'delete-memory'
-    | 'list-memories';
+    | 'list-memories'
+    | 'create-rule'
+    | 'delete-rule'
+    | 'list-rules';
   description: string;
   params: Record<string, unknown>;
 };
@@ -123,6 +126,7 @@ export type RecurringTransaction = {
   occurrences: number;
   matchesSchedule: boolean;
   scheduleName?: string;
+  payeeVariants?: string[];
 };
 
 export type SpendingAnomaly = {

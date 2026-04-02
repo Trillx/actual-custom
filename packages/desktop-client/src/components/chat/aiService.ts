@@ -56,7 +56,10 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "create-schedules-batch": params: {schedules: [{name, payee_name, accountId?, amount, amountOp?, date, frequency, interval?, posts_transaction?}]} — Create multiple schedules at once. accountId is optional (defaults to first open account). name is REQUIRED for each entry — use the payee name. date is REQUIRED — calculate the next expected occurrence from the last charge date + frequency. Do NOT use today\'s date unless it truly is the next occurrence.\n' +
       '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
       '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
-      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n\n' +
+      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n' +
+      '- "create-rule": params: {fromNames, toPayee} — Create a payee rename rule. fromNames is an array of imported payee name strings to match (e.g., ["NETFLIX.COM", "Netflix Inc", "NETFLIX"]). toPayee is the clean payee name to rename them all to (e.g., "Netflix"). This creates a pre-processing rule that automatically normalizes messy imported payee names to a single clean name on future imports.\n' +
+      '- "delete-rule": params: {ruleId} — Delete an existing rule by its ID. Use list-rules first to find rule IDs.\n' +
+      '- "list-rules": params: {} — List all existing rules. This is a read-only action that auto-executes without confirmation, like list-memories.\n\n' +
       'When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.\n\n' +
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
@@ -164,9 +167,17 @@ function buildSystemPrompt(context: BudgetContext): string {
       '1. First, use "detect-subscriptions" to scan their transactions for recurring patterns.\n' +
       '2. Present a clear summary: list confirmed schedules separately from detected-but-untracked recurring charges.\n' +
       '3. For untracked charges, show payee name, typical amount, and detected frequency.\n' +
-      '4. Watch for payee naming inconsistencies that may affect detection (e.g., "Netflix" vs "NETFLIX.COM" vs "Netflix Inc"). Flag these to the user and suggest merging or renaming payees for better tracking.\n' +
-      '5. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
-      '6. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
+      '4. The subscription detection uses fuzzy payee matching — it groups variants like "Netflix", "NETFLIX.COM", "Netflix Inc" automatically. When name variants are detected, they are shown with a ⚠ warning in the results.\n' +
+      '5. If name variants are found, proactively offer to create a payee rename rule using "create-rule" to normalize them (e.g., create-rule with fromNames: ["NETFLIX.COM", "Netflix Inc"] → toPayee: "Netflix"). This ensures future imports are automatically cleaned up.\n' +
+      '6. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
+      '7. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
+      'PAYEE RENAME RULES:\n' +
+      'Rules are powerful automation tools that normalize messy imported payee names.\n' +
+      '- When the user asks about rules, show them, or asks "what rules do I have?", use "list-rules" to fetch and display all rules.\n' +
+      '- When the user wants to clean up inconsistent payee names, use "create-rule" with all the variant names in fromNames and the clean canonical name as toPayee.\n' +
+      '- When the user wants to remove a rule, use "list-rules" first to find the rule ID, then "delete-rule".\n' +
+      '- "list-rules" is a read-only action that auto-executes without confirmation (like list-memories and query actions).\n' +
+      '- "create-rule" and "delete-rule" are write actions that require user confirmation.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
@@ -342,6 +353,9 @@ const VALID_ACTION_TYPES = [
   'save-memory',
   'delete-memory',
   'list-memories',
+  'create-rule',
+  'delete-rule',
+  'list-rules',
 ];
 
 const QUERY_TYPE_NAMES = [

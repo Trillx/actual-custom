@@ -47,26 +47,56 @@ function stddev(values: number[]): { mean: number; std: number } {
   return { mean, std: Math.sqrt(variance) };
 }
 
+function normalizePayeeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(inc\.?|llc\.?|corp\.?|ltd\.?|co\.?|company)\b/gi, '')
+    .replace(/\.(com|net|org|io|tv|app)\b/gi, '')
+    .replace(/[*#]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function detectRecurringTransactions(
   transactions: AnalysisTransaction[],
   schedules: ScheduleInfo[],
 ): RecurringTransaction[] {
-  const payeeGroups = new Map<
+  const normalizedGroups = new Map<
     string,
-    Array<{ date: string; amount: number }>
+    {
+      variants: Map<string, number>;
+      txns: Array<{ date: string; amount: number }>;
+    }
   >();
 
   for (const tx of transactions) {
     if (!tx.payee_name || tx.amount >= 0) continue;
-    const key = tx.payee_name;
-    if (!payeeGroups.has(key)) payeeGroups.set(key, []);
-    payeeGroups.get(key)!.push({ date: tx.date, amount: tx.amount });
+    const normalizedKey = normalizePayeeName(tx.payee_name);
+    if (!normalizedKey) continue;
+    if (!normalizedGroups.has(normalizedKey)) {
+      normalizedGroups.set(normalizedKey, { variants: new Map(), txns: [] });
+    }
+    const group = normalizedGroups.get(normalizedKey)!;
+    group.variants.set(tx.payee_name, (group.variants.get(tx.payee_name) || 0) + 1);
+    group.txns.push({ date: tx.date, amount: tx.amount });
   }
 
   const results: RecurringTransaction[] = [];
 
-  for (const [payeeName, txns] of Array.from(payeeGroups.entries())) {
+  for (const [, group] of Array.from(normalizedGroups.entries())) {
+    const { variants, txns } = group;
     if (txns.length < 2) continue;
+
+    let canonicalName = '';
+    let maxCount = 0;
+    for (const [name, count] of Array.from(variants.entries())) {
+      if (count > maxCount) {
+        maxCount = count;
+        canonicalName = name;
+      }
+    }
+
+    const allVariants = Array.from(variants.keys());
 
     txns.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -111,7 +141,7 @@ export function detectRecurringTransactions(
       if (!amountClose) return false;
       if (s.name) {
         const schedName = s.name.toLowerCase();
-        const payee = payeeName.toLowerCase();
+        const payee = canonicalName.toLowerCase();
         return (
           schedName.includes(payee) ||
           payee.includes(schedName) ||
@@ -122,7 +152,7 @@ export function detectRecurringTransactions(
     });
 
     results.push({
-      payee_name: payeeName,
+      payee_name: canonicalName,
       amount: Math.round(avgAmount),
       frequency,
       confidence,
@@ -130,6 +160,7 @@ export function detectRecurringTransactions(
       occurrences: txns.length,
       matchesSchedule: !!scheduleMatch,
       scheduleName: scheduleMatch?.name,
+      payeeVariants: allVariants.length > 1 ? allVariants : undefined,
     });
   }
 
@@ -424,10 +455,12 @@ export function formatSubscriptionList(
           : sub.confidence === 'medium'
             ? '●●○'
             : '●○○';
-      lines.push(
-        `  ${confidenceLabel} ${sub.payee_name}: ${formatCurrency(Math.abs(sub.amount))}/${sub.frequency}` +
-          ` (${sub.occurrences} occurrences, last: ${sub.lastDate}, confidence: ${sub.confidence})`,
-      );
+      let line = `  ${confidenceLabel} ${sub.payee_name}: ${formatCurrency(Math.abs(sub.amount))}/${sub.frequency}` +
+          ` (${sub.occurrences} occurrences, last: ${sub.lastDate}, confidence: ${sub.confidence})`;
+      if (sub.payeeVariants && sub.payeeVariants.length > 1) {
+        line += `\n      ⚠ Name variants found: ${sub.payeeVariants.map(v => `"${v}"`).join(', ')} — consider creating a payee rename rule to normalize`;
+      }
+      lines.push(line);
     }
   }
 

@@ -82,6 +82,8 @@ The AI can propose these actions, each requiring user confirmation:
 - `bulk-update-transactions` — Update multiple transactions at once (bulk categorization, payee changes, etc.)
 - `create-schedule` / `update-schedule` / `delete-schedule` — Schedule management for recurring transactions
 - `create-schedules-batch` — Compound action: creates multiple schedules at once (used for subscription-to-schedule conversion)
+- `create-rule` — Create a payee rename rule (fromNames → toPayee). Resolves payee by name or creates new payee. Uses `rule-add-payee-rename` API.
+- `delete-rule` — Delete an existing rule by ID
 
 ### Read-Only Query Actions (auto-execute, no confirmation)
 The AI can query data using these query types:
@@ -96,14 +98,17 @@ The AI can query data using these query types:
 - `spending-trend` — Analyze month-over-month spending trends by category or payee
 - `historical-comparison` — Compare current month spending to historical averages
 - `list-memories` — List all saved AI memories (auto-executes like other queries)
+- `list-rules` — List all existing rules with resolved payee/category names (auto-executes like other queries)
 
 Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint for server-side transaction filtering and the `api/budget-month` endpoint for budget data. The flow is: AI returns a query action → ChatPanel auto-executes it (up to 2 rounds) → result is injected into context → AI summarizes the result for the user.
 
 ### Subscription & Anomaly Detection
 - `spendingAnalysis.ts` — Detects recurring charges by analyzing payee + amount consistency (CV < 30%) with recognizable intervals. Cross-references with scheduled transactions for confirmation.
+- **Fuzzy payee grouping**: `normalizePayeeName()` strips Inc/LLC/Corp/.com/.net suffixes, lowercases, and collapses whitespace to group payee variants (e.g., "Netflix", "NETFLIX.COM", "Netflix Inc") under one canonical name. Variant names are tracked in `RecurringTransaction.payeeVariants[]` and surfaced in the subscription list with a warning to create rename rules.
 - Anomalies use 2+ standard deviations above historical mean for both category-level and individual transaction analysis.
 - Results are pre-computed and injected into context for proactive AI insights.
 - When untracked subscriptions are detected (matchesSchedule=false), the AI suggests creating schedules via `create-schedules-batch`. Schedule context includes IDs, recurrence info, account, and completion status for update/delete operations.
+- When payee name variants are detected, the AI suggests creating payee rename rules via `create-rule` to normalize imported payee names for future imports.
 
 ### Goal Tracking & Spending Forecasting
 The AI assistant supports forward-looking financial insights:
