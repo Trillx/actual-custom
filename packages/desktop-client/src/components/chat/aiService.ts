@@ -57,7 +57,10 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
       '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
       '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n' +
-      '- "create-rule": params: {fromNames, toPayee} — Create a payee rename rule. fromNames is an array of imported payee name strings to match (e.g., ["NETFLIX.COM", "Netflix Inc", "NETFLIX"]). toPayee is the clean payee name to rename them all to (e.g., "Netflix"). This creates a pre-processing rule that automatically normalizes messy imported payee names to a single clean name on future imports.\n' +
+      '- "create-rule": params: {containsPattern?, fromNames?, toPayee} — Create a payee rename rule. Two modes:\n' +
+      '  (a) Contains mode (preferred for normalization): set containsPattern to a substring (e.g., "netflix") — catches ALL current and future variants containing that text (case-insensitive). Example: containsPattern:"netflix", toPayee:"Netflix" will match "NETFLIX.COM", "Netflix Inc", "NETFLIX 123", etc.\n' +
+      '  (b) Exact match mode: set fromNames to an array of specific imported payee strings (e.g., ["NETFLIX.COM", "Netflix Inc"]). Use this only when you need to match specific strings without catching other variants.\n' +
+      '  toPayee is the clean canonical payee name. Provide either containsPattern OR fromNames, not both.\n' +
       '- "delete-rule": params: {ruleId} — Delete an existing rule by its ID. Use list-rules first to find rule IDs.\n' +
       '- "list-rules": params: {} — List all existing rules. This is a read-only action that auto-executes without confirmation, like list-memories.\n\n' +
       'When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.\n\n' +
@@ -168,13 +171,17 @@ function buildSystemPrompt(context: BudgetContext): string {
       '2. Present a clear summary: list confirmed schedules separately from detected-but-untracked recurring charges.\n' +
       '3. For untracked charges, show payee name, typical amount, and detected frequency.\n' +
       '4. The subscription detection uses fuzzy payee matching — it groups variants like "Netflix", "NETFLIX.COM", "Netflix Inc" automatically. When name variants are detected, they are shown with a ⚠ warning in the results.\n' +
-      '5. If name variants are found, proactively offer to create a payee rename rule using "create-rule" to normalize them (e.g., create-rule with fromNames: ["NETFLIX.COM", "Netflix Inc"] → toPayee: "Netflix"). This ensures future imports are automatically cleaned up.\n' +
+      '5. If name variants are found:\n' +
+      '   a. First offer to merge/rename existing duplicate payees using "merge-payees" if applicable.\n' +
+      '   b. Then offer to create a contains-based payee rename rule using "create-rule" with containsPattern (e.g., containsPattern:"netflix", toPayee:"Netflix") to catch all future import variants automatically.\n' +
+      '   c. Ask the user which approach they prefer if unsure — merging cleans up past data, rules prevent future messiness.\n' +
       '6. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
       '7. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
       'PAYEE RENAME RULES:\n' +
       'Rules are powerful automation tools that normalize messy imported payee names.\n' +
       '- When the user asks about rules, show them, or asks "what rules do I have?", use "list-rules" to fetch and display all rules.\n' +
-      '- When the user wants to clean up inconsistent payee names, use "create-rule" with all the variant names in fromNames and the clean canonical name as toPayee.\n' +
+      '- When the user wants to clean up inconsistent payee names, PREFER containsPattern mode over fromNames — it catches future unseen variants automatically. Use a distinctive substring (e.g., "netflix" for Netflix variants, "spotify" for Spotify variants).\n' +
+      '- Only use fromNames (exact match) when the user specifically wants to match only certain exact strings and not a broad pattern.\n' +
       '- When the user wants to remove a rule, use "list-rules" first to find the rule ID, then "delete-rule".\n' +
       '- "list-rules" is a read-only action that auto-executes without confirmation (like list-memories and query actions).\n' +
       '- "create-rule" and "delete-rule" are write actions that require user confirmation.\n\n' +

@@ -713,7 +713,8 @@ export function formatActionDetails(action: BudgetAction): string[] {
       break;
     case 'create-rule':
       lines.push(`Type: Create Payee Rename Rule`);
-      if (Array.isArray(p.fromNames)) lines.push(`Match imported payees: ${(p.fromNames as string[]).join(', ')}`);
+      if (p.containsPattern) lines.push(`Match imported payees containing: "${p.containsPattern}"`);
+      if (Array.isArray(p.fromNames)) lines.push(`Match imported payees exactly: ${(p.fromNames as string[]).join(', ')}`);
       if (p.toPayee) lines.push(`Rename to: ${p.toPayee}`);
       break;
     case 'delete-rule':
@@ -1191,17 +1192,9 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       return `Created ${typedGroups.length} category group${typedGroups.length === 1 ? '' : 's'}:\n${summary.join('\n')}`;
     }
     case 'create-rule': {
-      const { fromNames, toPayee } = action.params;
-      if (!Array.isArray(fromNames) || fromNames.length === 0) {
-        throw new Error('create-rule requires a non-empty "fromNames" array of imported payee name patterns.');
-      }
+      const { fromNames, containsPattern, toPayee } = action.params;
       if (typeof toPayee !== 'string' || !toPayee.trim()) {
         throw new Error('create-rule requires a non-empty "toPayee" string.');
-      }
-      for (const name of fromNames as unknown[]) {
-        if (typeof name !== 'string' || !(name as string).trim()) {
-          throw new Error('Each entry in fromNames must be a non-empty string.');
-        }
       }
       const cleanToPayee = (toPayee as string).trim();
       const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
@@ -1211,6 +1204,28 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         payeeId = matchedPayee.id;
       } else {
         payeeId = await send('payee-create', { name: cleanToPayee }) as string;
+      }
+
+      if (typeof containsPattern === 'string' && containsPattern.trim()) {
+        const result = await send('rule-add', {
+          stage: 'pre',
+          conditionsOp: 'and',
+          conditions: [{ field: 'imported_payee', op: 'contains', value: containsPattern.trim() }],
+          actions: [{ op: 'set', field: 'payee', value: payeeId }],
+        }) as { error?: { message?: string } } | { id: string };
+        if ('error' in result && result.error) {
+          throw new Error(`Failed to create rule: ${result.error.message || 'validation error'}`);
+        }
+        return `Payee rename rule created: imported payee contains "${containsPattern.trim()}" → ${cleanToPayee}`;
+      }
+
+      if (!Array.isArray(fromNames) || fromNames.length === 0) {
+        throw new Error('create-rule requires either "containsPattern" (substring match) or "fromNames" (exact match list).');
+      }
+      for (const name of fromNames as unknown[]) {
+        if (typeof name !== 'string' || !(name as string).trim()) {
+          throw new Error('Each entry in fromNames must be a non-empty string.');
+        }
       }
       await send('rule-add-payee-rename', {
         fromNames: (fromNames as string[]).map(n => n.trim()),
@@ -1223,7 +1238,10 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       if (typeof ruleId !== 'string' || !ruleId.trim()) {
         throw new Error('delete-rule requires a non-empty "ruleId" string.');
       }
-      await send('rule-delete', ruleId);
+      const deleteResult = await send('rule-delete', ruleId);
+      if (deleteResult === false) {
+        throw new Error('Failed to delete rule — the rule may be in use or no longer exists.');
+      }
       return `Rule deleted successfully.`;
     }
     case 'list-rules': {
