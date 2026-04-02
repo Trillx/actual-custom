@@ -13,6 +13,7 @@ import { View } from '@actual-app/components/view';
 import { v4 as uuidv4 } from 'uuid';
 
 import { parseAction, parseQueryAction, sendChatMessage, stripActionBlock } from './aiService';
+import { useChat } from './ChatContext';
 import { ChatMessage, shouldShowTimestamp } from './ChatMessage';
 import {
   clearSessionMessages,
@@ -95,6 +96,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [modelName] = useLocalPref('ai.modelName');
   const { gatherContext, runQuery, initBudgetScope } = useBudgetContext();
   const { isNarrowWidth } = useResponsive();
+  const { pendingMessage, clearPendingMessage } = useChat();
+  const lastProcessedPendingId = useRef(0);
 
   useEffect(() => {
     setSessionMessages(messages);
@@ -109,8 +112,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     void gatherContext();
   }, []);
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
+  const handleSend = useCallback(async (directMessage?: string) => {
+    const trimmed = directMessage?.trim() || input.trim();
     if (!trimmed || isLoading) return;
 
     if (!apiKey) {
@@ -129,7 +132,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-    setInput('');
+    if (!directMessage) setInput('');
     setError(null);
     setIsLoading(true);
     const currentRequestId = ++requestIdRef.current;
@@ -447,6 +450,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     setInput(text);
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (!pendingMessage) return;
+    if (pendingMessage.id <= lastProcessedPendingId.current) return;
+    lastProcessedPendingId.current = pendingMessage.id;
+    const msgText = pendingMessage.text;
+    const msgId = pendingMessage.id;
+    clearPendingMessage(msgId);
+    void handleSend(msgText);
+  }, [pendingMessage, clearPendingMessage, handleSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

@@ -12,8 +12,10 @@ import type { ScheduleEntity } from 'loot-core/types/models';
 import { SchedulesTable } from './SchedulesTable';
 import type { ScheduleItemAction } from './SchedulesTable';
 
+import { useChat } from '@desktop-client/components/chat/ChatContext';
 import { Search } from '@desktop-client/components/common/Search';
 import { Page } from '@desktop-client/components/Page';
+import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
 import { useSchedules } from '@desktop-client/hooks/useSchedules';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
@@ -23,6 +25,8 @@ export function Schedules() {
 
   const dispatch = useDispatch();
   const [filter, setFilter] = useState('');
+  const [apiKey] = useLocalPref('ai.apiKey');
+  const { openChatWithMessage } = useChat();
 
   const onEdit = useCallback(
     (id: ScheduleEntity['id']) => {
@@ -44,6 +48,13 @@ export function Schedules() {
   const onChangeUpcomingLength = useCallback(() => {
     dispatch(pushModal({ modal: { name: 'schedules-upcoming-length' } }));
   }, [dispatch]);
+
+  const onAIAssist = useCallback(() => {
+    openChatWithMessage(
+      'Analyze my transactions and help me find recurring charges that should be schedules. ' +
+      'Check for subscriptions I might be missing and suggest which ones to set up as scheduled transactions.',
+    );
+  }, [openChatWithMessage]);
 
   const onAction = useCallback(
     async (name: ScheduleItemAction, id: ScheduleEntity['id']) => {
@@ -138,6 +149,11 @@ export function Schedules() {
           <Button onPress={onDiscover}>
             <Trans>Find schedules</Trans>
           </Button>
+          {apiKey && (
+            <Button onPress={onAIAssist}>
+              <Trans>AI Assist</Trans>
+            </Button>
+          )}
           <Button onPress={onChangeUpcomingLength}>
             <Trans>Change upcoming length</Trans>
           </Button>
