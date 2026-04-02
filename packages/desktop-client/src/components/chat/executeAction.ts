@@ -363,7 +363,7 @@ function validateDeleteGoal(params: Record<string, unknown>): {
 function validateCreateSchedule(params: Record<string, unknown>): {
   name?: string;
   payee_name: string;
-  accountId: string;
+  accountId?: string;
   amount: number;
   amountOp: string;
   date: string;
@@ -373,19 +373,18 @@ function validateCreateSchedule(params: Record<string, unknown>): {
 } {
   const { name, payee_name, accountId, amount, amountOp, date, frequency, interval, posts_transaction } = params;
   if (typeof payee_name !== 'string' || !payee_name) throw new Error('Missing or invalid "payee_name" parameter.');
-  if (typeof accountId !== 'string' || !accountId) throw new Error('Missing or invalid "accountId" parameter.');
   if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
-  if (typeof date !== 'string' || !date) throw new Error('Missing or invalid "date" parameter.');
   if (typeof frequency !== 'string' || !['weekly', 'monthly', 'yearly'].includes(frequency)) throw new Error('"frequency" must be "weekly", "monthly", or "yearly".');
   const validOps = ['is', 'isapprox', 'isbetween'];
   const op = typeof amountOp === 'string' && validOps.includes(amountOp) ? amountOp : 'isapprox';
+  const today = new Date().toISOString().split('T')[0];
   return {
     name: typeof name === 'string' && name ? name : undefined,
     payee_name,
-    accountId,
+    accountId: typeof accountId === 'string' && accountId ? accountId : undefined,
     amount,
     amountOp: op,
-    date,
+    date: typeof date === 'string' && date ? date : today,
     frequency,
     interval: typeof interval === 'number' && interval > 0 ? interval : 1,
     posts_transaction: typeof posts_transaction === 'boolean' ? posts_transaction : false,
@@ -437,7 +436,7 @@ function validateCreateSchedulesBatch(params: Record<string, unknown>): {
   schedules: Array<{
     name?: string;
     payee_name: string;
-    accountId: string;
+    accountId?: string;
     amount: number;
     amountOp: string;
     date: string;
@@ -448,21 +447,20 @@ function validateCreateSchedulesBatch(params: Record<string, unknown>): {
 } {
   const { schedules } = params;
   if (!Array.isArray(schedules) || schedules.length === 0) throw new Error('Missing or empty "schedules" array.');
+  const today = new Date().toISOString().split('T')[0];
   const validated = schedules.map((s, i) => {
     const entry = s as Record<string, unknown>;
     if (typeof entry.payee_name !== 'string' || !entry.payee_name) throw new Error(`Missing "payee_name" in schedule entry ${i}.`);
-    if (typeof entry.accountId !== 'string' || !entry.accountId) throw new Error(`Missing "accountId" in schedule entry ${i}.`);
     if (typeof entry.amount !== 'number') throw new Error(`Missing "amount" in schedule entry ${i}.`);
-    if (typeof entry.date !== 'string' || !entry.date) throw new Error(`Missing "date" in schedule entry ${i}.`);
     if (typeof entry.frequency !== 'string' || !['weekly', 'monthly', 'yearly'].includes(entry.frequency as string)) throw new Error(`Invalid "frequency" in schedule entry ${i}.`);
     const validOps = ['is', 'isapprox', 'isbetween'];
     return {
       name: typeof entry.name === 'string' && entry.name ? entry.name : undefined,
       payee_name: entry.payee_name as string,
-      accountId: entry.accountId as string,
+      accountId: typeof entry.accountId === 'string' && entry.accountId ? (entry.accountId as string) : undefined,
       amount: entry.amount as number,
       amountOp: typeof entry.amountOp === 'string' && validOps.includes(entry.amountOp) ? entry.amountOp : 'isapprox',
-      date: entry.date as string,
+      date: typeof entry.date === 'string' && entry.date ? (entry.date as string) : today,
       frequency: entry.frequency as string,
       interval: typeof entry.interval === 'number' && (entry.interval as number) > 0 ? (entry.interval as number) : 1,
       posts_transaction: typeof entry.posts_transaction === 'boolean' ? entry.posts_transaction : false,
@@ -958,6 +956,13 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'create-schedule': {
       const validated = validateCreateSchedule(action.params);
+      let resolvedAccountId = validated.accountId;
+      if (!resolvedAccountId) {
+        const allAccounts = await send('api/accounts-get') as Array<{ id: string; closed?: boolean }>;
+        const openAccounts = allAccounts.filter(a => !a.closed);
+        if (openAccounts.length === 0) throw new Error('No open accounts available to assign this schedule to.');
+        resolvedAccountId = openAccounts[0].id;
+      }
       const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
       let payeeId: string;
       const matchedPayee = allPayees.find(p => p.name.toLowerCase() === validated.payee_name.toLowerCase());
@@ -970,7 +975,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       await send('api/schedule-create', {
         name: validated.name || undefined,
         payee: payeeId,
-        account: validated.accountId,
+        account: resolvedAccountId,
         amount: validated.amount,
         amountOp: validated.amountOp as 'is' | 'isapprox' | 'isbetween',
         date: dateValue as { start: string; frequency: 'weekly' | 'monthly' | 'yearly'; interval: number },
@@ -1024,6 +1029,9 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'create-schedules-batch': {
       const validated = validateCreateSchedulesBatch(action.params);
+      const allAccounts = await send('api/accounts-get') as Array<{ id: string; closed?: boolean }>;
+      const openAccounts = allAccounts.filter(a => !a.closed);
+      const defaultAccountId = openAccounts.length > 0 ? openAccounts[0].id : undefined;
       const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
       const payeeLookup = new Map<string, string>();
       for (const p of allPayees) {
@@ -1031,6 +1039,8 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
       const results: string[] = [];
       for (const sched of validated.schedules) {
+        const accountId = sched.accountId || defaultAccountId;
+        if (!accountId) throw new Error('No open accounts available to assign schedules to.');
         let payeeId = payeeLookup.get(sched.payee_name.toLowerCase());
         if (!payeeId) {
           payeeId = await send('payee-create', { name: sched.payee_name }) as string;
@@ -1040,7 +1050,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         await send('api/schedule-create', {
           name: sched.name || undefined,
           payee: payeeId,
-          account: sched.accountId,
+          account: accountId,
           amount: sched.amount,
           amountOp: sched.amountOp as 'is' | 'isapprox' | 'isbetween',
           date: dateValue as { start: string; frequency: 'weekly' | 'monthly' | 'yearly'; interval: number },
