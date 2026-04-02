@@ -10,6 +10,7 @@ type AnalysisTransaction = {
   amount: number;
   payee_name?: string;
   category_name?: string;
+  account_name?: string;
 };
 
 type ScheduleInfo = {
@@ -66,6 +67,7 @@ export function detectRecurringTransactions(
     {
       variants: Map<string, number>;
       txns: Array<{ date: string; amount: number }>;
+      accounts: Map<string, number>;
     }
   >();
 
@@ -74,17 +76,20 @@ export function detectRecurringTransactions(
     const normalizedKey = normalizePayeeName(tx.payee_name);
     if (!normalizedKey) continue;
     if (!normalizedGroups.has(normalizedKey)) {
-      normalizedGroups.set(normalizedKey, { variants: new Map(), txns: [] });
+      normalizedGroups.set(normalizedKey, { variants: new Map(), txns: [], accounts: new Map() });
     }
     const group = normalizedGroups.get(normalizedKey)!;
     group.variants.set(tx.payee_name, (group.variants.get(tx.payee_name) || 0) + 1);
     group.txns.push({ date: tx.date, amount: tx.amount });
+    if (tx.account_name) {
+      group.accounts.set(tx.account_name, (group.accounts.get(tx.account_name) || 0) + 1);
+    }
   }
 
   const results: RecurringTransaction[] = [];
 
   for (const [, group] of Array.from(normalizedGroups.entries())) {
-    const { variants, txns } = group;
+    const { variants, txns, accounts } = group;
     if (txns.length < 2) continue;
 
     let canonicalName = '';
@@ -93,6 +98,15 @@ export function detectRecurringTransactions(
       if (count > maxCount) {
         maxCount = count;
         canonicalName = name;
+      }
+    }
+
+    let primaryAccount: string | undefined;
+    let maxAcctCount = 0;
+    for (const [acctName, count] of Array.from(accounts.entries())) {
+      if (count > maxAcctCount) {
+        maxAcctCount = count;
+        primaryAccount = acctName;
       }
     }
 
@@ -151,6 +165,13 @@ export function detectRecurringTransactions(
       return amountClose;
     });
 
+    let typicalDueDay: number | undefined;
+    if (frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') {
+      const days = txns.map(t => new Date(t.date).getUTCDate());
+      days.sort((a, b) => a - b);
+      typicalDueDay = days[Math.floor(days.length / 2)];
+    }
+
     results.push({
       payee_name: canonicalName,
       amount: Math.round(avgAmount),
@@ -161,6 +182,8 @@ export function detectRecurringTransactions(
       matchesSchedule: !!scheduleMatch,
       scheduleName: scheduleMatch?.name,
       payeeVariants: allVariants.length > 1 ? allVariants : undefined,
+      accountName: primaryAccount,
+      typicalDueDay,
     });
   }
 
@@ -457,6 +480,12 @@ export function formatSubscriptionList(
             : '●○○';
       let line = `  ${confidenceLabel} ${sub.payee_name}: ${formatCurrency(Math.abs(sub.amount))}/${sub.frequency}` +
           ` (${sub.occurrences} occurrences, last: ${sub.lastDate}, confidence: ${sub.confidence})`;
+      if (sub.accountName) {
+        line += ` [account: ${sub.accountName}]`;
+      }
+      if (sub.typicalDueDay) {
+        line += ` [typical due day: ${sub.typicalDueDay}]`;
+      }
       if (sub.payeeVariants && sub.payeeVariants.length > 1) {
         line += `\n      ⚠ Name variants found: ${sub.payeeVariants.map(v => `"${v}"`).join(', ')} — consider creating a payee rename rule to normalize`;
       }

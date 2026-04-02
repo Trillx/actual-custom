@@ -127,6 +127,8 @@ export type RecurringTransaction = {
   matchesSchedule: boolean;
   scheduleName?: string;
   payeeVariants?: string[];
+  accountName?: string;
+  typicalDueDay?: number;
 };
 
 export type SpendingAnomaly = {
