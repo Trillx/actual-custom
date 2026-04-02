@@ -53,16 +53,14 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "create-schedules-batch": params: {schedules: [{name?, payee_name, accountId, amount, amountOp?, date, frequency, interval?, posts_transaction?}]} — Create multiple schedules at once. Use this when converting detected subscriptions into schedules. Each entry follows the same format as create-schedule.\n' +
       '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
       '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
-      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.
-
-      SCHEDULE MANAGEMENT:
-      You can create, update, and delete scheduled/recurring transactions.
-      - "create-schedule": params: {payee_name, amount, frequency: "weekly"|"monthly"|"yearly", interval, date} (amount in cents, negative for expenses)
-      - "update-schedule": params: {scheduleId, payee_name?, amount?, frequency?, interval?, date?} (only include fields to change)
-      - "delete-schedule": params: {scheduleId}
-      - "create-schedules-batch": params: {schedules} — Create multiple schedules at once. schedules is an array of create-schedule params. Use this when the user wants to convert multiple detected subscriptions into schedules at once.
-
-      When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.
+      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n\n' +
+      'SCHEDULE MANAGEMENT:\n' +
+      'You can create, update, and delete scheduled/recurring transactions.\n' +
+      '- "create-schedule": params: {payee_name, amount, frequency: "weekly"|"monthly"|"yearly", interval, date} (amount in cents, negative for expenses)\n' +
+      '- "update-schedule": params: {scheduleId, payee_name?, amount?, frequency?, interval?, date?} (only include fields to change)\n' +
+      '- "delete-schedule": params: {scheduleId}\n' +
+      '- "create-schedules-batch": params: {schedules} — Create multiple schedules at once. schedules is an array of create-schedule params. Use this when the user wants to convert multiple detected subscriptions into schedules at once.\n\n' +
+      'When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.\n\n' +
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
@@ -291,15 +289,6 @@ function buildSystemPrompt(context: BudgetContext): string {
 
   if (context.debtAccounts) {
     parts.push(`\n\n${context.debtAccounts}`);
-  }
-
-  const memories = getMemories();
-  if (memories.length > 0) {
-    parts.push('\n\nYour Memories & Preferences (use these when relevant):');
-    for (let i = 0; i < memories.length; i++) {
-      const m = memories[i];
-      parts.push(`${i + 1}. [${m.category}] ${m.content} (id: ${m.id})`);
-    }
   }
 
   if (context.queryResult) {
