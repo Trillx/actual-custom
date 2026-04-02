@@ -12,6 +12,7 @@ export type BudgetAction = {
     | 'set-budget-amount'
     | 'add-transaction'
     | 'update-transaction'
+    | 'bulk-update-transactions'
     | 'delete-transaction'
     | 'transfer-between-accounts'
     | 'create-category'

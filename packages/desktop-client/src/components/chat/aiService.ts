@@ -24,6 +24,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "set-budget-amount": params: {month, categoryId, amount} (amount in cents, ABSOLUTE value — this sets the total budget to this amount, NOT an increment. When adding $X to an existing budget, calculate: existing_budgeted_amount + X)\n' +
       '- "add-transaction": params: {accountId, date, amount, payee_name, category_id, notes} (amount in cents, negative for expenses)\n' +
       '- "update-transaction": params: {transactionId, date?, amount?, payee_name?, category_id?, notes?} (only include fields to change, amount in cents)\n' +
+      '- "bulk-update-transactions": params: {updates: [{transactionId, category_id?, payee_name?, notes?}]} — Update multiple transactions at once. Use this when categorizing or re-categorizing many transactions in bulk (e.g., "categorize all my uncategorized transactions"). Each entry only needs transactionId and the fields to change. The user confirms once and all updates apply.\n' +
       '- "delete-transaction": params: {transactionId} (use the transaction ID from recent transactions)\n' +
       '- "transfer-between-accounts": params: {fromAccountId, toAccountId, amount, date, notes?} (amount in cents, positive value)\n' +
       '- "create-category": params: {name, group_id} — IMPORTANT: group_id MUST be a valid category group ID from the context above. Look up the group ID from "Category Groups and Categories" section.\n' +
@@ -74,7 +75,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Do NOT use individual "create-category-group", "move-category", or "delete-category-group" actions for reorganization — use "reorganize-categories" instead.\n\n' +
       'After the action block, add a brief explanation of what will happen. ' +
       'The user will need to confirm the action before it executes. ' +
-      'Only include ONE action per response. Note: "reorganize-categories" and "bulk-create-category-groups" each count as a single action even though they perform multiple steps internally.\n\n' +
+      'Only include ONE action per response. Note: "reorganize-categories", "bulk-create-category-groups", and "bulk-update-transactions" each count as a single action even though they perform multiple steps internally.\n\n' +
+      'IMPORTANT — Bulk transaction categorization: When the user asks to categorize multiple uncategorized transactions (e.g., "categorize all my uncategorized transactions", "fix my uncategorized stuff"), ' +
+      'ALWAYS use "bulk-update-transactions" to update them all in a single action. Do NOT use individual "update-transaction" actions one at a time, and NEVER dump raw JSON into your response text.\n\n' +
       'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
       '(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), ' +
       'you MUST respond with a QUERY action block:\n' +
@@ -295,6 +298,7 @@ const VALID_ACTION_TYPES = [
   'set-budget-amount',
   'add-transaction',
   'update-transaction',
+  'bulk-update-transactions',
   'delete-transaction',
   'transfer-between-accounts',
   'create-category',
@@ -473,12 +477,17 @@ export function stripActionBlock(content: string): string {
   }
 
   if (result === content.trim()) {
-    for (let i = 0; i < result.length; i++) {
-      if (result[i] !== '{') continue;
-      const candidate = extractBalancedJson(result, i);
-      if (candidate && candidate.includes('"type"') && tryParseActionJson(candidate)) {
-        result = (result.substring(0, i) + result.substring(i + candidate.length)).trim();
-        break;
+    let found = true;
+    while (found) {
+      found = false;
+      for (let i = 0; i < result.length; i++) {
+        if (result[i] !== '{') continue;
+        const candidate = extractBalancedJson(result, i);
+        if (candidate && candidate.includes('"type"') && tryParseActionJson(candidate)) {
+          result = (result.substring(0, i) + result.substring(i + candidate.length)).trim();
+          found = true;
+          break;
+        }
       }
     }
   }

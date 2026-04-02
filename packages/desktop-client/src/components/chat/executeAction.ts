@@ -58,6 +58,33 @@ function validateUpdateTransaction(params: Record<string, unknown>): {
   };
 }
 
+function validateBulkUpdateTransactions(params: Record<string, unknown>): {
+  updates: Array<{
+    transactionId: string;
+    category_id?: string;
+    payee_name?: string;
+    notes?: string;
+    amount?: number;
+    date?: string;
+  }>;
+} {
+  const { updates } = params;
+  if (!Array.isArray(updates) || updates.length === 0) throw new Error('Missing or empty "updates" array.');
+  const validated = updates.map((u, i) => {
+    const entry = u as Record<string, unknown>;
+    if (typeof entry.transactionId !== 'string' || !entry.transactionId) throw new Error(`Missing "transactionId" in update entry ${i}.`);
+    return {
+      transactionId: entry.transactionId as string,
+      category_id: typeof entry.category_id === 'string' ? entry.category_id : undefined,
+      payee_name: typeof entry.payee_name === 'string' ? entry.payee_name : undefined,
+      notes: typeof entry.notes === 'string' ? entry.notes : undefined,
+      amount: typeof entry.amount === 'number' ? entry.amount : undefined,
+      date: typeof entry.date === 'string' ? entry.date : undefined,
+    };
+  });
+  return { updates: validated };
+}
+
 function validateDeleteTransaction(params: Record<string, unknown>): {
   transactionId: string;
 } {
@@ -511,6 +538,20 @@ export function formatActionDetails(action: BudgetAction): string[] {
       if (p.category_id) lines.push(`New Category ID: ${p.category_id}`);
       if (p.notes !== undefined) lines.push(`New Notes: ${p.notes || '(cleared)'}`);
       break;
+    case 'bulk-update-transactions': {
+      lines.push(`Type: Bulk Update Transactions`);
+      if (Array.isArray(p.updates)) {
+        lines.push(`Transactions: ${(p.updates as Array<Record<string, unknown>>).length}`);
+        for (const u of p.updates as Array<Record<string, unknown>>) {
+          const parts: string[] = [];
+          if (u.category_id) parts.push(`category: ${u.category_id}`);
+          if (u.payee_name) parts.push(`payee: ${u.payee_name}`);
+          if (u.notes !== undefined) parts.push(`notes: ${u.notes || '(cleared)'}`);
+          lines.push(`  ${u.transactionId}${parts.length > 0 ? ` → ${parts.join(', ')}` : ''}`);
+        }
+      }
+      break;
+    }
     case 'delete-transaction':
       lines.push(`Type: Delete Transaction`);
       lines.push(`Transaction ID: ${p.transactionId}`);
@@ -748,6 +789,31 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
       await send('transaction-update', updateFields as Parameters<typeof send<'transaction-update'>>[1]);
       return 'Transaction updated successfully.';
+    }
+    case 'bulk-update-transactions': {
+      const validated = validateBulkUpdateTransactions(action.params);
+      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      let successCount = 0;
+      for (const entry of validated.updates) {
+        const updateFields: { id: string; date?: string; amount?: number; category?: string; notes?: string; payee?: string } = { id: entry.transactionId };
+        if (entry.date !== undefined) updateFields.date = entry.date;
+        if (entry.amount !== undefined) updateFields.amount = entry.amount;
+        if (entry.category_id !== undefined) updateFields.category = entry.category_id;
+        if (entry.notes !== undefined) updateFields.notes = entry.notes;
+        if (entry.payee_name !== undefined) {
+          const matchedPayee = allPayees.find(p => p.name.toLowerCase() === entry.payee_name!.toLowerCase());
+          if (matchedPayee) {
+            updateFields.payee = matchedPayee.id;
+          } else {
+            const newPayeeId = await send('payee-create', { name: entry.payee_name }) as string;
+            updateFields.payee = newPayeeId;
+            allPayees.push({ id: newPayeeId, name: entry.payee_name });
+          }
+        }
+        await send('transaction-update', updateFields as Parameters<typeof send<'transaction-update'>>[1]);
+        successCount++;
+      }
+      return `Successfully updated ${successCount} transaction${successCount !== 1 ? 's' : ''}.`;
     }
     case 'delete-transaction': {
       const validated = validateDeleteTransaction(action.params);
