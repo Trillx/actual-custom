@@ -164,8 +164,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       '1. First, use "detect-subscriptions" to scan their transactions for recurring patterns.\n' +
       '2. Present a clear summary: list confirmed schedules separately from detected-but-untracked recurring charges.\n' +
       '3. For untracked charges, show payee name, typical amount, and detected frequency.\n' +
-      '4. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
-      '5. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
+      '4. Watch for payee naming inconsistencies that may affect detection (e.g., "Netflix" vs "NETFLIX.COM" vs "Netflix Inc"). Flag these to the user and suggest merging or renaming payees for better tracking.\n' +
+      '5. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
+      '6. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
