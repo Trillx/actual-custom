@@ -360,9 +360,129 @@ function validateDeleteGoal(params: Record<string, unknown>): {
   };
 }
 
+function validateCreateSchedule(params: Record<string, unknown>): {
+  name?: string;
+  payee_name: string;
+  accountId: string;
+  amount: number;
+  amountOp: string;
+  date: string;
+  frequency: string;
+  interval: number;
+  posts_transaction: boolean;
+} {
+  const { name, payee_name, accountId, amount, amountOp, date, frequency, interval, posts_transaction } = params;
+  if (typeof payee_name !== 'string' || !payee_name) throw new Error('Missing or invalid "payee_name" parameter.');
+  if (typeof accountId !== 'string' || !accountId) throw new Error('Missing or invalid "accountId" parameter.');
+  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
+  if (typeof date !== 'string' || !date) throw new Error('Missing or invalid "date" parameter.');
+  if (typeof frequency !== 'string' || !['weekly', 'monthly', 'yearly'].includes(frequency)) throw new Error('"frequency" must be "weekly", "monthly", or "yearly".');
+  const validOps = ['is', 'isapprox', 'isbetween'];
+  const op = typeof amountOp === 'string' && validOps.includes(amountOp) ? amountOp : 'isapprox';
+  return {
+    name: typeof name === 'string' && name ? name : undefined,
+    payee_name,
+    accountId,
+    amount,
+    amountOp: op,
+    date,
+    frequency,
+    interval: typeof interval === 'number' && interval > 0 ? interval : 1,
+    posts_transaction: typeof posts_transaction === 'boolean' ? posts_transaction : false,
+  };
+}
+
+function validateUpdateSchedule(params: Record<string, unknown>): {
+  scheduleId: string;
+  name?: string;
+  payee_name?: string;
+  accountId?: string;
+  amount?: number;
+  amountOp?: string;
+  date?: string;
+  frequency?: string;
+  interval?: number;
+  posts_transaction?: boolean;
+} {
+  const { scheduleId, name, payee_name, accountId, amount, amountOp, date, frequency, interval, posts_transaction } = params;
+  if (typeof scheduleId !== 'string' || !scheduleId) throw new Error('Missing or invalid "scheduleId" parameter.');
+  const validOps = ['is', 'isapprox', 'isbetween'];
+  return {
+    scheduleId,
+    name: typeof name === 'string' && name ? name : undefined,
+    payee_name: typeof payee_name === 'string' && payee_name ? payee_name : undefined,
+    accountId: typeof accountId === 'string' && accountId ? accountId : undefined,
+    amount: typeof amount === 'number' ? amount : undefined,
+    amountOp: typeof amountOp === 'string' && validOps.includes(amountOp) ? amountOp : undefined,
+    date: typeof date === 'string' && date ? date : undefined,
+    frequency: typeof frequency === 'string' && ['weekly', 'monthly', 'yearly'].includes(frequency) ? frequency : undefined,
+    interval: typeof interval === 'number' && interval > 0 ? interval : undefined,
+    posts_transaction: typeof posts_transaction === 'boolean' ? posts_transaction : undefined,
+  };
+}
+
+function validateDeleteSchedule(params: Record<string, unknown>): {
+  scheduleId: string;
+  scheduleName: string;
+} {
+  const { scheduleId, scheduleName } = params;
+  if (typeof scheduleId !== 'string' || !scheduleId) throw new Error('Missing or invalid "scheduleId" parameter.');
+  return {
+    scheduleId,
+    scheduleName: typeof scheduleName === 'string' ? scheduleName : '',
+  };
+}
+
+function validateCreateSchedulesBatch(params: Record<string, unknown>): {
+  schedules: Array<{
+    name?: string;
+    payee_name: string;
+    accountId: string;
+    amount: number;
+    amountOp: string;
+    date: string;
+    frequency: string;
+    interval: number;
+    posts_transaction: boolean;
+  }>;
+} {
+  const { schedules } = params;
+  if (!Array.isArray(schedules) || schedules.length === 0) throw new Error('Missing or empty "schedules" array.');
+  const validated = schedules.map((s, i) => {
+    const entry = s as Record<string, unknown>;
+    if (typeof entry.payee_name !== 'string' || !entry.payee_name) throw new Error(`Missing "payee_name" in schedule entry ${i}.`);
+    if (typeof entry.accountId !== 'string' || !entry.accountId) throw new Error(`Missing "accountId" in schedule entry ${i}.`);
+    if (typeof entry.amount !== 'number') throw new Error(`Missing "amount" in schedule entry ${i}.`);
+    if (typeof entry.date !== 'string' || !entry.date) throw new Error(`Missing "date" in schedule entry ${i}.`);
+    if (typeof entry.frequency !== 'string' || !['weekly', 'monthly', 'yearly'].includes(entry.frequency as string)) throw new Error(`Invalid "frequency" in schedule entry ${i}.`);
+    const validOps = ['is', 'isapprox', 'isbetween'];
+    return {
+      name: typeof entry.name === 'string' && entry.name ? entry.name : undefined,
+      payee_name: entry.payee_name as string,
+      accountId: entry.accountId as string,
+      amount: entry.amount as number,
+      amountOp: typeof entry.amountOp === 'string' && validOps.includes(entry.amountOp) ? entry.amountOp : 'isapprox',
+      date: entry.date as string,
+      frequency: entry.frequency as string,
+      interval: typeof entry.interval === 'number' && (entry.interval as number) > 0 ? (entry.interval as number) : 1,
+      posts_transaction: typeof entry.posts_transaction === 'boolean' ? entry.posts_transaction : false,
+    };
+  });
+  return { schedules: validated };
+}
+
+function buildScheduleDateValue(date: string, frequency: string, interval: number): { start: string; frequency: string; interval: number } {
+  return {
+    start: date,
+    frequency,
+    interval,
+  };
+}
+
 function formatCents(amount: number): string {
   return '$' + (amount / 100).toFixed(2);
 }
+
 
 export function formatActionDetails(action: BudgetAction): string[] {
   const lines: string[] = [];
@@ -431,10 +551,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
       break;
     case 'create-category-group':
       lines.push(`Type: Create Category Group`);
-      if (p.name) lines.push(`Group Name: ${p.name}`);
-      if (Array.isArray(p.categories) && (p.categories as Array<{ name: string }>).length > 0) {
-        lines.push(`Categories: ${(p.categories as Array<{ name: string }>).map(c => c.name).join(', ')}`);
-      }
+      if (p.name) lines.push(`Name: ${p.name}`);
       break;
     case 'move-category':
       lines.push(`Type: Move Category`);
@@ -466,7 +583,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
           newGroupNames.push(g.name);
           if (Array.isArray(g.categories)) {
             for (const cat of g.categories) {
-              moveLines.push(`  ${cat} → ${g.name}`);
+              moveLines.push(`  ${cat} 'u2192' ${g.name}`);
             }
           }
         }
@@ -490,27 +607,21 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'merge-payees':
       lines.push(`Type: Merge Payees`);
       if (p.targetName) lines.push(`Target: ${p.targetName}`);
-      if (Array.isArray(p.mergeNames) && (p.mergeNames as string[]).length > 0) {
-        lines.push(`Merging: ${(p.mergeNames as string[]).join(', ')}`);
-      }
+      if (Array.isArray(p.mergeNames)) lines.push(`Merging: ${p.mergeNames.join(', ')}`);
       break;
     case 'copy-previous-month':
       lines.push(`Type: Copy Previous Month Budget`);
-      if (p.month) lines.push(`Copy to: ${p.month}`);
+      if (p.month) lines.push(`Month: ${p.month}`);
       break;
     case 'set-budget-average':
-      lines.push(`Type: Set Budget from Average`);
+      lines.push(`Type: Set Budget to Average`);
       if (p.month) lines.push(`Month: ${p.month}`);
-      if (typeof p.numMonths === 'number') lines.push(`Average of last: ${p.numMonths} months`);
+      if (p.numMonths) lines.push(`Average: ${p.numMonths} months`);
       break;
     case 'bulk-set-budget':
       lines.push(`Type: Bulk Set Budget`);
       if (p.month) lines.push(`Month: ${p.month}`);
-      if (Array.isArray(p.budgets)) {
-        for (const b of p.budgets as Array<{ categoryName: string; amount: number }>) {
-          lines.push(`  ${b.categoryName || 'Unknown'}: ${formatCents(b.amount)}`);
-        }
-      }
+      if (Array.isArray(p.budgets)) lines.push(`Categories: ${p.budgets.length}`);
       break;
     case 'transfer-budget':
       lines.push(`Type: Transfer Budget`);
@@ -561,6 +672,37 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'list-memories':
       lines.push(`Type: List Memories`);
       break;
+    case 'create-schedule':
+      lines.push(`Type: Create Schedule`);
+      if (p.name) lines.push(`Name: ${p.name}`);
+      if (p.payee_name) lines.push(`Payee: ${p.payee_name}`);
+      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
+      if (p.frequency) lines.push(`Frequency: ${p.interval && (p.interval as number) > 1 ? `every ${p.interval} ${p.frequency}` : p.frequency}`);
+      if (p.date) lines.push(`Starting: ${p.date}`);
+      break;
+    case 'update-schedule':
+      lines.push(`Type: Update Schedule`);
+      if (p.scheduleId) lines.push(`Schedule ID: ${p.scheduleId}`);
+      if (p.name) lines.push(`New Name: ${p.name}`);
+      if (p.payee_name) lines.push(`New Payee: ${p.payee_name}`);
+      if (typeof p.amount === 'number') lines.push(`New Amount: ${formatCents(p.amount as number)}`);
+      if (p.frequency) lines.push(`New Frequency: ${p.frequency}`);
+      if (p.date) lines.push(`New Date: ${p.date}`);
+      break;
+    case 'delete-schedule':
+      lines.push(`Type: Delete Schedule`);
+      if (p.scheduleName) lines.push(`Schedule: ${p.scheduleName}`);
+      break;
+    case 'create-schedules-batch': {
+      lines.push(`Type: Create Schedules (Batch)`);
+      if (Array.isArray(p.schedules)) {
+        for (const s of p.schedules as Array<{ payee_name: string; amount: number; frequency: string; interval?: number }>) {
+          const freq = s.interval && s.interval > 1 ? `every ${s.interval} ${s.frequency}` : s.frequency;
+          lines.push(`  ${s.payee_name}: ${formatCents(s.amount)} / ${freq}`);
+        }
+      }
+      break;
+    }
   }
 
   return lines;
@@ -814,6 +956,101 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       if (!deleted) throw new Error('Goal not found.');
       return `Savings goal "${validated.goalName}" deleted successfully.`;
     }
+    case 'create-schedule': {
+      const validated = validateCreateSchedule(action.params);
+      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      let payeeId: string;
+      const matchedPayee = allPayees.find(p => p.name.toLowerCase() === validated.payee_name.toLowerCase());
+      if (matchedPayee) {
+        payeeId = matchedPayee.id;
+      } else {
+        payeeId = await send('payee-create', { name: validated.payee_name }) as string;
+      }
+      const dateValue = buildScheduleDateValue(validated.date, validated.frequency, validated.interval);
+      await send('api/schedule-create', {
+        name: validated.name || undefined,
+        payee: payeeId,
+        account: validated.accountId,
+        amount: validated.amount,
+        amountOp: validated.amountOp as 'is' | 'isapprox' | 'isbetween',
+        date: dateValue as { start: string; frequency: 'weekly' | 'monthly' | 'yearly'; interval: number },
+        posts_transaction: validated.posts_transaction,
+      });
+      const freqLabel = validated.interval > 1 ? `every ${validated.interval} ${validated.frequency}` : validated.frequency;
+      return `Schedule created for "${validated.payee_name}" — ${formatCents(Math.abs(validated.amount))} ${freqLabel}, starting ${validated.date}.`;
+    }
+    case 'update-schedule': {
+      const validated = validateUpdateSchedule(action.params);
+      const fields: Record<string, unknown> = {};
+      if (validated.name !== undefined) fields.name = validated.name;
+      if (validated.posts_transaction !== undefined) fields.posts_transaction = validated.posts_transaction;
+      if (validated.payee_name !== undefined) {
+        const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+        const matchedPayee = allPayees.find(p => p.name.toLowerCase() === validated.payee_name!.toLowerCase());
+        if (matchedPayee) {
+          fields.payee = matchedPayee.id;
+        } else {
+          const newPayeeId = await send('payee-create', { name: validated.payee_name }) as string;
+          fields.payee = newPayeeId;
+        }
+      }
+      if (validated.accountId !== undefined) fields.account = validated.accountId;
+      if (validated.amount !== undefined) fields.amount = validated.amount;
+      if (validated.amountOp !== undefined) fields.amountOp = validated.amountOp;
+      const hasDateChange = validated.date !== undefined || validated.frequency !== undefined || validated.interval !== undefined;
+      if (hasDateChange) {
+        const existingSchedules = await send('api/schedules-get') as Array<{
+          id: string;
+          date?: { start?: string; frequency?: string; interval?: number } | string;
+        }>;
+        const existing = existingSchedules.find(s => s.id === validated.scheduleId);
+        const existingDate = existing?.date && typeof existing.date === 'object' ? existing.date : undefined;
+        const schedDate = validated.date || existingDate?.start || new Date().toISOString().split('T')[0];
+        const schedFrequency = validated.frequency || existingDate?.frequency || 'monthly';
+        const schedInterval = validated.interval || existingDate?.interval || 1;
+        fields.date = buildScheduleDateValue(schedDate, schedFrequency, schedInterval);
+      }
+      await send('api/schedule-update', {
+        id: validated.scheduleId,
+        fields,
+        resetNextDate: hasDateChange,
+      });
+      return 'Schedule updated successfully.';
+    }
+    case 'delete-schedule': {
+      const validated = validateDeleteSchedule(action.params);
+      await send('api/schedule-delete', validated.scheduleId);
+      return `Schedule "${validated.scheduleName}" deleted successfully.`;
+    }
+    case 'create-schedules-batch': {
+      const validated = validateCreateSchedulesBatch(action.params);
+      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const payeeLookup = new Map<string, string>();
+      for (const p of allPayees) {
+        payeeLookup.set(p.name.toLowerCase(), p.id);
+      }
+      const results: string[] = [];
+      for (const sched of validated.schedules) {
+        let payeeId = payeeLookup.get(sched.payee_name.toLowerCase());
+        if (!payeeId) {
+          payeeId = await send('payee-create', { name: sched.payee_name }) as string;
+          payeeLookup.set(sched.payee_name.toLowerCase(), payeeId);
+        }
+        const dateValue = buildScheduleDateValue(sched.date, sched.frequency, sched.interval);
+        await send('api/schedule-create', {
+          name: sched.name || undefined,
+          payee: payeeId,
+          account: sched.accountId,
+          amount: sched.amount,
+          amountOp: sched.amountOp as 'is' | 'isapprox' | 'isbetween',
+          date: dateValue as { start: string; frequency: 'weekly' | 'monthly' | 'yearly'; interval: number },
+          posts_transaction: sched.posts_transaction,
+        });
+        const freqLabel = sched.interval > 1 ? `every ${sched.interval} ${sched.frequency}` : sched.frequency;
+        results.push(`"${sched.payee_name}" — ${formatCents(Math.abs(sched.amount))} ${freqLabel}`);
+      }
+      return `Created ${results.length} schedule(s):\n${results.map(r => `  ✓ ${r}`).join('\n')}`;
+    }
     case 'bulk-create-category-groups': {
       const groups = action.params.groups;
       if (!Array.isArray(groups) || groups.length === 0) {
@@ -863,147 +1100,27 @@ export async function executeAction(action: BudgetAction): Promise<string> {
 
       return `Created ${typedGroups.length} category group${typedGroups.length === 1 ? '' : 's'}:\n${summary.join('\n')}`;
     }
-    case 'reorganize-categories': {
-      const newGroups = action.params.newGroups;
-      const deleteOldGroups = action.params.deleteOldGroups;
-
-      if (!Array.isArray(newGroups) || newGroups.length === 0) {
-        throw new Error('reorganize-categories requires a non-empty newGroups array.');
-      }
-      for (let i = 0; i < newGroups.length; i++) {
-        const g = newGroups[i] as { name?: unknown; categories?: unknown };
-        if (!g || typeof g.name !== 'string' || !g.name.trim()) {
-          throw new Error(`newGroups[${i}] must have a non-empty string "name".`);
-        }
-        if (g.categories !== undefined && !Array.isArray(g.categories)) {
-          throw new Error(`newGroups[${i}].categories must be an array of category name strings.`);
-        }
-        if (Array.isArray(g.categories)) {
-          for (let j = 0; j < (g.categories as unknown[]).length; j++) {
-            if (typeof (g.categories as unknown[])[j] !== 'string') {
-              throw new Error(`newGroups[${i}].categories[${j}] must be a string.`);
-            }
-          }
-        }
-      }
-      if (deleteOldGroups !== undefined && !Array.isArray(deleteOldGroups)) {
-        throw new Error('deleteOldGroups must be an array of group name strings.');
-      }
-
-      const typedNewGroups = newGroups as Array<{ name: string; categories?: string[] }>;
-      const typedDeleteOldGroups = deleteOldGroups as string[] | undefined;
-
-      const allCategories = await send('api/categories-get', { grouped: false }) as Array<{ id: string; name: string; group_id?: string }>;
-      const groupLookup = new Map<string, string>();
-      const existingGroups = await send('api/categories-get', { grouped: true }) as Array<{ id: string; name: string }>;
-      for (const g of existingGroups) {
-        groupLookup.set(g.name.toLowerCase(), g.id);
-      }
-
-      const catsByName = new Map<string, Array<{ id: string; name: string }>>();
-      for (const c of allCategories) {
-        const key = c.name.toLowerCase();
-        if (!catsByName.has(key)) catsByName.set(key, []);
-        catsByName.get(key)!.push(c);
-      }
-
-      const summary: string[] = [];
-
-      for (const group of typedNewGroups) {
-        const existingGroupId = groupLookup.get(group.name.toLowerCase());
-        let groupId: string;
-
-        if (existingGroupId) {
-          groupId = existingGroupId;
-        } else {
-          groupId = await send('api/category-group-create', {
-            group: { name: group.name },
-          }) as unknown as string;
-          groupLookup.set(group.name.toLowerCase(), groupId);
-          summary.push(`Created group "${group.name}"`);
-        }
-
-        if (Array.isArray(group.categories)) {
-          for (const catName of group.categories) {
-            const matches = catsByName.get(catName.toLowerCase());
-            if (!matches || matches.length === 0) {
-              await send('api/category-create', {
-                category: { name: catName, group_id: groupId, hidden: false },
-              });
-              summary.push(`Created "${catName}" in "${group.name}"`);
-              continue;
-            }
-            if (matches.length > 1) {
-              summary.push(`Warning: multiple categories named "${catName}" found, skipped (ambiguous)`);
-              continue;
-            }
-            const cat = matches[0];
-            await send('api/category-update', {
-              id: cat.id,
-              fields: { group_id: groupId },
-            });
-            summary.push(`Moved "${cat.name}" → "${group.name}"`);
-          }
-        }
-      }
-
-      if (Array.isArray(typedDeleteOldGroups) && typedDeleteOldGroups.length > 0) {
-        const refreshedGroups = await send('api/categories-get', { grouped: true }) as Array<{ id: string; name: string; categories?: Array<{ id: string; name: string; hidden?: boolean }> }>;
-        for (const groupName of typedDeleteOldGroups) {
-          const matches = refreshedGroups.filter(g => g.name.toLowerCase() === groupName.toLowerCase());
-          if (matches.length === 0) {
-            summary.push(`Warning: group "${groupName}" not found, skipped deletion`);
-            continue;
-          }
-          if (matches.length > 1) {
-            summary.push(`Warning: multiple groups named "${groupName}" found, skipped deletion (ambiguous)`);
-            continue;
-          }
-          const grp = matches[0];
-          const visibleCats = (grp.categories || []).filter(c => !c.hidden);
-          if (visibleCats.length > 0) {
-            summary.push(`Warning: group "${groupName}" still has ${visibleCats.length} categories, skipped deletion`);
-            continue;
-          }
-          await send('api/category-group-delete', { id: grp.id });
-          summary.push(`Deleted old group "${groupName}"`);
-        }
-      }
-
-      return `Reorganization complete:\n${summary.join('\n')}`;
-    }
     case 'save-memory': {
-      const content = action.params.content;
-      const category = action.params.category;
-      if (typeof content !== 'string' || !content.trim()) {
-        throw new Error('Missing or invalid "content" parameter for save-memory.');
-      }
-      const validCategories = ['categorization', 'preference', 'context'];
-      const cat = typeof category === 'string' && validCategories.includes(category)
-        ? (category as 'categorization' | 'preference' | 'context')
-        : 'preference';
-      const memory = addMemory({ content: content.trim(), category: cat, source: 'ai' });
-      return `Memory saved: "${memory.content}"`;
+      const { content, category } = action.params;
+      if (typeof content !== 'string') throw new Error('Memory content must be a string.');
+      if (category !== undefined && typeof category !== 'string') throw new Error('Memory category must be a string.');
+      await addMemory({
+        content,
+        category: (category as 'categorization' | 'preference' | 'context') || 'categorization',
+        source: 'user',
+      });
+      return 'Memory saved successfully.';
     }
     case 'delete-memory': {
-      const memoryId = action.params.memoryId;
-      if (typeof memoryId !== 'string' || !memoryId) {
-        throw new Error('Missing or invalid "memoryId" parameter for delete-memory.');
-      }
-      const deleted = deleteMemoryById(memoryId);
-      if (!deleted) throw new Error('Memory not found.');
+      const { memoryId } = action.params;
+      if (typeof memoryId !== 'string') throw new Error('Memory ID must be a string.');
+      deleteMemoryById(memoryId);
       return 'Memory deleted successfully.';
     }
     case 'list-memories': {
-      const allMemories = getMemories();
-      if (allMemories.length === 0) {
-        return 'No memories saved yet. You can teach me preferences by telling me things like "remember that Starbucks should be Dining Out".';
-      }
-      const lines: string[] = [`You have ${allMemories.length} saved memor${allMemories.length === 1 ? 'y' : 'ies'}:\n`];
-      for (const m of allMemories) {
-        lines.push(`- [${m.category}] ${m.content} (id: ${m.id}, ${m.source === 'ai' ? 'via AI' : 'manual'})`);
-      }
-      return lines.join('\n');
+      const memories = getMemories();
+      if (memories.length === 0) return "You haven't saved any memories yet.";
+      return `Here are your saved memories:\n${memories.map(m => `• [${m.category || 'General'}] ${m.content}`).join('\n')}`;
     }
     default:
       throw new Error(`Unknown action type: ${action.type}`);

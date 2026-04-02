@@ -36,6 +36,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "bulk-create-category-groups": params: {groups} — Create multiple category groups at once. groups is an array of {name, categories?} where categories is an optional array of category name strings. Use this when the user asks to create multiple category groups from scratch (e.g., "set up Housing, Groceries, Entertainment groups"). This avoids tedious one-by-one confirmations.\n' +
       '- "move-category": params: {categoryId, categoryName, groupId, groupName} — Move an existing category to a different category group. Use the category ID and group ID from context.\n' +
       '- "delete-category-group": params: {groupId, groupName} — Delete an empty category group. Only use after all categories have been moved out.\n' +
+      '- "bulk-create-category-groups": params: {groups: [{name, categories?: [{name}]}]} — Create multiple category groups at once, optionally with categories inside.\n' +
       '- "reorganize-categories": params: {newGroups: [{name, categories: ["categoryName"]}], deleteOldGroups?: ["groupName"]} — Reorganize categories in a single step. Creates new category groups, moves existing categories into them by name, then optionally deletes specified empty old groups. Use this for any reorganization, rearranging, or restructuring of categories into new groups. All steps execute automatically after one confirmation.\n' +
       '- "rename-payee": params: {payeeId, newName, oldName} — Rename an existing payee.\n' +
       '- "merge-payees": params: {targetId, targetName, mergeIds, mergeNames} — Merge multiple payees into a target. mergeIds is an array of payee IDs to merge into targetId.\n' +
@@ -46,9 +47,22 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "create-goal": params: {name, targetAmount, targetDate, associatedAccountIds?, associatedCategoryIds?} — Create a savings goal. targetAmount in cents. targetDate as "YYYY-MM-DD".\n' +
       '- "update-goal": params: {goalId, name?, targetAmount?, targetDate?, associatedAccountIds?, associatedCategoryIds?} — Update an existing goal.\n' +
       '- "delete-goal": params: {goalId, goalName} — Delete a savings goal.\n' +
+      '- "create-schedule": params: {name?, payee_name, accountId, amount, amountOp?, date, frequency, interval?, posts_transaction?} — Create a scheduled/recurring transaction. amount in cents (negative for expenses). date is the next occurrence "YYYY-MM-DD". frequency is "weekly"|"monthly"|"yearly". interval defaults to 1 (use 2 for biweekly, 3 for quarterly). amountOp defaults to "isapprox" ("is" for exact, "isbetween" for range). posts_transaction defaults to false.\n' +
+      '- "update-schedule": params: {scheduleId, name?, payee_name?, accountId?, amount?, amountOp?, date?, frequency?, interval?, posts_transaction?} — Update an existing schedule. Only include fields to change. Use schedule IDs from the Scheduled Transactions context.\n' +
+      '- "delete-schedule": params: {scheduleId, scheduleName} — Delete an existing schedule.\n' +
+      '- "create-schedules-batch": params: {schedules: [{name?, payee_name, accountId, amount, amountOp?, date, frequency, interval?, posts_transaction?}]} — Create multiple schedules at once. Use this when converting detected subscriptions into schedules. Each entry follows the same format as create-schedule.\n' +
       '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
       '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
-      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n\n' +
+      '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.
+
+      SCHEDULE MANAGEMENT:
+      You can create, update, and delete scheduled/recurring transactions.
+      - "create-schedule": params: {payee_name, amount, frequency: "weekly"|"monthly"|"yearly", interval, date} (amount in cents, negative for expenses)
+      - "update-schedule": params: {scheduleId, payee_name?, amount?, frequency?, interval?, date?} (only include fields to change)
+      - "delete-schedule": params: {scheduleId}
+      - "create-schedules-batch": params: {schedules} — Create multiple schedules at once. schedules is an array of create-schedule params. Use this when the user wants to convert multiple detected subscriptions into schedules at once.
+
+      When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.
       'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
@@ -128,7 +142,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- Goals persist across sessions. Users can create, update, and delete goals.\n\n' +
       'MEMORY SYSTEM:\n' +
       'You have a persistent memory system. Memories survive across chat sessions and page reloads.\n' +
-      '- When the user teaches you a pattern, rule, or preference (e.g., "Starbucks should always be Dining Out", "I prefer weekly summaries", "my partner\'s name is Alex"), ' +
+      '- When the user teaches you a pattern, rule, or preference (e.g., "Starbucks should always be Dining Out", "I prefer weekly summaries", "my partner\'s name is Alex", "I get paid on the 15th", "ignore transactions under $1"), ' +
       'proactively propose a "save-memory" action to remember it.\n' +
       '- When making categorization suggestions or performing actions, ALWAYS consult your memories (listed below in context) and apply any relevant rules.\n' +
       '- When the user says "forget" or "stop remembering" something, use "delete-memory" with the appropriate memoryId.\n' +
@@ -138,6 +152,16 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "list-memories" is a read-only action that auto-executes without confirmation, like query actions.\n' +
       '- "save-memory" and "delete-memory" are write actions that require user confirmation.\n' +
       '- Only save genuinely useful, lasting preferences — not one-time instructions.\n\n' +
+      'SCHEDULE MANAGEMENT & SUBSCRIPTION CONVERSION:\n' +
+      'You can create, update, and delete scheduled/recurring transactions.\n' +
+      '- Use "create-schedule" for a single new schedule (e.g., "Create a schedule for my Netflix payment").\n' +
+      '- Use "update-schedule" to change an existing schedule (e.g., "Update my rent schedule to $1,500"). Reference schedules by their ID from context.\n' +
+      '- Use "delete-schedule" to remove an existing schedule (e.g., "Delete the gym membership schedule").\n' +
+      '- When the user asks about subscriptions and detect-subscriptions reveals recurring charges with matchesSchedule=false, proactively suggest creating schedules for them.\n' +
+      '- Present the untracked subscriptions conversationally: "I found N recurring charges without schedules. Want me to set them up?"\n' +
+      '- If the user agrees, use "create-schedules-batch" to propose all schedules at once. Pre-fill using the detected data: payee_name from the subscription, amount from the detected average, frequency mapped to the schedule format (monthly→frequency:"monthly", weekly→frequency:"weekly", biweekly→frequency:"weekly" interval:2, quarterly→frequency:"monthly" interval:3, yearly→frequency:"yearly"), and date set to the next expected occurrence based on lastDate + frequency.\n' +
+      '- The user confirms the batch once and all schedules are created.\n' +
+      '- Clearly separate "confirmed" subscriptions (already matching a schedule) from "detected" ones in your response.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
@@ -204,8 +228,11 @@ function buildSystemPrompt(context: BudgetContext): string {
     parts.push('\n\nScheduled Transactions:');
     for (const sched of context.schedules) {
       const amount = sched.amount != null ? `$${formatCurrency(sched.amount)}` : 'unknown';
+      const freq = sched.frequency ? `, ${sched.frequency}` : '';
+      const acct = sched.account_name ? `, account: ${sched.account_name}` : '';
+      const status = sched.completed ? ' [completed]' : '';
       parts.push(
-        `  - ${sched.name || 'Unnamed'}: next ${sched.next_date || 'N/A'}, amount ${amount}`,
+        `  - ${sched.name || 'Unnamed'} (id: ${sched.id}): next ${sched.next_date || 'N/A'}, amount ${amount}${freq}${acct}${status}`,
       );
     }
   }
@@ -307,8 +334,13 @@ const VALID_ACTION_TYPES = [
   'create-goal',
   'update-goal',
   'delete-goal',
+  'bulk-create-category-groups',
   'reorganize-categories',
   'bulk-create-category-groups',
+  'create-schedule',
+  'update-schedule',
+  'delete-schedule',
+  'create-schedules-batch',
   'save-memory',
   'delete-memory',
   'list-memories',

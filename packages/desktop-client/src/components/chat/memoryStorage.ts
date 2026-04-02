@@ -99,6 +99,7 @@ export function updateMemory(
   saveMemories(memories);
   return memories[idx];
 }
+
 export function deleteMemory(id: string): boolean {
   const memories = getMemories();
   const filtered = memories.filter(m => m.id !== id);

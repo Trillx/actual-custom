@@ -113,13 +113,34 @@ export function useBudgetContext() {
         next_date?: string;
         amount?: number;
         payee?: string;
+        account?: string;
+        date?: { frequency?: string; interval?: number; start?: string } | string;
+        completed?: boolean;
       }>
-    ).map(s => ({
-      id: s.id,
-      name: s.name || (s.payee ? payeeMap.get(s.payee) : undefined),
-      next_date: s.next_date,
-      amount: s.amount,
-    }));
+    ).map(s => {
+      let frequency: string | undefined;
+      if (s.date && typeof s.date === 'object' && s.date.frequency) {
+        const interval = s.date.interval || 1;
+        if (s.date.frequency === 'monthly' && interval === 1) frequency = 'monthly';
+        else if (s.date.frequency === 'weekly' && interval === 1) frequency = 'weekly';
+        else if (s.date.frequency === 'weekly' && interval === 2) frequency = 'biweekly';
+        else if (s.date.frequency === 'monthly' && interval === 3) frequency = 'quarterly';
+        else if (s.date.frequency === 'yearly' && interval === 1) frequency = 'yearly';
+        else frequency = `every ${interval} ${s.date.frequency}`;
+      }
+      return {
+        id: s.id,
+        name: s.name || (s.payee ? payeeMap.get(s.payee) : undefined),
+        next_date: s.next_date,
+        amount: s.amount,
+        payee: s.payee,
+        payee_name: s.payee ? payeeMap.get(s.payee) : undefined,
+        account: s.account,
+        account_name: s.account ? accountMap.get(s.account) : undefined,
+        frequency,
+        completed: s.completed,
+      };
+    });
 
     let budgetMonth: BudgetContext['budgetMonth'] = undefined;
     try {
@@ -397,6 +418,7 @@ export function useBudgetContext() {
         schedules: context.schedules?.map(s => ({
           name: s.name,
           amount: s.amount,
+          next_date: s.next_date,
         })),
       };
 

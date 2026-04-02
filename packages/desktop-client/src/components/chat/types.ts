@@ -35,6 +35,10 @@ export type BudgetAction = {
     | 'delete-goal'
     | 'reorganize-categories'
     | 'bulk-create-category-groups'
+    | 'create-schedule'
+    | 'update-schedule'
+    | 'delete-schedule'
+    | 'create-schedules-batch'
     | 'save-memory'
     | 'delete-memory'
     | 'list-memories';
@@ -193,6 +197,12 @@ export type BudgetContext = {
     name?: string;
     next_date?: string;
     amount?: number;
+    payee?: string;
+    payee_name?: string;
+    account?: string;
+    account_name?: string;
+    frequency?: string;
+    completed?: boolean;
   }>;
   subscriptionInsights?: Array<{
     payee_name: string;

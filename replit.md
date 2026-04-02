@@ -79,6 +79,8 @@ The AI can propose these actions, each requiring user confirmation:
 - `reorganize-categories` — Compound action: creates new groups, moves categories by name, deletes old empty groups — all in one confirmation
 - `save-memory` — Save an AI memory/preference (categorization rules, preferences, context)
 - `delete-memory` — Delete a saved memory by ID
+- `create-schedule` / `update-schedule` / `delete-schedule` — Schedule management for recurring transactions
+- `create-schedules-batch` — Compound action: creates multiple schedules at once (used for subscription-to-schedule conversion)
 
 ### Read-Only Query Actions (auto-execute, no confirmation)
 The AI can query data using these query types:
@@ -100,6 +102,7 @@ Query helpers are in `queryHelpers.ts`. They use the `api/query` AQL endpoint fo
 - `spendingAnalysis.ts` — Detects recurring charges by analyzing payee + amount consistency (CV < 30%) with recognizable intervals. Cross-references with scheduled transactions for confirmation.
 - Anomalies use 2+ standard deviations above historical mean for both category-level and individual transaction analysis.
 - Results are pre-computed and injected into context for proactive AI insights.
+- When untracked subscriptions are detected (matchesSchedule=false), the AI suggests creating schedules via `create-schedules-batch`. Schedule context includes IDs, recurrence info, account, and completion status for update/delete operations.
 
 ### Goal Tracking & Spending Forecasting
 The AI assistant supports forward-looking financial insights:
