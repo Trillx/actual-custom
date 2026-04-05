@@ -2,38 +2,27 @@
 PORT = "5006"
 TINI_SUBREAPER = "1"
 
-[experimental]
-auto_rollback = true
-
 [mounts]
 source = "actual_data"
 destination = "/data"
 
-[[services]]
-http_checks = []
+[http_service]
 internal_port = 5006
-processes = ["app"]
-protocol = "tcp"
-script_checks = []
+force_https = true
+auto_stop_machines = "stop"
+auto_start_machines = true
+min_machines_running = 0
 
-[services.concurrency]
+[http_service.concurrency]
+type = "connections"
 hard_limit = 25
 soft_limit = 20
-type = "connections"
 
-[[services.ports]]
-force_https = true
-handlers = ["http"]
-port = 80
-
-[[services.ports]]
-handlers = ["tls", "http"]
-port = 443
-
-[[services.tcp_checks]]
+[[http_service.checks]]
 grace_period = "10s"
 interval = "15s"
-restart_limit = 0
+method = "GET"
+path = "/"
 timeout = "2s"
 
 [[vm]]
