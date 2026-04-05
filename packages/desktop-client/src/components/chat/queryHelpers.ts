@@ -24,6 +24,7 @@ type ResolvedTransaction = {
   amount: number;
   payee_name?: string;
   category_name?: string;
+  category_id?: string;
   account_name?: string;
   notes?: string;
 };
@@ -153,6 +154,7 @@ async function fetchFilteredTransactions(
     amount: tx.amount,
     payee_name: tx.payee ? maps.payeeMap.get(tx.payee) : undefined,
     category_name: tx.category ? maps.categoryMap.get(tx.category) : undefined,
+    category_id: tx.category || undefined,
     account_name: tx.account ? maps.accountMap.get(tx.account) : undefined,
     notes: tx.notes || undefined,
   }));
@@ -161,6 +163,7 @@ async function fetchFilteredTransactions(
 function formatTransactionList(
   transactions: ResolvedTransaction[],
   limit = 50,
+  includeIds = false,
 ): string {
   const lines: string[] = [];
   const displayed = transactions.slice(0, limit);
@@ -174,8 +177,9 @@ function formatTransactionList(
     const category = tx.category_name || 'Uncategorized';
     const account = tx.account_name || '';
     const amount = formatCurrency(tx.amount);
+    const idPrefix = includeIds ? `[${tx.id}] ` : '';
     lines.push(
-      `- ${tx.date}: ${payee} | ${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
+      `- ${idPrefix}${tx.date}: ${payee} | ${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
     );
   }
 
@@ -419,7 +423,7 @@ export async function executeQuery(
         maps,
         limit,
       );
-      return formatTransactionList(txns, isUncategorized ? txns.length : (action.limit || 50));
+      return formatTransactionList(txns, isUncategorized ? txns.length : (action.limit || 50), !!isUncategorized);
     }
 
     case 'spending-by-category': {
@@ -631,6 +635,78 @@ export async function executeQuery(
       );
       const comparison = compareToHistorical(txns, lookback);
       return formatHistoricalComparison(comparison);
+    }
+
+    case 'payee-category-history': {
+      const lookback = action.lookbackMonths || 12;
+      const lookbackDate = new Date();
+      lookbackDate.setMonth(lookbackDate.getMonth() - lookback);
+      const txns = await fetchFilteredTransactions(
+        {
+          startDate: lookbackDate.toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+        },
+        maps,
+      );
+
+      const payeeStats = new Map<
+        string,
+        Map<string, { categoryId: string; categoryName: string; count: number }>
+      >();
+
+      for (const tx of txns) {
+        if (!tx.payee_name || !tx.category_name) continue;
+        const payeeKey = tx.payee_name.toLowerCase().trim();
+
+        if (!payeeStats.has(payeeKey)) {
+          payeeStats.set(payeeKey, new Map());
+        }
+        const catMap = payeeStats.get(payeeKey)!;
+        const catKey = tx.category_name;
+        const existing = catMap.get(catKey);
+
+        if (existing) {
+          existing.count++;
+        } else {
+          catMap.set(catKey, {
+            categoryId: tx.category_id || '',
+            categoryName: catKey,
+            count: 1,
+          });
+        }
+      }
+
+      const lines: string[] = [];
+      lines.push(`Payee → Category history (last ${lookback} months):\n`);
+
+      const sortedPayees = Array.from(payeeStats.entries())
+        .map(([payeeKey, catMap]) => {
+          const categories = Array.from(catMap.values()).sort((a, b) => b.count - a.count);
+          const totalCount = categories.reduce((sum, c) => sum + c.count, 0);
+          const top = categories[0];
+          const confidence = totalCount >= 5 ? 'high' : totalCount >= 2 ? 'medium' : 'low';
+          return {
+            payeeKey,
+            topCategory: top.categoryName,
+            topCategoryId: top.categoryId,
+            totalCount,
+            confidence,
+          };
+        })
+        .sort((a, b) => b.totalCount - a.totalCount);
+
+      for (const entry of sortedPayees) {
+        lines.push(
+          `- "${entry.payeeKey}" → ${entry.topCategory} (${entry.topCategoryId}) | ${entry.totalCount} txns | confidence: ${entry.confidence}`,
+        );
+      }
+
+      lines.push('\n--- Available Categories (for AI-suggested categorization of unknown payees) ---');
+      for (const [id, name] of Array.from(maps.categoryMap.entries())) {
+        lines.push(`- ${name} (${id})`);
+      }
+
+      return lines.join('\n');
     }
 
     default:

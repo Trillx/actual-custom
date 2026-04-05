@@ -116,7 +116,8 @@ export type QueryAction = {
     | 'detect-subscriptions'
     | 'detect-anomalies'
     | 'spending-trend'
-    | 'historical-comparison';
+    | 'historical-comparison'
+    | 'payee-category-history';
   filters?: TransactionQueryFilters;
   month?: string;
   months?: string[];

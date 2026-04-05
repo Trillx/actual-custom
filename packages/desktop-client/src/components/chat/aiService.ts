@@ -99,6 +99,20 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Note: "reorganize-categories", "bulk-create-category-groups", and "bulk-update-transactions" each count as a single action even though they perform multiple steps internally.\n\n' +
       'IMPORTANT — Bulk transaction categorization: When the user asks to categorize multiple uncategorized transactions (e.g., "categorize all my uncategorized transactions", "fix my uncategorized stuff"), ' +
       'ALWAYS use "bulk-update-transactions" to update them all in a single action. Do NOT use individual "update-transaction" actions one at a time, and NEVER dump raw JSON into your response text.\n\n' +
+      'SMART AUTO-CATEGORIZATION WORKFLOW:\n' +
+      'When the user asks to categorize uncategorized transactions, follow this multi-step process:\n' +
+      '1. First, query uncategorized transactions: use search-transactions with filters: {uncategorized: true}. Results include transaction IDs (in [brackets]) needed for bulk-update.\n' +
+      '2. Then, query payee-category-history to get historical payee→category mappings and the full category list with IDs.\n' +
+      '3. Cross-reference uncategorized transaction payees against the history:\n' +
+      '   - For payees WITH history matches: use the historical category (high confidence). These are reliable.\n' +
+      '   - For payees WITHOUT history: use your general knowledge of the merchant/payee name to pick the best-matching category from the Available Categories list. Mark these as "AI suggestion" in your response.\n' +
+      '   - Also check saved categorization memories (listed in context) for additional matches.\n' +
+      '   - For payees you truly cannot identify, group them separately and ask the user what category to use.\n' +
+      '4. Present a summary grouping transactions by suggested category, clearly distinguishing:\n' +
+      '   - "Based on your history" (high confidence) vs "AI suggestion" (best guess from merchant name)\n' +
+      '   - Show payee name, count of transactions, and suggested category for each group\n' +
+      '5. Emit a single bulk-update-transactions action with all the categorization suggestions (using transaction IDs from step 1 and category IDs from step 2).\n' +
+      '6. IMPORTANT: Only use category IDs that appear in the Available Categories list from the payee-category-history result. Never invent category names or IDs.\n\n' +
       'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
       '(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), ' +
       'you MUST respond with a QUERY action block:\n' +
@@ -119,7 +133,8 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "detect-subscriptions": Detect recurring charges/subscriptions from transaction history. params: {lookbackMonths: N} (default 12)\n' +
       '- "detect-anomalies": Find unusual spending this month compared to historical patterns. params: {lookbackMonths: N} (default 6)\n' +
       '- "spending-trend": Analyze month-over-month spending trends. params: {category: "name", payee: "name", lookbackMonths: N} (use category OR payee filter, omit both for all categories)\n' +
-      '- "historical-comparison": Compare current month spending to historical averages by category. params: {lookbackMonths: 3|6|12} (default 3)\n\n' +
+      '- "historical-comparison": Compare current month spending to historical averages by category. params: {lookbackMonths: 3|6|12} (default 3)\n' +
+      '- "payee-category-history": Analyze how each payee has been categorized historically. Returns a payee→category mapping with confidence levels (high/medium/low) based on transaction count, plus the full list of available categories with IDs. params: {lookbackMonths: N} (default 12). Use this for smart auto-categorization workflows.\n\n' +
       'Query actions execute automatically without user confirmation. After the query result is returned to you, ' +
       'you MUST summarize the results in a natural, helpful way for the user. ' +
       'CRITICAL: If you see a "Query Result" section in the context below, that means your previous query has ALREADY been executed and the data is available. ' +
@@ -142,7 +157,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- User asks "Compare my last 3 months" → use budget-trend with months array\n' +
       '- User asks "What subscriptions do I have?" → use detect-subscriptions\n' +
       '- User asks "Any unusual spending this month?" → use detect-anomalies\n' +
-      '- User asks "Help me categorize my uncategorized transactions" → use search-transactions with filters: {uncategorized: true} to find all of them (no limit needed — all results are returned automatically), then use bulk-update-transactions to categorize\n' +
+      '- User asks "Help me categorize my uncategorized transactions" → use search-transactions with filters: {uncategorized: true} to find them, then use payee-category-history to look up past patterns, then build a bulk-update-transactions action with suggested categories\n' +
       '- User asks "Am I spending more on dining lately?" → use spending-trend with category "Dining"\n' +
       '- User asks "How does this month compare to my average?" → use historical-comparison\n\n' +
       'GOAL TRACKING & SPENDING FORECASTING:\n' +
@@ -418,6 +433,7 @@ const QUERY_TYPE_NAMES = [
   'detect-anomalies',
   'spending-trend',
   'historical-comparison',
+  'payee-category-history',
 ];
 
 function extractBalancedJson(content: string, startPos: number): string | null {
@@ -463,6 +479,7 @@ function tryParseActionJson(json: string): BudgetAction | null {
         'payeeId',
         'category',
         'categoryId',
+        'uncategorized',
         'accountId',
         'amountMin',
         'amountMax',
