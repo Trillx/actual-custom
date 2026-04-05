@@ -376,24 +376,33 @@ export function ChatMessage({
                 </View>
               </View>
 
-              {qa.status === 'pending' && (
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                  <Button
-                    variant="primary"
-                    onPress={() => onConfirmQueuedAction?.(message.id, qa.id)}
-                    style={{ fontSize: 11, borderRadius: 6, padding: '3px 10px' }}
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    variant="bare"
-                    onPress={() => onRejectQueuedAction?.(message.id, qa.id)}
-                    style={{ fontSize: 11 }}
-                  >
-                    Skip
-                  </Button>
-                </View>
-              )}
+              {qa.status === 'pending' && (() => {
+                const isFirstPending = message.pendingActions!
+                  .slice(0, idx)
+                  .every(a => a.status !== 'pending' && a.status !== 'executing');
+                return isFirstPending ? (
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                    <Button
+                      variant="primary"
+                      onPress={() => onConfirmQueuedAction?.(message.id, qa.id)}
+                      style={{ fontSize: 11, borderRadius: 6, padding: '3px 10px' }}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="bare"
+                      onPress={() => onRejectQueuedAction?.(message.id, qa.id)}
+                      style={{ fontSize: 11 }}
+                    >
+                      Skip
+                    </Button>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 10, color: theme.pageTextSubdued, fontStyle: 'italic', marginTop: 4 }}>
+                    Waiting for previous actions...
+                  </Text>
+                );
+              })()}
             </View>
           ))}
 
