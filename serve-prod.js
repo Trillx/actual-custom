@@ -4,7 +4,13 @@ const path = require('path');
 const PORT = process.env.PORT || '5000';
 const DATA_DIR = process.env.ACTUAL_DATA_DIR || '/home/runner/actual-data';
 
-const serverPath = path.join(__dirname, 'packages', 'sync-server', 'build', 'app.js');
+const serverPath = path.join(
+  __dirname,
+  'packages',
+  'sync-server',
+  'build',
+  'app.js',
+);
 
 const env = {
   ...process.env,
@@ -26,12 +32,12 @@ const child = spawn('node', [serverPath], {
   cwd: __dirname,
 });
 
-child.on('error', (err) => {
+child.on('error', err => {
   console.error('Failed to start sync server:', err);
   process.exit(1);
 });
 
-child.on('exit', (code) => {
+child.on('exit', code => {
   console.log(`Sync server exited with code ${code}`);
   process.exit(code || 0);
 });

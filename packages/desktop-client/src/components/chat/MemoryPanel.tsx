@@ -31,7 +31,10 @@ const CATEGORY_COLORS: Record<MemoryCategory, string> = {
   context: '#7f6faf',
 };
 
-export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps) {
+export function MemoryPanel({
+  onClose,
+  isNarrowWidth = false,
+}: MemoryPanelProps) {
   const [memories, setMemories] = useState<Memory[]>(getMemories);
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<MemoryCategory>('preference');
@@ -182,7 +185,9 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
                 marginBottom: 4,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              >
                 <Text
                   style={{
                     fontSize: 10,
@@ -271,7 +276,9 @@ export function MemoryPanel({ onClose, isNarrowWidth = false }: MemoryPanelProps
                 boxSizing: 'border-box',
               }}
             />
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            <View
+              style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}
+            >
               <select
                 value={newCategory}
                 onChange={e => setNewCategory(e.target.value as MemoryCategory)}

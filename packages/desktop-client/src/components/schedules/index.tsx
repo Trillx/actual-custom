@@ -52,7 +52,7 @@ export function Schedules() {
   const onAIAssist = useCallback(() => {
     openChatWithMessage(
       'Analyze my transactions and help me find recurring charges that should be schedules. ' +
-      'Check for subscriptions I might be missing and suggest which ones to set up as scheduled transactions.',
+        'Check for subscriptions I might be missing and suggest which ones to set up as scheduled transactions.',
     );
   }, [openChatWithMessage]);
 

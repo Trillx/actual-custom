@@ -1,7 +1,11 @@
 import { send } from 'loot-core/platform/client/connection';
 
 import { createGoal, deleteGoal, updateGoal } from './goalStorage';
-import { addMemory, deleteMemory as deleteMemoryById, getMemories } from './memoryStorage';
+import {
+  addMemory,
+  deleteMemory as deleteMemoryById,
+  getMemories,
+} from './memoryStorage';
 import type { BudgetAction } from './types';
 
 function validateSetBudgetAmount(params: Record<string, unknown>): {
@@ -10,9 +14,12 @@ function validateSetBudgetAmount(params: Record<string, unknown>): {
   amount: number;
 } {
   const { month, categoryId, amount } = params;
-  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
-  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
-  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
+  if (typeof month !== 'string' || !month)
+    throw new Error('Missing or invalid "month" parameter.');
+  if (typeof categoryId !== 'string' || !categoryId)
+    throw new Error('Missing or invalid "categoryId" parameter.');
+  if (typeof amount !== 'number')
+    throw new Error('Missing or invalid "amount" parameter.');
   return { month, categoryId, amount };
 }
 
@@ -25,9 +32,12 @@ function validateAddTransaction(params: Record<string, unknown>): {
   notes?: string;
 } {
   const { accountId, date, amount, payee_name, category_id, notes } = params;
-  if (typeof accountId !== 'string' || !accountId) throw new Error('Missing or invalid "accountId" parameter.');
-  if (typeof date !== 'string' || !date) throw new Error('Missing or invalid "date" parameter.');
-  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
+  if (typeof accountId !== 'string' || !accountId)
+    throw new Error('Missing or invalid "accountId" parameter.');
+  if (typeof date !== 'string' || !date)
+    throw new Error('Missing or invalid "date" parameter.');
+  if (typeof amount !== 'number')
+    throw new Error('Missing or invalid "amount" parameter.');
   return {
     accountId,
     date,
@@ -46,8 +56,10 @@ function validateUpdateTransaction(params: Record<string, unknown>): {
   category_id?: string;
   notes?: string;
 } {
-  const { transactionId, date, amount, payee_name, category_id, notes } = params;
-  if (typeof transactionId !== 'string' || !transactionId) throw new Error('Missing or invalid "transactionId" parameter.');
+  const { transactionId, date, amount, payee_name, category_id, notes } =
+    params;
+  if (typeof transactionId !== 'string' || !transactionId)
+    throw new Error('Missing or invalid "transactionId" parameter.');
   return {
     transactionId,
     date: typeof date === 'string' ? date : undefined,
@@ -69,14 +81,18 @@ function validateBulkUpdateTransactions(params: Record<string, unknown>): {
   }>;
 } {
   const { updates } = params;
-  if (!Array.isArray(updates) || updates.length === 0) throw new Error('Missing or empty "updates" array.');
+  if (!Array.isArray(updates) || updates.length === 0)
+    throw new Error('Missing or empty "updates" array.');
   const validated = updates.map((u, i) => {
     const entry = u as Record<string, unknown>;
-    if (typeof entry.transactionId !== 'string' || !entry.transactionId) throw new Error(`Missing "transactionId" in update entry ${i}.`);
+    if (typeof entry.transactionId !== 'string' || !entry.transactionId)
+      throw new Error(`Missing "transactionId" in update entry ${i}.`);
     return {
       transactionId: entry.transactionId as string,
-      category_id: typeof entry.category_id === 'string' ? entry.category_id : undefined,
-      payee_name: typeof entry.payee_name === 'string' ? entry.payee_name : undefined,
+      category_id:
+        typeof entry.category_id === 'string' ? entry.category_id : undefined,
+      payee_name:
+        typeof entry.payee_name === 'string' ? entry.payee_name : undefined,
       notes: typeof entry.notes === 'string' ? entry.notes : undefined,
       amount: typeof entry.amount === 'number' ? entry.amount : undefined,
       date: typeof entry.date === 'string' ? entry.date : undefined,
@@ -89,7 +105,8 @@ function validateDeleteTransaction(params: Record<string, unknown>): {
   transactionId: string;
 } {
   const { transactionId } = params;
-  if (typeof transactionId !== 'string' || !transactionId) throw new Error('Missing or invalid "transactionId" parameter.');
+  if (typeof transactionId !== 'string' || !transactionId)
+    throw new Error('Missing or invalid "transactionId" parameter.');
   return { transactionId };
 }
 
@@ -101,11 +118,16 @@ function validateTransferBetweenAccounts(params: Record<string, unknown>): {
   notes?: string;
 } {
   const { fromAccountId, toAccountId, amount, date, notes } = params;
-  if (typeof fromAccountId !== 'string' || !fromAccountId) throw new Error('Missing or invalid "fromAccountId" parameter.');
-  if (typeof toAccountId !== 'string' || !toAccountId) throw new Error('Missing or invalid "toAccountId" parameter.');
-  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
-  if (typeof date !== 'string' || !date) throw new Error('Missing or invalid "date" parameter.');
-  if (fromAccountId === toAccountId) throw new Error('Source and destination accounts must be different.');
+  if (typeof fromAccountId !== 'string' || !fromAccountId)
+    throw new Error('Missing or invalid "fromAccountId" parameter.');
+  if (typeof toAccountId !== 'string' || !toAccountId)
+    throw new Error('Missing or invalid "toAccountId" parameter.');
+  if (typeof amount !== 'number')
+    throw new Error('Missing or invalid "amount" parameter.');
+  if (typeof date !== 'string' || !date)
+    throw new Error('Missing or invalid "date" parameter.');
+  if (fromAccountId === toAccountId)
+    throw new Error('Source and destination accounts must be different.');
   return {
     fromAccountId,
     toAccountId,
@@ -120,10 +142,16 @@ function validateCreateCategory(params: Record<string, unknown>): {
   group_id: string;
 } {
   const { name, group_id, group_name, groupId, groupName } = params;
-  if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
+  if (typeof name !== 'string' || !name)
+    throw new Error('Missing or invalid "name" parameter.');
   const candidates = [group_id, groupId, group_name, groupName];
-  const gid = candidates.find(c => typeof c === 'string' && c.trim().length > 0);
-  if (!gid) throw new Error('Missing or invalid "group_id" parameter. Please specify which category group to add this category to.');
+  const gid = candidates.find(
+    c => typeof c === 'string' && c.trim().length > 0,
+  );
+  if (!gid)
+    throw new Error(
+      'Missing or invalid "group_id" parameter. Please specify which category group to add this category to.',
+    );
   return { name, group_id: (gid as string).trim() };
 }
 
@@ -133,7 +161,8 @@ function validateCreateAccount(params: Record<string, unknown>): {
   offBudget: boolean;
 } {
   const { name, balance, offBudget } = params;
-  if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
+  if (typeof name !== 'string' || !name)
+    throw new Error('Missing or invalid "name" parameter.');
   return {
     name,
     balance: typeof balance === 'number' ? balance : 0,
@@ -146,10 +175,12 @@ function validateCloseAccount(params: Record<string, unknown>): {
   transferAccountId?: string;
 } {
   const { accountId, transferAccountId } = params;
-  if (typeof accountId !== 'string' || !accountId) throw new Error('Missing or invalid "accountId" parameter.');
+  if (typeof accountId !== 'string' || !accountId)
+    throw new Error('Missing or invalid "accountId" parameter.');
   return {
     accountId,
-    transferAccountId: typeof transferAccountId === 'string' ? transferAccountId : undefined,
+    transferAccountId:
+      typeof transferAccountId === 'string' ? transferAccountId : undefined,
   };
 }
 
@@ -157,7 +188,8 @@ function validateReopenAccount(params: Record<string, unknown>): {
   accountId: string;
 } {
   const { accountId } = params;
-  if (typeof accountId !== 'string' || !accountId) throw new Error('Missing or invalid "accountId" parameter.');
+  if (typeof accountId !== 'string' || !accountId)
+    throw new Error('Missing or invalid "accountId" parameter.');
   return { accountId };
 }
 
@@ -167,8 +199,10 @@ function validateRenameCategory(params: Record<string, unknown>): {
   oldName: string;
 } {
   const { categoryId, newName, oldName } = params;
-  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
-  if (typeof newName !== 'string' || !newName) throw new Error('Missing or invalid "newName" parameter.');
+  if (typeof categoryId !== 'string' || !categoryId)
+    throw new Error('Missing or invalid "categoryId" parameter.');
+  if (typeof newName !== 'string' || !newName)
+    throw new Error('Missing or invalid "newName" parameter.');
   return {
     categoryId,
     newName,
@@ -182,13 +216,17 @@ function validateDeleteCategory(params: Record<string, unknown>): {
   transferCategoryId?: string;
   transactionCount: number;
 } {
-  const { categoryId, categoryName, transferCategoryId, transactionCount } = params;
-  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
+  const { categoryId, categoryName, transferCategoryId, transactionCount } =
+    params;
+  if (typeof categoryId !== 'string' || !categoryId)
+    throw new Error('Missing or invalid "categoryId" parameter.');
   return {
     categoryId,
     categoryName: typeof categoryName === 'string' ? categoryName : '',
-    transferCategoryId: typeof transferCategoryId === 'string' ? transferCategoryId : undefined,
-    transactionCount: typeof transactionCount === 'number' ? transactionCount : 0,
+    transferCategoryId:
+      typeof transferCategoryId === 'string' ? transferCategoryId : undefined,
+    transactionCount:
+      typeof transactionCount === 'number' ? transactionCount : 0,
   };
 }
 
@@ -197,9 +235,15 @@ function validateCreateCategoryGroup(params: Record<string, unknown>): {
   categories?: Array<{ name: string }>;
 } {
   const { name, categories } = params;
-  if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
+  if (typeof name !== 'string' || !name)
+    throw new Error('Missing or invalid "name" parameter.');
   const cats = Array.isArray(categories)
-    ? categories.filter((c): c is { name: string } => typeof c === 'object' && c !== null && typeof (c as Record<string, unknown>).name === 'string')
+    ? categories.filter(
+        (c): c is { name: string } =>
+          typeof c === 'object' &&
+          c !== null &&
+          typeof (c as Record<string, unknown>).name === 'string',
+      )
     : undefined;
   return { name, categories: cats };
 }
@@ -211,8 +255,10 @@ function validateMoveCategory(params: Record<string, unknown>): {
   groupName: string;
 } {
   const { categoryId, categoryName, groupId, groupName } = params;
-  if (typeof categoryId !== 'string' || !categoryId) throw new Error('Missing or invalid "categoryId" parameter.');
-  if (typeof groupId !== 'string' || !groupId) throw new Error('Missing or invalid "groupId" parameter.');
+  if (typeof categoryId !== 'string' || !categoryId)
+    throw new Error('Missing or invalid "categoryId" parameter.');
+  if (typeof groupId !== 'string' || !groupId)
+    throw new Error('Missing or invalid "groupId" parameter.');
   return {
     categoryId,
     categoryName: typeof categoryName === 'string' ? categoryName : '',
@@ -226,7 +272,8 @@ function validateDeleteCategoryGroup(params: Record<string, unknown>): {
   groupName: string;
 } {
   const { groupId, groupName } = params;
-  if (typeof groupId !== 'string' || !groupId) throw new Error('Missing or invalid "groupId" parameter.');
+  if (typeof groupId !== 'string' || !groupId)
+    throw new Error('Missing or invalid "groupId" parameter.');
   return {
     groupId,
     groupName: typeof groupName === 'string' ? groupName : '',
@@ -239,8 +286,10 @@ function validateRenamePayee(params: Record<string, unknown>): {
   oldName: string;
 } {
   const { payeeId, newName, oldName } = params;
-  if (typeof payeeId !== 'string' || !payeeId) throw new Error('Missing or invalid "payeeId" parameter.');
-  if (typeof newName !== 'string' || !newName) throw new Error('Missing or invalid "newName" parameter.');
+  if (typeof payeeId !== 'string' || !payeeId)
+    throw new Error('Missing or invalid "payeeId" parameter.');
+  if (typeof newName !== 'string' || !newName)
+    throw new Error('Missing or invalid "newName" parameter.');
   return {
     payeeId,
     newName,
@@ -255,15 +304,22 @@ function validateMergePayees(params: Record<string, unknown>): {
   mergeNames: string[];
 } {
   const { targetId, targetName, mergeIds, mergeNames } = params;
-  if (typeof targetId !== 'string' || !targetId) throw new Error('Missing or invalid "targetId" parameter.');
-  if (!Array.isArray(mergeIds)) throw new Error('Missing or invalid "mergeIds" parameter.');
-  const filteredIds = mergeIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
-  if (filteredIds.length === 0) throw new Error('"mergeIds" must contain at least one valid payee ID.');
+  if (typeof targetId !== 'string' || !targetId)
+    throw new Error('Missing or invalid "targetId" parameter.');
+  if (!Array.isArray(mergeIds))
+    throw new Error('Missing or invalid "mergeIds" parameter.');
+  const filteredIds = mergeIds.filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
+  );
+  if (filteredIds.length === 0)
+    throw new Error('"mergeIds" must contain at least one valid payee ID.');
   return {
     targetId,
     targetName: typeof targetName === 'string' ? targetName : '',
     mergeIds: filteredIds,
-    mergeNames: Array.isArray(mergeNames) ? mergeNames.filter((n): n is string => typeof n === 'string') : [],
+    mergeNames: Array.isArray(mergeNames)
+      ? mergeNames.filter((n): n is string => typeof n === 'string')
+      : [],
   };
 }
 
@@ -271,7 +327,8 @@ function validateCopyPreviousMonth(params: Record<string, unknown>): {
   month: string;
 } {
   const { month } = params;
-  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
+  if (typeof month !== 'string' || !month)
+    throw new Error('Missing or invalid "month" parameter.');
   return { month };
 }
 
@@ -280,9 +337,11 @@ function validateSetBudgetAverage(params: Record<string, unknown>): {
   numMonths: number;
 } {
   const { month, numMonths } = params;
-  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
+  if (typeof month !== 'string' || !month)
+    throw new Error('Missing or invalid "month" parameter.');
   const n = typeof numMonths === 'number' ? numMonths : 3;
-  if (![3, 6, 12].includes(n)) throw new Error('"numMonths" must be 3, 6, or 12.');
+  if (![3, 6, 12].includes(n))
+    throw new Error('"numMonths" must be 3, 6, or 12.');
   return { month, numMonths: n };
 }
 
@@ -291,15 +350,20 @@ function validateBulkSetBudget(params: Record<string, unknown>): {
   budgets: Array<{ categoryId: string; categoryName: string; amount: number }>;
 } {
   const { month, budgets } = params;
-  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
-  if (!Array.isArray(budgets) || budgets.length === 0) throw new Error('Missing or invalid "budgets" parameter.');
+  if (typeof month !== 'string' || !month)
+    throw new Error('Missing or invalid "month" parameter.');
+  if (!Array.isArray(budgets) || budgets.length === 0)
+    throw new Error('Missing or invalid "budgets" parameter.');
   const validated = budgets.map((b, i) => {
     const entry = b as Record<string, unknown>;
-    if (typeof entry.categoryId !== 'string' || !entry.categoryId) throw new Error(`Missing "categoryId" in budget entry ${i}.`);
-    if (typeof entry.amount !== 'number') throw new Error(`Missing "amount" in budget entry ${i}.`);
+    if (typeof entry.categoryId !== 'string' || !entry.categoryId)
+      throw new Error(`Missing "categoryId" in budget entry ${i}.`);
+    if (typeof entry.amount !== 'number')
+      throw new Error(`Missing "amount" in budget entry ${i}.`);
     return {
       categoryId: entry.categoryId as string,
-      categoryName: typeof entry.categoryName === 'string' ? entry.categoryName : '',
+      categoryName:
+        typeof entry.categoryName === 'string' ? entry.categoryName : '',
       amount: entry.amount as number,
     };
   });
@@ -314,17 +378,29 @@ function validateTransferBudget(params: Record<string, unknown>): {
   fromCategoryName: string;
   toCategoryName: string;
 } {
-  const { month, amount, fromCategoryId, toCategoryId, fromCategoryName, toCategoryName } = params;
-  if (typeof month !== 'string' || !month) throw new Error('Missing or invalid "month" parameter.');
-  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
-  if (typeof fromCategoryId !== 'string' || !fromCategoryId) throw new Error('Missing or invalid "fromCategoryId" parameter.');
-  if (typeof toCategoryId !== 'string' || !toCategoryId) throw new Error('Missing or invalid "toCategoryId" parameter.');
+  const {
+    month,
+    amount,
+    fromCategoryId,
+    toCategoryId,
+    fromCategoryName,
+    toCategoryName,
+  } = params;
+  if (typeof month !== 'string' || !month)
+    throw new Error('Missing or invalid "month" parameter.');
+  if (typeof amount !== 'number')
+    throw new Error('Missing or invalid "amount" parameter.');
+  if (typeof fromCategoryId !== 'string' || !fromCategoryId)
+    throw new Error('Missing or invalid "fromCategoryId" parameter.');
+  if (typeof toCategoryId !== 'string' || !toCategoryId)
+    throw new Error('Missing or invalid "toCategoryId" parameter.');
   return {
     month,
     amount,
     fromCategoryId,
     toCategoryId,
-    fromCategoryName: typeof fromCategoryName === 'string' ? fromCategoryName : '',
+    fromCategoryName:
+      typeof fromCategoryName === 'string' ? fromCategoryName : '',
     toCategoryName: typeof toCategoryName === 'string' ? toCategoryName : '',
   };
 }
@@ -340,16 +416,37 @@ function validateCreateGoal(params: Record<string, unknown>): {
   associatedAccountIds?: string[];
   associatedCategoryIds?: string[];
 } {
-  const { name, targetAmount, targetDate, associatedAccountIds, associatedCategoryIds } = params;
-  if (typeof name !== 'string' || !name) throw new Error('Missing or invalid "name" parameter.');
-  if (typeof targetAmount !== 'number' || !isFinite(targetAmount) || targetAmount <= 0) throw new Error('"targetAmount" must be a positive number (in cents).');
-  if (typeof targetDate !== 'string' || !validateDateString(targetDate)) throw new Error('"targetDate" must be a valid date in YYYY-MM-DD format.');
+  const {
+    name,
+    targetAmount,
+    targetDate,
+    associatedAccountIds,
+    associatedCategoryIds,
+  } = params;
+  if (typeof name !== 'string' || !name)
+    throw new Error('Missing or invalid "name" parameter.');
+  if (
+    typeof targetAmount !== 'number' ||
+    !isFinite(targetAmount) ||
+    targetAmount <= 0
+  )
+    throw new Error('"targetAmount" must be a positive number (in cents).');
+  if (typeof targetDate !== 'string' || !validateDateString(targetDate))
+    throw new Error('"targetDate" must be a valid date in YYYY-MM-DD format.');
   return {
     name,
     targetAmount: Math.round(targetAmount),
     targetDate,
-    associatedAccountIds: Array.isArray(associatedAccountIds) ? associatedAccountIds.filter((id): id is string => typeof id === 'string') : undefined,
-    associatedCategoryIds: Array.isArray(associatedCategoryIds) ? associatedCategoryIds.filter((id): id is string => typeof id === 'string') : undefined,
+    associatedAccountIds: Array.isArray(associatedAccountIds)
+      ? associatedAccountIds.filter(
+          (id): id is string => typeof id === 'string',
+        )
+      : undefined,
+    associatedCategoryIds: Array.isArray(associatedCategoryIds)
+      ? associatedCategoryIds.filter(
+          (id): id is string => typeof id === 'string',
+        )
+      : undefined,
   };
 }
 
@@ -361,17 +458,39 @@ function validateUpdateGoal(params: Record<string, unknown>): {
   associatedAccountIds?: string[];
   associatedCategoryIds?: string[];
 } {
-  const { goalId, name, targetAmount, targetDate, associatedAccountIds, associatedCategoryIds } = params;
-  if (typeof goalId !== 'string' || !goalId) throw new Error('Missing or invalid "goalId" parameter.');
-  if (typeof targetAmount === 'number' && (!isFinite(targetAmount) || targetAmount <= 0)) throw new Error('"targetAmount" must be a positive number (in cents).');
-  if (typeof targetDate === 'string' && !validateDateString(targetDate)) throw new Error('"targetDate" must be a valid date in YYYY-MM-DD format.');
+  const {
+    goalId,
+    name,
+    targetAmount,
+    targetDate,
+    associatedAccountIds,
+    associatedCategoryIds,
+  } = params;
+  if (typeof goalId !== 'string' || !goalId)
+    throw new Error('Missing or invalid "goalId" parameter.');
+  if (
+    typeof targetAmount === 'number' &&
+    (!isFinite(targetAmount) || targetAmount <= 0)
+  )
+    throw new Error('"targetAmount" must be a positive number (in cents).');
+  if (typeof targetDate === 'string' && !validateDateString(targetDate))
+    throw new Error('"targetDate" must be a valid date in YYYY-MM-DD format.');
   return {
     goalId,
     name: typeof name === 'string' && name ? name : undefined,
-    targetAmount: typeof targetAmount === 'number' ? Math.round(targetAmount) : undefined,
+    targetAmount:
+      typeof targetAmount === 'number' ? Math.round(targetAmount) : undefined,
     targetDate: typeof targetDate === 'string' ? targetDate : undefined,
-    associatedAccountIds: Array.isArray(associatedAccountIds) ? associatedAccountIds.filter((id): id is string => typeof id === 'string') : undefined,
-    associatedCategoryIds: Array.isArray(associatedCategoryIds) ? associatedCategoryIds.filter((id): id is string => typeof id === 'string') : undefined,
+    associatedAccountIds: Array.isArray(associatedAccountIds)
+      ? associatedAccountIds.filter(
+          (id): id is string => typeof id === 'string',
+        )
+      : undefined,
+    associatedCategoryIds: Array.isArray(associatedCategoryIds)
+      ? associatedCategoryIds.filter(
+          (id): id is string => typeof id === 'string',
+        )
+      : undefined,
   };
 }
 
@@ -380,7 +499,8 @@ function validateDeleteGoal(params: Record<string, unknown>): {
   goalName: string;
 } {
   const { goalId, goalName } = params;
-  if (typeof goalId !== 'string' || !goalId) throw new Error('Missing or invalid "goalId" parameter.');
+  if (typeof goalId !== 'string' || !goalId)
+    throw new Error('Missing or invalid "goalId" parameter.');
   return {
     goalId,
     goalName: typeof goalName === 'string' ? goalName : '',
@@ -398,23 +518,44 @@ function validateCreateSchedule(params: Record<string, unknown>): {
   interval: number;
   posts_transaction: boolean;
 } {
-  const { name, payee_name, accountId, amount, amountOp, date, frequency, interval, posts_transaction } = params;
-  if (typeof payee_name !== 'string' || !payee_name) throw new Error('Missing or invalid "payee_name" parameter.');
-  if (typeof amount !== 'number') throw new Error('Missing or invalid "amount" parameter.');
-  if (typeof frequency !== 'string' || !['weekly', 'monthly', 'yearly'].includes(frequency)) throw new Error('"frequency" must be "weekly", "monthly", or "yearly".');
+  const {
+    name,
+    payee_name,
+    accountId,
+    amount,
+    amountOp,
+    date,
+    frequency,
+    interval,
+    posts_transaction,
+  } = params;
+  if (typeof payee_name !== 'string' || !payee_name)
+    throw new Error('Missing or invalid "payee_name" parameter.');
+  if (typeof amount !== 'number')
+    throw new Error('Missing or invalid "amount" parameter.');
+  if (
+    typeof frequency !== 'string' ||
+    !['weekly', 'monthly', 'yearly'].includes(frequency)
+  )
+    throw new Error('"frequency" must be "weekly", "monthly", or "yearly".');
   const validOps = ['is', 'isapprox', 'isbetween'];
-  const op = typeof amountOp === 'string' && validOps.includes(amountOp) ? amountOp : 'isapprox';
+  const op =
+    typeof amountOp === 'string' && validOps.includes(amountOp)
+      ? amountOp
+      : 'isapprox';
   const today = new Date().toISOString().split('T')[0];
   return {
     name: typeof name === 'string' && name ? name : undefined,
     payee_name,
-    accountId: typeof accountId === 'string' && accountId ? accountId : undefined,
+    accountId:
+      typeof accountId === 'string' && accountId ? accountId : undefined,
     amount,
     amountOp: op,
     date: typeof date === 'string' && date ? date : today,
     frequency,
     interval: typeof interval === 'number' && interval > 0 ? interval : 1,
-    posts_transaction: typeof posts_transaction === 'boolean' ? posts_transaction : false,
+    posts_transaction:
+      typeof posts_transaction === 'boolean' ? posts_transaction : false,
   };
 }
 
@@ -430,20 +571,43 @@ function validateUpdateSchedule(params: Record<string, unknown>): {
   interval?: number;
   posts_transaction?: boolean;
 } {
-  const { scheduleId, name, payee_name, accountId, amount, amountOp, date, frequency, interval, posts_transaction } = params;
-  if (typeof scheduleId !== 'string' || !scheduleId) throw new Error('Missing or invalid "scheduleId" parameter.');
+  const {
+    scheduleId,
+    name,
+    payee_name,
+    accountId,
+    amount,
+    amountOp,
+    date,
+    frequency,
+    interval,
+    posts_transaction,
+  } = params;
+  if (typeof scheduleId !== 'string' || !scheduleId)
+    throw new Error('Missing or invalid "scheduleId" parameter.');
   const validOps = ['is', 'isapprox', 'isbetween'];
   return {
     scheduleId,
     name: typeof name === 'string' && name ? name : undefined,
-    payee_name: typeof payee_name === 'string' && payee_name ? payee_name : undefined,
-    accountId: typeof accountId === 'string' && accountId ? accountId : undefined,
+    payee_name:
+      typeof payee_name === 'string' && payee_name ? payee_name : undefined,
+    accountId:
+      typeof accountId === 'string' && accountId ? accountId : undefined,
     amount: typeof amount === 'number' ? amount : undefined,
-    amountOp: typeof amountOp === 'string' && validOps.includes(amountOp) ? amountOp : undefined,
+    amountOp:
+      typeof amountOp === 'string' && validOps.includes(amountOp)
+        ? amountOp
+        : undefined,
     date: typeof date === 'string' && date ? date : undefined,
-    frequency: typeof frequency === 'string' && ['weekly', 'monthly', 'yearly'].includes(frequency) ? frequency : undefined,
-    interval: typeof interval === 'number' && interval > 0 ? interval : undefined,
-    posts_transaction: typeof posts_transaction === 'boolean' ? posts_transaction : undefined,
+    frequency:
+      typeof frequency === 'string' &&
+      ['weekly', 'monthly', 'yearly'].includes(frequency)
+        ? frequency
+        : undefined,
+    interval:
+      typeof interval === 'number' && interval > 0 ? interval : undefined,
+    posts_transaction:
+      typeof posts_transaction === 'boolean' ? posts_transaction : undefined,
   };
 }
 
@@ -452,7 +616,8 @@ function validateDeleteSchedule(params: Record<string, unknown>): {
   scheduleName: string;
 } {
   const { scheduleId, scheduleName } = params;
-  if (typeof scheduleId !== 'string' || !scheduleId) throw new Error('Missing or invalid "scheduleId" parameter.');
+  if (typeof scheduleId !== 'string' || !scheduleId)
+    throw new Error('Missing or invalid "scheduleId" parameter.');
   return {
     scheduleId,
     scheduleName: typeof scheduleName === 'string' ? scheduleName : '',
@@ -473,30 +638,57 @@ function validateCreateSchedulesBatch(params: Record<string, unknown>): {
   }>;
 } {
   const { schedules } = params;
-  if (!Array.isArray(schedules) || schedules.length === 0) throw new Error('Missing or empty "schedules" array.');
+  if (!Array.isArray(schedules) || schedules.length === 0)
+    throw new Error('Missing or empty "schedules" array.');
   const today = new Date().toISOString().split('T')[0];
   const validated = schedules.map((s, i) => {
     const entry = s as Record<string, unknown>;
-    if (typeof entry.payee_name !== 'string' || !entry.payee_name) throw new Error(`Missing "payee_name" in schedule entry ${i}.`);
-    if (typeof entry.amount !== 'number') throw new Error(`Missing "amount" in schedule entry ${i}.`);
-    if (typeof entry.frequency !== 'string' || !['weekly', 'monthly', 'yearly'].includes(entry.frequency as string)) throw new Error(`Invalid "frequency" in schedule entry ${i}.`);
+    if (typeof entry.payee_name !== 'string' || !entry.payee_name)
+      throw new Error(`Missing "payee_name" in schedule entry ${i}.`);
+    if (typeof entry.amount !== 'number')
+      throw new Error(`Missing "amount" in schedule entry ${i}.`);
+    if (
+      typeof entry.frequency !== 'string' ||
+      !['weekly', 'monthly', 'yearly'].includes(entry.frequency as string)
+    )
+      throw new Error(`Invalid "frequency" in schedule entry ${i}.`);
     const validOps = ['is', 'isapprox', 'isbetween'];
     return {
-      name: typeof entry.name === 'string' && entry.name ? entry.name : undefined,
+      name:
+        typeof entry.name === 'string' && entry.name ? entry.name : undefined,
       payee_name: entry.payee_name as string,
-      accountId: typeof entry.accountId === 'string' && entry.accountId ? (entry.accountId as string) : undefined,
+      accountId:
+        typeof entry.accountId === 'string' && entry.accountId
+          ? (entry.accountId as string)
+          : undefined,
       amount: entry.amount as number,
-      amountOp: typeof entry.amountOp === 'string' && validOps.includes(entry.amountOp) ? entry.amountOp : 'isapprox',
-      date: typeof entry.date === 'string' && entry.date ? (entry.date as string) : today,
+      amountOp:
+        typeof entry.amountOp === 'string' && validOps.includes(entry.amountOp)
+          ? entry.amountOp
+          : 'isapprox',
+      date:
+        typeof entry.date === 'string' && entry.date
+          ? (entry.date as string)
+          : today,
       frequency: entry.frequency as string,
-      interval: typeof entry.interval === 'number' && (entry.interval as number) > 0 ? (entry.interval as number) : 1,
-      posts_transaction: typeof entry.posts_transaction === 'boolean' ? entry.posts_transaction : false,
+      interval:
+        typeof entry.interval === 'number' && (entry.interval as number) > 0
+          ? (entry.interval as number)
+          : 1,
+      posts_transaction:
+        typeof entry.posts_transaction === 'boolean'
+          ? entry.posts_transaction
+          : false,
     };
   });
   return { schedules: validated };
 }
 
-function buildScheduleDateValue(date: string, frequency: string, interval: number): { start: string; frequency: string; interval: number } {
+function buildScheduleDateValue(
+  date: string,
+  frequency: string,
+  interval: number,
+): { start: string; frequency: string; interval: number } {
   return {
     start: date,
     frequency,
@@ -508,7 +700,6 @@ function formatCents(amount: number): string {
   return '$' + (amount / 100).toFixed(2);
 }
 
-
 export function formatActionDetails(action: BudgetAction): string[] {
   const lines: string[] = [];
   const p = action.params;
@@ -518,13 +709,15 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Set Budget Amount`);
       if (p.month) lines.push(`Month: ${p.month}`);
       if (p.categoryId) lines.push(`Category ID: ${p.categoryId}`);
-      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
+      if (typeof p.amount === 'number')
+        lines.push(`Amount: ${formatCents(p.amount as number)}`);
       break;
     case 'add-transaction':
       lines.push(`Type: Add Transaction`);
       if (p.accountId) lines.push(`Account ID: ${p.accountId}`);
       if (p.date) lines.push(`Date: ${p.date}`);
-      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
+      if (typeof p.amount === 'number')
+        lines.push(`Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`Payee: ${p.payee_name}`);
       if (p.category_id) lines.push(`Category ID: ${p.category_id}`);
       if (p.notes) lines.push(`Notes: ${p.notes}`);
@@ -533,21 +726,28 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Update Transaction`);
       lines.push(`Transaction ID: ${p.transactionId}`);
       if (p.date) lines.push(`New Date: ${p.date}`);
-      if (typeof p.amount === 'number') lines.push(`New Amount: ${formatCents(p.amount as number)}`);
+      if (typeof p.amount === 'number')
+        lines.push(`New Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`New Payee: ${p.payee_name}`);
       if (p.category_id) lines.push(`New Category ID: ${p.category_id}`);
-      if (p.notes !== undefined) lines.push(`New Notes: ${p.notes || '(cleared)'}`);
+      if (p.notes !== undefined)
+        lines.push(`New Notes: ${p.notes || '(cleared)'}`);
       break;
     case 'bulk-update-transactions': {
       lines.push(`Type: Bulk Update Transactions`);
       if (Array.isArray(p.updates)) {
-        lines.push(`Transactions: ${(p.updates as Array<Record<string, unknown>>).length}`);
+        lines.push(
+          `Transactions: ${(p.updates as Array<Record<string, unknown>>).length}`,
+        );
         for (const u of p.updates as Array<Record<string, unknown>>) {
           const parts: string[] = [];
           if (u.category_id) parts.push(`category: ${u.category_id}`);
           if (u.payee_name) parts.push(`payee: ${u.payee_name}`);
-          if (u.notes !== undefined) parts.push(`notes: ${u.notes || '(cleared)'}`);
-          lines.push(`  ${u.transactionId}${parts.length > 0 ? ` → ${parts.join(', ')}` : ''}`);
+          if (u.notes !== undefined)
+            parts.push(`notes: ${u.notes || '(cleared)'}`);
+          lines.push(
+            `  ${u.transactionId}${parts.length > 0 ? ` → ${parts.join(', ')}` : ''}`,
+          );
         }
       }
       break;
@@ -560,7 +760,8 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Transfer Between Accounts`);
       lines.push(`From Account: ${p.fromAccountId}`);
       lines.push(`To Account: ${p.toAccountId}`);
-      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
+      if (typeof p.amount === 'number')
+        lines.push(`Amount: ${formatCents(p.amount as number)}`);
       if (p.date) lines.push(`Date: ${p.date}`);
       if (p.notes) lines.push(`Notes: ${p.notes}`);
       break;
@@ -572,8 +773,10 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'create-account':
       lines.push(`Type: Create Account`);
       if (p.name) lines.push(`Name: ${p.name}`);
-      if (typeof p.balance === 'number') lines.push(`Balance: ${formatCents(p.balance as number)}`);
-      if (typeof p.offBudget === 'boolean') lines.push(`Off Budget: ${p.offBudget ? 'Yes' : 'No'}`);
+      if (typeof p.balance === 'number')
+        lines.push(`Balance: ${formatCents(p.balance as number)}`);
+      if (typeof p.offBudget === 'boolean')
+        lines.push(`Off Budget: ${p.offBudget ? 'Yes' : 'No'}`);
       break;
     case 'rename-category':
       lines.push(`Type: Rename Category`);
@@ -583,10 +786,16 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'delete-category':
       lines.push(`Type: Delete Category`);
       if (p.categoryName) lines.push(`Category: ${p.categoryName}`);
-      if (typeof p.transactionCount === 'number' && (p.transactionCount as number) > 0) {
-        lines.push(`Warning: ${p.transactionCount} transaction(s) use this category`);
+      if (
+        typeof p.transactionCount === 'number' &&
+        (p.transactionCount as number) > 0
+      ) {
+        lines.push(
+          `Warning: ${p.transactionCount} transaction(s) use this category`,
+        );
       }
-      if (p.transferCategoryId) lines.push(`Transfer to: ${p.transferCategoryId}`);
+      if (p.transferCategoryId)
+        lines.push(`Transfer to: ${p.transferCategoryId}`);
       break;
     case 'create-category-group':
       lines.push(`Type: Create Category Group`);
@@ -604,10 +813,14 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'bulk-create-category-groups': {
       lines.push(`Type: Bulk Create Category Groups`);
       if (Array.isArray(p.groups)) {
-        for (const g of p.groups as Array<{ name: string; categories?: string[] }>) {
-          const catList = Array.isArray(g.categories) && g.categories.length > 0
-            ? `: ${g.categories.join(', ')}`
-            : '';
+        for (const g of p.groups as Array<{
+          name: string;
+          categories?: string[];
+        }>) {
+          const catList =
+            Array.isArray(g.categories) && g.categories.length > 0
+              ? `: ${g.categories.join(', ')}`
+              : '';
           lines.push(`  ${g.name}${catList}`);
         }
       }
@@ -618,7 +831,10 @@ export function formatActionDetails(action: BudgetAction): string[] {
       const newGroupNames: string[] = [];
       const moveLines: string[] = [];
       if (Array.isArray(p.newGroups)) {
-        for (const g of p.newGroups as Array<{ name: string; categories?: string[] }>) {
+        for (const g of p.newGroups as Array<{
+          name: string;
+          categories?: string[];
+        }>) {
           newGroupNames.push(g.name);
           if (Array.isArray(g.categories)) {
             for (const cat of g.categories) {
@@ -633,8 +849,13 @@ export function formatActionDetails(action: BudgetAction): string[] {
       if (moveLines.length > 0) {
         lines.push(...moveLines);
       }
-      if (Array.isArray(p.deleteOldGroups) && (p.deleteOldGroups as string[]).length > 0) {
-        lines.push(`Delete old groups: ${(p.deleteOldGroups as string[]).join(', ')}`);
+      if (
+        Array.isArray(p.deleteOldGroups) &&
+        (p.deleteOldGroups as string[]).length > 0
+      ) {
+        lines.push(
+          `Delete old groups: ${(p.deleteOldGroups as string[]).join(', ')}`,
+        );
       }
       break;
     }
@@ -646,7 +867,8 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'merge-payees':
       lines.push(`Type: Merge Payees`);
       if (p.targetName) lines.push(`Target: ${p.targetName}`);
-      if (Array.isArray(p.mergeNames)) lines.push(`Merging: ${p.mergeNames.join(', ')}`);
+      if (Array.isArray(p.mergeNames))
+        lines.push(`Merging: ${p.mergeNames.join(', ')}`);
       break;
     case 'copy-previous-month':
       lines.push(`Type: Copy Previous Month Budget`);
@@ -660,14 +882,16 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'bulk-set-budget':
       lines.push(`Type: Bulk Set Budget`);
       if (p.month) lines.push(`Month: ${p.month}`);
-      if (Array.isArray(p.budgets)) lines.push(`Categories: ${p.budgets.length}`);
+      if (Array.isArray(p.budgets))
+        lines.push(`Categories: ${p.budgets.length}`);
       break;
     case 'transfer-budget':
       lines.push(`Type: Transfer Budget`);
       if (p.month) lines.push(`Month: ${p.month}`);
       if (p.fromCategoryName) lines.push(`From: ${p.fromCategoryName}`);
       if (p.toCategoryName) lines.push(`To: ${p.toCategoryName}`);
-      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
+      if (typeof p.amount === 'number')
+        lines.push(`Amount: ${formatCents(p.amount as number)}`);
       break;
     case 'query':
       lines.push(`Type: Data Query`);
@@ -676,7 +900,8 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'close-account':
       lines.push(`Type: Close Account`);
       lines.push(`Account ID: ${p.accountId}`);
-      if (p.transferAccountId) lines.push(`Transfer Balance To: ${p.transferAccountId}`);
+      if (p.transferAccountId)
+        lines.push(`Transfer Balance To: ${p.transferAccountId}`);
       break;
     case 'reopen-account':
       lines.push(`Type: Reopen Account`);
@@ -685,14 +910,16 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'create-goal':
       lines.push(`Type: Create Savings Goal`);
       if (p.name) lines.push(`Name: ${p.name}`);
-      if (typeof p.targetAmount === 'number') lines.push(`Target: ${formatCents(p.targetAmount as number)}`);
+      if (typeof p.targetAmount === 'number')
+        lines.push(`Target: ${formatCents(p.targetAmount as number)}`);
       if (p.targetDate) lines.push(`Target Date: ${p.targetDate}`);
       break;
     case 'update-goal':
       lines.push(`Type: Update Savings Goal`);
       if (p.goalId) lines.push(`Goal ID: ${p.goalId}`);
       if (p.name) lines.push(`New Name: ${p.name}`);
-      if (typeof p.targetAmount === 'number') lines.push(`New Target: ${formatCents(p.targetAmount as number)}`);
+      if (typeof p.targetAmount === 'number')
+        lines.push(`New Target: ${formatCents(p.targetAmount as number)}`);
       if (p.targetDate) lines.push(`New Target Date: ${p.targetDate}`);
       break;
     case 'delete-goal':
@@ -713,8 +940,12 @@ export function formatActionDetails(action: BudgetAction): string[] {
       break;
     case 'create-rule':
       lines.push(`Type: Create Payee Rename Rule`);
-      if (p.containsPattern) lines.push(`Match imported payees containing: "${p.containsPattern}"`);
-      if (Array.isArray(p.fromNames)) lines.push(`Match imported payees exactly: ${(p.fromNames as string[]).join(', ')}`);
+      if (p.containsPattern)
+        lines.push(`Match imported payees containing: "${p.containsPattern}"`);
+      if (Array.isArray(p.fromNames))
+        lines.push(
+          `Match imported payees exactly: ${(p.fromNames as string[]).join(', ')}`,
+        );
       if (p.toPayee) lines.push(`Rename to: ${p.toPayee}`);
       break;
     case 'delete-rule':
@@ -728,8 +959,12 @@ export function formatActionDetails(action: BudgetAction): string[] {
       lines.push(`Type: Create Schedule`);
       if (p.name) lines.push(`Name: ${p.name}`);
       if (p.payee_name) lines.push(`Payee: ${p.payee_name}`);
-      if (typeof p.amount === 'number') lines.push(`Amount: ${formatCents(p.amount as number)}`);
-      if (p.frequency) lines.push(`Frequency: ${p.interval && (p.interval as number) > 1 ? `every ${p.interval} ${p.frequency}` : p.frequency}`);
+      if (typeof p.amount === 'number')
+        lines.push(`Amount: ${formatCents(p.amount as number)}`);
+      if (p.frequency)
+        lines.push(
+          `Frequency: ${p.interval && (p.interval as number) > 1 ? `every ${p.interval} ${p.frequency}` : p.frequency}`,
+        );
       if (p.date) lines.push(`Starting: ${p.date}`);
       break;
     case 'update-schedule':
@@ -737,7 +972,8 @@ export function formatActionDetails(action: BudgetAction): string[] {
       if (p.scheduleId) lines.push(`Schedule ID: ${p.scheduleId}`);
       if (p.name) lines.push(`New Name: ${p.name}`);
       if (p.payee_name) lines.push(`New Payee: ${p.payee_name}`);
-      if (typeof p.amount === 'number') lines.push(`New Amount: ${formatCents(p.amount as number)}`);
+      if (typeof p.amount === 'number')
+        lines.push(`New Amount: ${formatCents(p.amount as number)}`);
       if (p.frequency) lines.push(`New Frequency: ${p.frequency}`);
       if (p.date) lines.push(`New Date: ${p.date}`);
       break;
@@ -748,8 +984,16 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'create-schedules-batch': {
       lines.push(`Type: Create Schedules (Batch)`);
       if (Array.isArray(p.schedules)) {
-        for (const s of p.schedules as Array<{ payee_name: string; amount: number; frequency: string; interval?: number }>) {
-          const freq = s.interval && s.interval > 1 ? `every ${s.interval} ${s.frequency}` : s.frequency;
+        for (const s of p.schedules as Array<{
+          payee_name: string;
+          amount: number;
+          frequency: string;
+          interval?: number;
+        }>) {
+          const freq =
+            s.interval && s.interval > 1
+              ? `every ${s.interval} ${s.frequency}`
+              : s.frequency;
           lines.push(`  ${s.payee_name}: ${formatCents(s.amount)} / ${freq}`);
         }
       }
@@ -785,45 +1029,82 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'update-transaction': {
       const validated = validateUpdateTransaction(action.params);
-      const updateFields: { id: string; date?: string; amount?: number; category?: string; notes?: string; payee?: string } = { id: validated.transactionId };
+      const updateFields: {
+        id: string;
+        date?: string;
+        amount?: number;
+        category?: string;
+        notes?: string;
+        payee?: string;
+      } = { id: validated.transactionId };
       if (validated.date !== undefined) updateFields.date = validated.date;
-      if (validated.amount !== undefined) updateFields.amount = validated.amount;
-      if (validated.category_id !== undefined) updateFields.category = validated.category_id;
+      if (validated.amount !== undefined)
+        updateFields.amount = validated.amount;
+      if (validated.category_id !== undefined)
+        updateFields.category = validated.category_id;
       if (validated.notes !== undefined) updateFields.notes = validated.notes;
       if (validated.payee_name !== undefined) {
-        const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
-        const matchedPayee = allPayees.find(p => p.name.toLowerCase() === validated.payee_name!.toLowerCase());
+        const allPayees = (await send('payees-get')) as Array<{
+          id: string;
+          name: string;
+        }>;
+        const matchedPayee = allPayees.find(
+          p => p.name.toLowerCase() === validated.payee_name!.toLowerCase(),
+        );
         if (matchedPayee) {
           updateFields.payee = matchedPayee.id;
         } else {
-          const newPayeeId = await send('payee-create', { name: validated.payee_name }) as string;
+          const newPayeeId = (await send('payee-create', {
+            name: validated.payee_name,
+          })) as string;
           updateFields.payee = newPayeeId;
         }
       }
-      await send('transaction-update', updateFields as Parameters<typeof send<'transaction-update'>>[1]);
+      await send(
+        'transaction-update',
+        updateFields as Parameters<typeof send<'transaction-update'>>[1],
+      );
       return 'Transaction updated successfully.';
     }
     case 'bulk-update-transactions': {
       const validated = validateBulkUpdateTransactions(action.params);
-      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const allPayees = (await send('payees-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
       let successCount = 0;
       for (const entry of validated.updates) {
-        const updateFields: { id: string; date?: string; amount?: number; category?: string; notes?: string; payee?: string } = { id: entry.transactionId };
+        const updateFields: {
+          id: string;
+          date?: string;
+          amount?: number;
+          category?: string;
+          notes?: string;
+          payee?: string;
+        } = { id: entry.transactionId };
         if (entry.date !== undefined) updateFields.date = entry.date;
         if (entry.amount !== undefined) updateFields.amount = entry.amount;
-        if (entry.category_id !== undefined) updateFields.category = entry.category_id;
+        if (entry.category_id !== undefined)
+          updateFields.category = entry.category_id;
         if (entry.notes !== undefined) updateFields.notes = entry.notes;
         if (entry.payee_name !== undefined) {
-          const matchedPayee = allPayees.find(p => p.name.toLowerCase() === entry.payee_name!.toLowerCase());
+          const matchedPayee = allPayees.find(
+            p => p.name.toLowerCase() === entry.payee_name!.toLowerCase(),
+          );
           if (matchedPayee) {
             updateFields.payee = matchedPayee.id;
           } else {
-            const newPayeeId = await send('payee-create', { name: entry.payee_name }) as string;
+            const newPayeeId = (await send('payee-create', {
+              name: entry.payee_name,
+            })) as string;
             updateFields.payee = newPayeeId;
             allPayees.push({ id: newPayeeId, name: entry.payee_name });
           }
         }
-        await send('transaction-update', updateFields as Parameters<typeof send<'transaction-update'>>[1]);
+        await send(
+          'transaction-update',
+          updateFields as Parameters<typeof send<'transaction-update'>>[1],
+        );
         successCount++;
       }
       return `Successfully updated ${successCount} transaction${successCount !== 1 ? 's' : ''}.`;
@@ -835,9 +1116,17 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'transfer-between-accounts': {
       const validated = validateTransferBetweenAccounts(action.params);
-      const allPayees = await send('payees-get') as Array<{ id: string; transfer_acct?: string }>;
-      const transferPayee = allPayees.find(p => p.transfer_acct === validated.toAccountId);
-      if (!transferPayee) throw new Error('Could not find transfer payee for the destination account.');
+      const allPayees = (await send('payees-get')) as Array<{
+        id: string;
+        transfer_acct?: string;
+      }>;
+      const transferPayee = allPayees.find(
+        p => p.transfer_acct === validated.toAccountId,
+      );
+      if (!transferPayee)
+        throw new Error(
+          'Could not find transfer payee for the destination account.',
+        );
       await send('api/transactions-add', {
         accountId: validated.fromAccountId,
         transactions: [
@@ -856,24 +1145,37 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const validated = validateCreateCategory(action.params);
       let resolvedGroupId = validated.group_id;
 
-      const allGroups = await send('api/category-groups-get') as Array<{ id: string; name: string; is_income?: boolean; hidden?: boolean }>;
+      const allGroups = (await send('api/category-groups-get')) as Array<{
+        id: string;
+        name: string;
+        is_income?: boolean;
+        hidden?: boolean;
+      }>;
 
       const groupExists = allGroups.some(g => g.id === resolvedGroupId);
       if (!groupExists) {
-        const byName = allGroups.find(g => g.name.toLowerCase() === resolvedGroupId.toLowerCase());
+        const byName = allGroups.find(
+          g => g.name.toLowerCase() === resolvedGroupId.toLowerCase(),
+        );
         if (byName) {
           resolvedGroupId = byName.id;
         } else {
           const groupNames = allGroups.map(g => g.name).join(', ');
           throw new Error(
             `Could not find category group "${resolvedGroupId}". ` +
-            (groupNames ? `Available groups: ${groupNames}. Please specify which group to add the category to.` : 'No category groups exist. Please create a category group first.')
+              (groupNames
+                ? `Available groups: ${groupNames}. Please specify which group to add the category to.`
+                : 'No category groups exist. Please create a category group first.'),
           );
         }
       }
 
       await send('api/category-create', {
-        category: { name: validated.name, group_id: resolvedGroupId, hidden: false },
+        category: {
+          name: validated.name,
+          group_id: resolvedGroupId,
+          hidden: false,
+        },
       });
       const targetGroup = allGroups.find(g => g.id === resolvedGroupId);
       return `Category "${validated.name}" created successfully${targetGroup ? ` in group "${targetGroup.name}"` : ''}.`;
@@ -943,10 +1245,12 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'delete-category-group': {
       const validated = validateDeleteCategoryGroup(action.params);
-      const allCategories = await send('api/categories-get', { grouped: false });
-      const remainingCategories = (allCategories as Array<{ group_id?: string }>).filter(
-        c => c.group_id === validated.groupId,
-      );
+      const allCategories = await send('api/categories-get', {
+        grouped: false,
+      });
+      const remainingCategories = (
+        allCategories as Array<{ group_id?: string }>
+      ).filter(c => c.group_id === validated.groupId);
       if (remainingCategories.length > 0) {
         throw new Error(
           `Cannot delete group "${validated.groupName}" — it still contains ${remainingCategories.length} categor${remainingCategories.length === 1 ? 'y' : 'ies'}. Move all categories out first.`,
@@ -1019,10 +1323,14 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const validated = validateUpdateGoal(action.params);
       const updates: Record<string, unknown> = {};
       if (validated.name !== undefined) updates.name = validated.name;
-      if (validated.targetAmount !== undefined) updates.targetAmount = validated.targetAmount;
-      if (validated.targetDate !== undefined) updates.targetDate = validated.targetDate;
-      if (validated.associatedAccountIds !== undefined) updates.associatedAccountIds = validated.associatedAccountIds;
-      if (validated.associatedCategoryIds !== undefined) updates.associatedCategoryIds = validated.associatedCategoryIds;
+      if (validated.targetAmount !== undefined)
+        updates.targetAmount = validated.targetAmount;
+      if (validated.targetDate !== undefined)
+        updates.targetDate = validated.targetDate;
+      if (validated.associatedAccountIds !== undefined)
+        updates.associatedAccountIds = validated.associatedAccountIds;
+      if (validated.associatedCategoryIds !== undefined)
+        updates.associatedCategoryIds = validated.associatedCategoryIds;
       const updated = updateGoal(validated.goalId, updates);
       if (!updated) throw new Error('Goal not found.');
       return `Savings goal "${updated.name}" updated successfully.`;
@@ -1037,20 +1345,37 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const validated = validateCreateSchedule(action.params);
       let resolvedAccountId = validated.accountId;
       if (!resolvedAccountId) {
-        const allAccounts = await send('api/accounts-get') as Array<{ id: string; closed?: boolean }>;
+        const allAccounts = (await send('api/accounts-get')) as Array<{
+          id: string;
+          closed?: boolean;
+        }>;
         const openAccounts = allAccounts.filter(a => !a.closed);
-        if (openAccounts.length === 0) throw new Error('No open accounts available to assign this schedule to.');
+        if (openAccounts.length === 0)
+          throw new Error(
+            'No open accounts available to assign this schedule to.',
+          );
         resolvedAccountId = openAccounts[0].id;
       }
-      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const allPayees = (await send('payees-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
       let payeeId: string;
-      const matchedPayee = allPayees.find(p => p.name.toLowerCase() === validated.payee_name.toLowerCase());
+      const matchedPayee = allPayees.find(
+        p => p.name.toLowerCase() === validated.payee_name.toLowerCase(),
+      );
       if (matchedPayee) {
         payeeId = matchedPayee.id;
       } else {
-        payeeId = await send('payee-create', { name: validated.payee_name }) as string;
+        payeeId = (await send('payee-create', {
+          name: validated.payee_name,
+        })) as string;
       }
-      const dateValue = buildScheduleDateValue(validated.date, validated.frequency, validated.interval);
+      const dateValue = buildScheduleDateValue(
+        validated.date,
+        validated.frequency,
+        validated.interval,
+      );
       const scheduleName = validated.name || validated.payee_name;
       await send('api/schedule-create', {
         name: scheduleName,
@@ -1058,42 +1383,77 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         account: resolvedAccountId,
         amount: validated.amount,
         amountOp: validated.amountOp as 'is' | 'isapprox' | 'isbetween',
-        date: dateValue as { start: string; frequency: 'weekly' | 'monthly' | 'yearly'; interval: number },
+        date: dateValue as {
+          start: string;
+          frequency: 'weekly' | 'monthly' | 'yearly';
+          interval: number;
+        },
         posts_transaction: validated.posts_transaction,
       });
-      const freqLabel = validated.interval > 1 ? `every ${validated.interval} ${validated.frequency}` : validated.frequency;
+      const freqLabel =
+        validated.interval > 1
+          ? `every ${validated.interval} ${validated.frequency}`
+          : validated.frequency;
       return `Schedule created for "${validated.payee_name}" — ${formatCents(Math.abs(validated.amount))} ${freqLabel}, starting ${validated.date}.`;
     }
     case 'update-schedule': {
       const validated = validateUpdateSchedule(action.params);
       const fields: Record<string, unknown> = {};
       if (validated.name !== undefined) fields.name = validated.name;
-      if (validated.posts_transaction !== undefined) fields.posts_transaction = validated.posts_transaction;
+      if (validated.posts_transaction !== undefined)
+        fields.posts_transaction = validated.posts_transaction;
       if (validated.payee_name !== undefined) {
-        const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
-        const matchedPayee = allPayees.find(p => p.name.toLowerCase() === validated.payee_name!.toLowerCase());
+        const allPayees = (await send('payees-get')) as Array<{
+          id: string;
+          name: string;
+        }>;
+        const matchedPayee = allPayees.find(
+          p => p.name.toLowerCase() === validated.payee_name!.toLowerCase(),
+        );
         if (matchedPayee) {
           fields.payee = matchedPayee.id;
         } else {
-          const newPayeeId = await send('payee-create', { name: validated.payee_name }) as string;
+          const newPayeeId = (await send('payee-create', {
+            name: validated.payee_name,
+          })) as string;
           fields.payee = newPayeeId;
         }
       }
-      if (validated.accountId !== undefined) fields.account = validated.accountId;
+      if (validated.accountId !== undefined)
+        fields.account = validated.accountId;
       if (validated.amount !== undefined) fields.amount = validated.amount;
-      if (validated.amountOp !== undefined) fields.amountOp = validated.amountOp;
-      const hasDateChange = validated.date !== undefined || validated.frequency !== undefined || validated.interval !== undefined;
+      if (validated.amountOp !== undefined)
+        fields.amountOp = validated.amountOp;
+      const hasDateChange =
+        validated.date !== undefined ||
+        validated.frequency !== undefined ||
+        validated.interval !== undefined;
       if (hasDateChange) {
-        const existingSchedules = await send('api/schedules-get') as Array<{
+        const existingSchedules = (await send('api/schedules-get')) as Array<{
           id: string;
-          date?: { start?: string; frequency?: string; interval?: number } | string;
+          date?:
+            | { start?: string; frequency?: string; interval?: number }
+            | string;
         }>;
-        const existing = existingSchedules.find(s => s.id === validated.scheduleId);
-        const existingDate = existing?.date && typeof existing.date === 'object' ? existing.date : undefined;
-        const schedDate = validated.date || existingDate?.start || new Date().toISOString().split('T')[0];
-        const schedFrequency = validated.frequency || existingDate?.frequency || 'monthly';
+        const existing = existingSchedules.find(
+          s => s.id === validated.scheduleId,
+        );
+        const existingDate =
+          existing?.date && typeof existing.date === 'object'
+            ? existing.date
+            : undefined;
+        const schedDate =
+          validated.date ||
+          existingDate?.start ||
+          new Date().toISOString().split('T')[0];
+        const schedFrequency =
+          validated.frequency || existingDate?.frequency || 'monthly';
         const schedInterval = validated.interval || existingDate?.interval || 1;
-        fields.date = buildScheduleDateValue(schedDate, schedFrequency, schedInterval);
+        fields.date = buildScheduleDateValue(
+          schedDate,
+          schedFrequency,
+          schedInterval,
+        );
       }
       await send('api/schedule-update', {
         id: validated.scheduleId,
@@ -1109,10 +1469,17 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'create-schedules-batch': {
       const validated = validateCreateSchedulesBatch(action.params);
-      const allAccounts = await send('api/accounts-get') as Array<{ id: string; closed?: boolean }>;
+      const allAccounts = (await send('api/accounts-get')) as Array<{
+        id: string;
+        closed?: boolean;
+      }>;
       const openAccounts = allAccounts.filter(a => !a.closed);
-      const defaultAccountId = openAccounts.length > 0 ? openAccounts[0].id : undefined;
-      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const defaultAccountId =
+        openAccounts.length > 0 ? openAccounts[0].id : undefined;
+      const allPayees = (await send('payees-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
       const payeeLookup = new Map<string, string>();
       for (const p of allPayees) {
         payeeLookup.set(p.name.toLowerCase(), p.id);
@@ -1120,13 +1487,20 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const results: string[] = [];
       for (const sched of validated.schedules) {
         const accountId = sched.accountId || defaultAccountId;
-        if (!accountId) throw new Error('No open accounts available to assign schedules to.');
+        if (!accountId)
+          throw new Error('No open accounts available to assign schedules to.');
         let payeeId = payeeLookup.get(sched.payee_name.toLowerCase());
         if (!payeeId) {
-          payeeId = await send('payee-create', { name: sched.payee_name }) as string;
+          payeeId = (await send('payee-create', {
+            name: sched.payee_name,
+          })) as string;
           payeeLookup.set(sched.payee_name.toLowerCase(), payeeId);
         }
-        const dateValue = buildScheduleDateValue(sched.date, sched.frequency, sched.interval);
+        const dateValue = buildScheduleDateValue(
+          sched.date,
+          sched.frequency,
+          sched.interval,
+        );
         const scheduleName = sched.name || sched.payee_name;
         await send('api/schedule-create', {
           name: scheduleName,
@@ -1134,18 +1508,29 @@ export async function executeAction(action: BudgetAction): Promise<string> {
           account: accountId,
           amount: sched.amount,
           amountOp: sched.amountOp as 'is' | 'isapprox' | 'isbetween',
-          date: dateValue as { start: string; frequency: 'weekly' | 'monthly' | 'yearly'; interval: number },
+          date: dateValue as {
+            start: string;
+            frequency: 'weekly' | 'monthly' | 'yearly';
+            interval: number;
+          },
           posts_transaction: sched.posts_transaction,
         });
-        const freqLabel = sched.interval > 1 ? `every ${sched.interval} ${sched.frequency}` : sched.frequency;
-        results.push(`"${sched.payee_name}" — ${formatCents(Math.abs(sched.amount))} ${freqLabel}`);
+        const freqLabel =
+          sched.interval > 1
+            ? `every ${sched.interval} ${sched.frequency}`
+            : sched.frequency;
+        results.push(
+          `"${sched.payee_name}" — ${formatCents(Math.abs(sched.amount))} ${freqLabel}`,
+        );
       }
       return `Created ${results.length} schedule(s):\n${results.map(r => `  ✓ ${r}`).join('\n')}`;
     }
     case 'bulk-create-category-groups': {
       const groups = action.params.groups;
       if (!Array.isArray(groups) || groups.length === 0) {
-        throw new Error('bulk-create-category-groups requires a non-empty "groups" array.');
+        throw new Error(
+          'bulk-create-category-groups requires a non-empty "groups" array.',
+        );
       }
       for (let i = 0; i < groups.length; i++) {
         const g = groups[i] as { name?: unknown; categories?: unknown };
@@ -1153,37 +1538,49 @@ export async function executeAction(action: BudgetAction): Promise<string> {
           throw new Error(`groups[${i}] must have a non-empty string "name".`);
         }
         if (g.categories !== undefined && !Array.isArray(g.categories)) {
-          throw new Error(`groups[${i}].categories must be an array of category name strings.`);
+          throw new Error(
+            `groups[${i}].categories must be an array of category name strings.`,
+          );
         }
         if (Array.isArray(g.categories)) {
           for (let j = 0; j < (g.categories as unknown[]).length; j++) {
             const catVal = (g.categories as unknown[])[j];
             if (typeof catVal !== 'string' || !(catVal as string).trim()) {
-              throw new Error(`groups[${i}].categories[${j}] must be a non-empty string.`);
+              throw new Error(
+                `groups[${i}].categories[${j}] must be a non-empty string.`,
+              );
             }
           }
         }
       }
 
-      const typedGroups = (groups as Array<{ name: string; categories?: string[] }>).map(g => ({
+      const typedGroups = (
+        groups as Array<{ name: string; categories?: string[] }>
+      ).map(g => ({
         name: g.name.trim(),
-        categories: Array.isArray(g.categories) ? g.categories.map(c => c.trim()) : undefined,
+        categories: Array.isArray(g.categories)
+          ? g.categories.map(c => c.trim())
+          : undefined,
       }));
       const summary: string[] = [];
 
       for (const group of typedGroups) {
-        const groupId = await send('api/category-group-create', {
+        const groupId = (await send('api/category-group-create', {
           group: { name: group.name },
-        }) as unknown as string;
+        })) as unknown as string;
 
-        const catCount = Array.isArray(group.categories) ? group.categories.length : 0;
+        const catCount = Array.isArray(group.categories)
+          ? group.categories.length
+          : 0;
         if (Array.isArray(group.categories) && group.categories.length > 0) {
           for (const catName of group.categories) {
             await send('api/category-create', {
               category: { name: catName, group_id: groupId, hidden: false },
             });
           }
-          summary.push(`"${group.name}" with ${catCount} categor${catCount === 1 ? 'y' : 'ies'}: ${group.categories.join(', ')}`);
+          summary.push(
+            `"${group.name}" with ${catCount} categor${catCount === 1 ? 'y' : 'ies'}: ${group.categories.join(', ')}`,
+          );
         } else {
           summary.push(`"${group.name}" (empty)`);
         }
@@ -1197,34 +1594,53 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         throw new Error('create-rule requires a non-empty "toPayee" string.');
       }
       const cleanToPayee = (toPayee as string).trim();
-      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const allPayees = (await send('payees-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
       let payeeId: string;
-      const matchedPayee = allPayees.find(p => p.name.toLowerCase() === cleanToPayee.toLowerCase());
+      const matchedPayee = allPayees.find(
+        p => p.name.toLowerCase() === cleanToPayee.toLowerCase(),
+      );
       if (matchedPayee) {
         payeeId = matchedPayee.id;
       } else {
-        payeeId = await send('payee-create', { name: cleanToPayee }) as string;
+        payeeId = (await send('payee-create', {
+          name: cleanToPayee,
+        })) as string;
       }
 
       if (typeof containsPattern === 'string' && containsPattern.trim()) {
-        const result = await send('rule-add', {
+        const result = (await send('rule-add', {
           stage: 'pre',
           conditionsOp: 'and',
-          conditions: [{ field: 'imported_payee', op: 'contains', value: containsPattern.trim() }],
+          conditions: [
+            {
+              field: 'imported_payee',
+              op: 'contains',
+              value: containsPattern.trim(),
+            },
+          ],
           actions: [{ op: 'set', field: 'payee', value: payeeId }],
-        }) as { error?: { message?: string } } | { id: string };
+        })) as { error?: { message?: string } } | { id: string };
         if ('error' in result && result.error) {
-          throw new Error(`Failed to create rule: ${result.error.message || 'validation error'}`);
+          throw new Error(
+            `Failed to create rule: ${result.error.message || 'validation error'}`,
+          );
         }
         return `Payee rename rule created: imported payee contains "${containsPattern.trim()}" → ${cleanToPayee}`;
       }
 
       if (!Array.isArray(fromNames) || fromNames.length === 0) {
-        throw new Error('create-rule requires either "containsPattern" (substring match) or "fromNames" (exact match list).');
+        throw new Error(
+          'create-rule requires either "containsPattern" (substring match) or "fromNames" (exact match list).',
+        );
       }
       for (const name of fromNames as unknown[]) {
         if (typeof name !== 'string' || !(name as string).trim()) {
-          throw new Error('Each entry in fromNames must be a non-empty string.');
+          throw new Error(
+            'Each entry in fromNames must be a non-empty string.',
+          );
         }
       }
       await send('rule-add-payee-rename', {
@@ -1240,12 +1656,14 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
       const deleteResult = await send('rule-delete', ruleId);
       if (deleteResult === false) {
-        throw new Error('Failed to delete rule — the rule may be in use or no longer exists.');
+        throw new Error(
+          'Failed to delete rule — the rule may be in use or no longer exists.',
+        );
       }
       return `Rule deleted successfully.`;
     }
     case 'list-rules': {
-      const rules = await send('rules-get') as Array<{
+      const rules = (await send('rules-get')) as Array<{
         id: string;
         stage?: string;
         conditionsOp?: string;
@@ -1253,10 +1671,16 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         actions?: Array<{ field: string; op: string; value: unknown }>;
       }>;
       if (!rules || rules.length === 0) return 'No rules found.';
-      const allPayees = await send('payees-get') as Array<{ id: string; name: string }>;
+      const allPayees = (await send('payees-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
       const payeeIdToName = new Map<string, string>();
       for (const p of allPayees) payeeIdToName.set(p.id, p.name);
-      const allCategories = await send('api/categories-get') as Array<{ id: string; name: string }>;
+      const allCategories = (await send('api/categories-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
       const catIdToName = new Map<string, string>();
       if (Array.isArray(allCategories)) {
         for (const c of allCategories) catIdToName.set(c.id, c.name);
@@ -1287,18 +1711,23 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'save-memory': {
       const { content, category } = action.params;
-      if (typeof content !== 'string') throw new Error('Memory content must be a string.');
-      if (category !== undefined && typeof category !== 'string') throw new Error('Memory category must be a string.');
+      if (typeof content !== 'string')
+        throw new Error('Memory content must be a string.');
+      if (category !== undefined && typeof category !== 'string')
+        throw new Error('Memory category must be a string.');
       await addMemory({
         content,
-        category: (category as 'categorization' | 'preference' | 'context') || 'categorization',
+        category:
+          (category as 'categorization' | 'preference' | 'context') ||
+          'categorization',
         source: 'ai',
       });
       return 'Memory saved successfully.';
     }
     case 'delete-memory': {
       const { memoryId } = action.params;
-      if (typeof memoryId !== 'string') throw new Error('Memory ID must be a string.');
+      if (typeof memoryId !== 'string')
+        throw new Error('Memory ID must be a string.');
       deleteMemoryById(memoryId);
       return 'Memory deleted successfully.';
     }

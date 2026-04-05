@@ -41,7 +41,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ChatContext.Provider value={{ chatOpen, toggleChat, closeChat, openChatWithMessage, pendingMessage, clearPendingMessage }}>
+    <ChatContext.Provider
+      value={{
+        chatOpen,
+        toggleChat,
+        closeChat,
+        openChatWithMessage,
+        pendingMessage,
+        clearPendingMessage,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   );

@@ -15,7 +15,8 @@ type InlineNode =
 
 function parseInline(line: string): InlineNode[] {
   const nodes: InlineNode[] = [];
-  const regex = /\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|(?<!\w)\*(.+?)\*(?!\w)|(?<!\w)_(.+?)_(?!\w)|`([^`]+)`/g;
+  const regex =
+    /\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|(?<!\w)\*(.+?)\*(?!\w)|(?<!\w)_(.+?)_(?!\w)|`([^`]+)`/g;
   let lastIndex = 0;
   let match;
 
@@ -152,10 +153,7 @@ function splitTableCells(line: string): string[] {
   return cells;
 }
 
-function renderTable(
-  rows: string[],
-  tableKey: number,
-): React.ReactNode {
+function renderTable(rows: string[], tableKey: number): React.ReactNode {
   let headerRow: string | null = null;
   const dataRows: string[] = [];
 
@@ -258,9 +256,17 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
       paddingLeft: 22,
     };
     if (isOrdered) {
-      elements.push(<ol key={`ol-${listKey}`} style={listStyle}>{items}</ol>);
+      elements.push(
+        <ol key={`ol-${listKey}`} style={listStyle}>
+          {items}
+        </ol>,
+      );
     } else {
-      elements.push(<ul key={`ul-${listKey}`} style={listStyle}>{items}</ul>);
+      elements.push(
+        <ul key={`ul-${listKey}`} style={listStyle}>
+          {items}
+        </ul>,
+      );
     }
     listItems = [];
     listKey++;
@@ -318,7 +324,10 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
       continue;
     }
 
-    if (tableRows.length > 0 && (isTableRow(trimmed) || isSeparatorRow(trimmed))) {
+    if (
+      tableRows.length > 0 &&
+      (isTableRow(trimmed) || isSeparatorRow(trimmed))
+    ) {
       tableRows.push(trimmed);
       continue;
     }
@@ -390,7 +399,10 @@ export function MarkdownText({ text, style }: MarkdownTextProps) {
     }
 
     elements.push(
-      <div key={`p-${i}`} style={{ whiteSpace: 'pre-wrap', lineHeight: '1.55' }}>
+      <div
+        key={`p-${i}`}
+        style={{ whiteSpace: 'pre-wrap', lineHeight: '1.55' }}
+      >
         {renderInline(line, `p-${i}`)}
       </div>,
     );

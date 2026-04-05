@@ -259,11 +259,13 @@ export function shouldShowTimestamp(
   const next = messages[index + 1];
 
   const isFirstInGroup =
-    !prev || prev.role !== current.role ||
+    !prev ||
+    prev.role !== current.role ||
     current.timestamp - prev.timestamp > 2 * 60 * 1000;
 
   const isLastInGroup =
-    !next || next.role !== current.role ||
+    !next ||
+    next.role !== current.role ||
     next.timestamp - current.timestamp > 2 * 60 * 1000;
 
   return isFirstInGroup || isLastInGroup;

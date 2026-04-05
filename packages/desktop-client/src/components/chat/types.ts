@@ -159,7 +159,12 @@ export type HistoricalComparison = {
     historicalAverage: number;
     difference: number;
     percentDifference: number;
-    status: 'significantly-over' | 'over' | 'normal' | 'under' | 'significantly-under';
+    status:
+      | 'significantly-over'
+      | 'over'
+      | 'normal'
+      | 'under'
+      | 'significantly-under';
   }>;
   totalCurrent: number;
   totalAverage: number;

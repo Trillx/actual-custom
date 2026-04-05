@@ -172,7 +172,7 @@ export default defineConfig(async ({ mode }) => {
     },
     server: {
       host: '0.0.0.0',
-      allowedHosts: true,
+      allowedHosts: true as const,
       headers: mode === 'development' ? devHeaders : undefined,
       port: +env.PORT || 5173,
       open: env.BROWSER

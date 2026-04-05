@@ -1,5 +1,5 @@
-import type { BudgetContext } from './types';
 import type { SavingsGoal } from './goalStorage';
+import type { BudgetContext } from './types';
 
 function formatCents(amount: number): string {
   return '$' + (Math.abs(amount) / 100).toFixed(2);
@@ -105,7 +105,8 @@ export function calculateGoalProgress(
 
   const actualMonthlySavings = monthlyNetSavings;
   const onTrack =
-    currentSaved >= targetAmount || actualMonthlySavings >= requiredMonthlySavings;
+    currentSaved >= targetAmount ||
+    actualMonthlySavings >= requiredMonthlySavings;
 
   let projectedCompletion: string | null = null;
   if (actualMonthlySavings > 0 && remainingAmount > 0) {
@@ -128,7 +129,9 @@ export function calculateGoalProgress(
   };
 }
 
-export function projectMonthlySpending(context: BudgetContext): MonthlyProjection | null {
+export function projectMonthlySpending(
+  context: BudgetContext,
+): MonthlyProjection | null {
   if (!context.budgetMonth) return null;
 
   const now = new Date();
@@ -203,7 +206,8 @@ export function calculateDebtPayoff(
       const balance = Math.abs(account.balance);
       const avgPayment = averageMonthlyPayments.get(account.id) || 0;
 
-      const monthsToPayoff = avgPayment > 0 ? Math.ceil(balance / avgPayment) : Infinity;
+      const monthsToPayoff =
+        avgPayment > 0 ? Math.ceil(balance / avgPayment) : Infinity;
       const now = new Date();
       const payoffDate =
         monthsToPayoff === Infinity
@@ -217,7 +221,8 @@ export function calculateDebtPayoff(
       const acceleratedPayments = [25, 50, 100].map(extra => {
         const extraCents = extra * 100;
         const newPayment = avgPayment + extraCents;
-        const newMonths = newPayment > 0 ? Math.ceil(balance / newPayment) : Infinity;
+        const newMonths =
+          newPayment > 0 ? Math.ceil(balance / newPayment) : Infinity;
         const d = new Date(now);
         if (newMonths !== Infinity) d.setMonth(d.getMonth() + newMonths);
         const monthsSaved =
@@ -308,12 +313,18 @@ export function whatIfScenario(
 export function formatGoalProgressSummary(progress: GoalProgress): string {
   const lines: string[] = [];
   lines.push(`Goal: ${progress.goal.name}`);
-  lines.push(`Target: ${formatCents(progress.targetAmount)} by ${progress.goal.targetDate}`);
+  lines.push(
+    `Target: ${formatCents(progress.targetAmount)} by ${progress.goal.targetDate}`,
+  );
   lines.push(`Current saved: ${formatCents(progress.currentSaved)}`);
   lines.push(`Remaining: ${formatCents(progress.remainingAmount)}`);
   lines.push(`Months remaining: ${progress.monthsRemaining}`);
-  lines.push(`Required monthly savings: ${formatCents(progress.requiredMonthlySavings)}`);
-  lines.push(`Actual monthly savings rate: ${formatCents(progress.actualMonthlySavings)}`);
+  lines.push(
+    `Required monthly savings: ${formatCents(progress.requiredMonthlySavings)}`,
+  );
+  lines.push(
+    `Actual monthly savings rate: ${formatCents(progress.actualMonthlySavings)}`,
+  );
   lines.push(`Status: ${progress.onTrack ? 'On Track' : 'Off Track'}`);
   if (progress.projectedCompletion) {
     lines.push(`Projected completion: ${progress.projectedCompletion}`);
@@ -327,12 +338,18 @@ export function formatProjectionSummary(projection: MonthlyProjection): string {
   lines.push(`Day ${projection.dayOfMonth} of ${projection.daysInMonth}`);
   lines.push(`Spent so far: ${formatCents(projection.spentSoFar)}`);
   lines.push(`Daily average: ${formatCents(projection.dailyAverage)}`);
-  lines.push(`Projected month total: ${formatCents(projection.projectedTotal)}`);
+  lines.push(
+    `Projected month total: ${formatCents(projection.projectedTotal)}`,
+  );
   lines.push(`Total budgeted: ${formatCents(projection.budgetedTotal)}`);
   if (projection.projectedOverUnder >= 0) {
-    lines.push(`Projected under budget by: ${formatCents(projection.projectedOverUnder)}`);
+    lines.push(
+      `Projected under budget by: ${formatCents(projection.projectedOverUnder)}`,
+    );
   } else {
-    lines.push(`Projected over budget by: ${formatCents(Math.abs(projection.projectedOverUnder))}`);
+    lines.push(
+      `Projected over budget by: ${formatCents(Math.abs(projection.projectedOverUnder))}`,
+    );
   }
   lines.push(`Assumption: ${projection.assumption}`);
   return lines.join('\n');

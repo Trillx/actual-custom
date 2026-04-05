@@ -100,7 +100,9 @@ export function AISettings() {
       </Text>
       <View style={{ gap: 10, width: '100%' }}>
         <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+          <Text
+            style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}
+          >
             <Trans>Provider</Trans>
           </Text>
           <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -133,7 +135,9 @@ export function AISettings() {
         </View>
 
         <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+          <Text
+            style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}
+          >
             <Trans>API Key</Trans>
           </Text>
           <Input
@@ -145,7 +149,9 @@ export function AISettings() {
         </View>
 
         <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}>
+          <Text
+            style={{ fontSize: 12, fontWeight: 500, color: theme.pageText }}
+          >
             <Trans>Model</Trans>
           </Text>
           <Input
@@ -167,9 +173,7 @@ export function AISettings() {
               </Trans>
             )}
             {provider === 'custom' && (
-              <Trans>
-                Enter the model name supported by your endpoint.
-              </Trans>
+              <Trans>Enter the model name supported by your endpoint.</Trans>
             )}
           </Text>
         </View>
@@ -184,7 +188,9 @@ export function AISettings() {
             <Input
               value={urlInput}
               onChangeValue={setUrlInput}
-              placeholder={t('https://your-api.example.com/v1/chat/completions')}
+              placeholder={t(
+                'https://your-api.example.com/v1/chat/completions',
+              )}
             />
             <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
               <Trans>

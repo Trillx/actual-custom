@@ -76,13 +76,23 @@ export function detectRecurringTransactions(
     const normalizedKey = normalizePayeeName(tx.payee_name);
     if (!normalizedKey) continue;
     if (!normalizedGroups.has(normalizedKey)) {
-      normalizedGroups.set(normalizedKey, { variants: new Map(), txns: [], accounts: new Map() });
+      normalizedGroups.set(normalizedKey, {
+        variants: new Map(),
+        txns: [],
+        accounts: new Map(),
+      });
     }
     const group = normalizedGroups.get(normalizedKey)!;
-    group.variants.set(tx.payee_name, (group.variants.get(tx.payee_name) || 0) + 1);
+    group.variants.set(
+      tx.payee_name,
+      (group.variants.get(tx.payee_name) || 0) + 1,
+    );
     group.txns.push({ date: tx.date, amount: tx.amount });
     if (tx.account_name) {
-      group.accounts.set(tx.account_name, (group.accounts.get(tx.account_name) || 0) + 1);
+      group.accounts.set(
+        tx.account_name,
+        (group.accounts.get(tx.account_name) || 0) + 1,
+      );
     }
   }
 
@@ -112,7 +122,9 @@ export function detectRecurringTransactions(
 
     const allVariants = Array.from(variants.keys());
 
-    txns.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    txns.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
 
     const amounts = txns.map(t => t.amount);
     const { mean: avgAmount, std: amountStd } = stddev(amounts);
@@ -166,7 +178,11 @@ export function detectRecurringTransactions(
     });
 
     let typicalDueDay: number | undefined;
-    if (frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') {
+    if (
+      frequency === 'monthly' ||
+      frequency === 'quarterly' ||
+      frequency === 'yearly'
+    ) {
       const days = txns.map(t => new Date(t.date).getUTCDate());
       days.sort((a, b) => a - b);
       typicalDueDay = days[Math.floor(days.length / 2)];
@@ -198,10 +214,7 @@ export function detectAnomalies(
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const anomalies: SpendingAnomaly[] = [];
 
-  const monthlyByCategory = new Map<
-    string,
-    Map<string, number>
-  >();
+  const monthlyByCategory = new Map<string, Map<string, number>>();
 
   for (const tx of transactions) {
     if (tx.amount >= 0) continue;
@@ -213,7 +226,9 @@ export function detectAnomalies(
     catMonths.set(month, (catMonths.get(month) || 0) + Math.abs(tx.amount));
   }
 
-  for (const [category, monthTotals] of Array.from(monthlyByCategory.entries())) {
+  for (const [category, monthTotals] of Array.from(
+    monthlyByCategory.entries(),
+  )) {
     const historicalMonths: number[] = [];
     let currentTotal = 0;
 
@@ -316,7 +331,9 @@ export function analyzeSpendingTrend(
   const results: SpendingTrend[] = [];
 
   for (const [name, months] of Array.from(monthlyTotals.entries())) {
-    const sorted = Array.from(months.entries()).sort(([a], [b]) => a.localeCompare(b));
+    const sorted = Array.from(months.entries()).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
     if (sorted.length < 2) continue;
 
     const recentMonths = sorted.slice(-3);
@@ -385,7 +402,9 @@ export function compareToHistorical(
   let totalCurrent = 0;
   let totalAverage = 0;
 
-  for (const [category, monthTotals] of Array.from(monthlyByCategory.entries())) {
+  for (const [category, monthTotals] of Array.from(
+    monthlyByCategory.entries(),
+  )) {
     const currentSpending = monthTotals.get(currentMonth) || 0;
 
     const sortedMonths = Array.from(monthTotals.entries())
@@ -397,10 +416,9 @@ export function compareToHistorical(
       .map(([, total]) => total);
     if (recentHistorical.length === 0) continue;
 
-    const historicalAverage =
-      Math.round(
-        recentHistorical.reduce((s, v) => s + v, 0) / recentHistorical.length,
-      );
+    const historicalAverage = Math.round(
+      recentHistorical.reduce((s, v) => s + v, 0) / recentHistorical.length,
+    );
 
     const difference = currentSpending - historicalAverage;
     const percentDifference =
@@ -478,8 +496,9 @@ export function formatSubscriptionList(
           : sub.confidence === 'medium'
             ? '●●○'
             : '●○○';
-      let line = `  ${confidenceLabel} ${sub.payee_name}: ${formatCurrency(Math.abs(sub.amount))}/${sub.frequency}` +
-          ` (${sub.occurrences} occurrences, last: ${sub.lastDate}, confidence: ${sub.confidence})`;
+      let line =
+        `  ${confidenceLabel} ${sub.payee_name}: ${formatCurrency(Math.abs(sub.amount))}/${sub.frequency}` +
+        ` (${sub.occurrences} occurrences, last: ${sub.lastDate}, confidence: ${sub.confidence})`;
       if (sub.accountName) {
         line += ` [account: ${sub.accountName}]`;
       }
@@ -497,7 +516,9 @@ export function formatSubscriptionList(
     .filter(s => s.frequency === 'monthly')
     .reduce((sum, s) => sum + Math.abs(s.amount), 0);
   if (totalMonthly > 0) {
-    lines.push(`\nEstimated monthly recurring total: ${formatCurrency(totalMonthly)}`);
+    lines.push(
+      `\nEstimated monthly recurring total: ${formatCurrency(totalMonthly)}`,
+    );
   }
 
   return lines.join('\n');
@@ -609,8 +630,7 @@ export function formatHistoricalComparison(
   }
 
   if (normalCategories.length > 0) {
-    if (overCategories.length > 0 || underCategories.length > 0)
-      lines.push('');
+    if (overCategories.length > 0 || underCategories.length > 0) lines.push('');
     lines.push('NORMAL RANGE:');
     for (const c of normalCategories) {
       lines.push(

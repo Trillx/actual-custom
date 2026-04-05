@@ -389,9 +389,7 @@ function FinancesAppInner() {
           </ScrollProvider>
         </View>
 
-        {chatOpen && (
-          <ChatPanel onClose={closeChat} />
-        )}
+        {chatOpen && <ChatPanel onClose={closeChat} />}
       </View>
     </View>
   );

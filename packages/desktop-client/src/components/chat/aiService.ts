@@ -1,6 +1,11 @@
 import { ACTUAL_DOCS_KNOWLEDGE } from './actualDocsKnowledge';
 import { getMemories } from './memoryStorage';
-import type { BudgetAction, BudgetContext, ChatMessage, QueryAction } from './types';
+import type {
+  BudgetAction,
+  BudgetContext,
+  ChatMessage,
+  QueryAction,
+} from './types';
 
 const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
@@ -74,7 +79,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       'When adjusting a budget upward (e.g., to cover overspending), you MUST calculate the new total: new_amount = current_budgeted + adjustment.\n' +
       'Example: Food is budgeted $400 (40000 cents) and overspent by $81. To cover the overspend, set amount to 48100 (40000 + 8100), NOT 8100.\n' +
       'For multi-category redistribution or rebalancing (adjusting 2+ categories at once), ALWAYS use "bulk-set-budget" so the user only needs to confirm ONCE. ' +
-      'Look up each category\'s current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total for each.\n' +
+      "Look up each category's current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total for each.\n" +
       'Use "transfer-budget" ONLY for simple one-to-one transfers between exactly two categories.\n\n' +
       'IMPORTANT — Creating multiple category groups from scratch: When the user asks to create or set up multiple new category groups (e.g., "create Housing, Groceries, Entertainment groups with subcategories"), ' +
       'ALWAYS use "bulk-create-category-groups" to create them all in one action. Do NOT use individual "create-category-group" actions one at a time.\n\n' +
@@ -118,7 +123,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       'NEVER respond with "please hold", "let me gather", "I will look up", "let me analyze", "hold on while I", ' +
       '"let me check", or similar waiting/gathering narrative text WITHOUT an action block. ' +
       'When the user asks for analysis or data lookup, you MUST emit the query action block IMMEDIATELY in your response. ' +
-      'Act, don\'t announce. Do not narrate what you plan to do — just do it by including the action block.\n\n' +
+      "Act, don't announce. Do not narrate what you plan to do — just do it by including the action block.\n\n" +
       'Date format for filters: "YYYY-MM-DD". Amount filters are in cents (negative for expenses, positive for income). ' +
       'For example, to find expenses over $50, use amountMax: -5000 (since expenses are negative).\n\n' +
       'Examples of queries:\n' +
@@ -203,14 +208,18 @@ function buildSystemPrompt(context: BudgetContext): string {
   if (context.accounts.length > 0) {
     parts.push('\n\nAccounts:');
     for (const acct of context.accounts) {
-      parts.push(`- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`);
+      parts.push(
+        `- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`,
+      );
     }
   }
 
   if (context.closedAccounts && context.closedAccounts.length > 0) {
     parts.push('\n\nClosed Accounts (can be reopened):');
     for (const acct of context.closedAccounts) {
-      parts.push(`- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`);
+      parts.push(
+        `- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`,
+      );
     }
   }
 
@@ -254,7 +263,8 @@ function buildSystemPrompt(context: BudgetContext): string {
   if (context.schedules.length > 0) {
     parts.push('\n\nScheduled Transactions:');
     for (const sched of context.schedules) {
-      const amount = sched.amount != null ? `$${formatCurrency(sched.amount)}` : 'unknown';
+      const amount =
+        sched.amount != null ? `$${formatCurrency(sched.amount)}` : 'unknown';
       const freq = sched.frequency ? `, ${sched.frequency}` : '';
       const acct = sched.account_name ? `, account: ${sched.account_name}` : '';
       const status = sched.completed ? ' [completed]' : '';
@@ -265,25 +275,37 @@ function buildSystemPrompt(context: BudgetContext): string {
   }
 
   if (context.subscriptionInsights && context.subscriptionInsights.length > 0) {
-    parts.push('\n\nDetected Recurring Charges (from recent transaction history — use detect-subscriptions query for full details):');
+    parts.push(
+      '\n\nDetected Recurring Charges (from recent transaction history — use detect-subscriptions query for full details):',
+    );
     for (const sub of context.subscriptionInsights) {
       const amount = formatCurrency(Math.abs(sub.amount));
-      const status = sub.matchesSchedule ? '✓ confirmed' : `detected (${sub.confidence})`;
-      parts.push(`  - ${sub.payee_name}: $${amount}/${sub.frequency} [${status}]`);
+      const status = sub.matchesSchedule
+        ? '✓ confirmed'
+        : `detected (${sub.confidence})`;
+      parts.push(
+        `  - ${sub.payee_name}: $${amount}/${sub.frequency} [${status}]`,
+      );
     }
   }
 
   if (context.anomalyInsights && context.anomalyInsights.length > 0) {
-    parts.push('\n\nSpending Anomalies Detected (use detect-anomalies query for full report):');
+    parts.push(
+      '\n\nSpending Anomalies Detected (use detect-anomalies query for full report):',
+    );
     for (const a of context.anomalyInsights) {
       const amount = formatCurrency(a.amount);
       const avg = formatCurrency(a.average);
-      parts.push(`  - ${a.name}: $${amount} vs $${avg} average (${a.deviations}x std dev above normal)`);
+      parts.push(
+        `  - ${a.name}: $${amount} vs $${avg} average (${a.deviations}x std dev above normal)`,
+      );
     }
   }
 
   if (context.recentTransactions.length > 0) {
-    parts.push(`\n\nRecent Transactions (last 7 days from all accounts — use query actions for broader date ranges or filtered searches):`);
+    parts.push(
+      `\n\nRecent Transactions (last 7 days from all accounts — use query actions for broader date ranges or filtered searches):`,
+    );
     for (const tx of context.recentTransactions) {
       const amount = formatCurrency(tx.amount);
       const payee = tx.payee_name || 'Unknown';
@@ -309,7 +331,9 @@ function buildSystemPrompt(context: BudgetContext): string {
   }
 
   if (context.spendingProjection) {
-    parts.push(`\n\nMonthly Spending Projection:\n${context.spendingProjection}`);
+    parts.push(
+      `\n\nMonthly Spending Projection:\n${context.spendingProjection}`,
+    );
   }
 
   if (context.categoryForecasts) {
@@ -321,7 +345,9 @@ function buildSystemPrompt(context: BudgetContext): string {
   }
 
   if (context.queryResult) {
-    parts.push(`\n\nQuery Result (from your previous query):\n${context.queryResult}`);
+    parts.push(
+      `\n\nQuery Result (from your previous query):\n${context.queryResult}`,
+    );
   }
 
   return parts.join('\n');
@@ -393,9 +419,18 @@ function extractBalancedJson(content: string, startPos: number): string | null {
 
   for (let j = startPos; j < content.length; j++) {
     const ch = content[j];
-    if (escaped) { escaped = false; continue; }
-    if (ch === '\\' && inString) { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
     if (inString) continue;
     if (ch === '{') depth++;
     else if (ch === '}') depth--;
@@ -413,13 +448,24 @@ function tryParseActionJson(json: string): BudgetAction | null {
     if (!rawType) return null;
 
     if (QUERY_TYPE_NAMES.includes(rawType)) {
-      const FILTER_KEYS = ['startDate', 'endDate', 'payee', 'payeeId', 'category', 'categoryId', 'accountId', 'amountMin', 'amountMax', 'notes'];
+      const FILTER_KEYS = [
+        'startDate',
+        'endDate',
+        'payee',
+        'payeeId',
+        'category',
+        'categoryId',
+        'accountId',
+        'amountMin',
+        'amountMax',
+        'notes',
+      ];
       const META_KEYS = ['type', 'description', 'params'];
       const hasParams = parsed.params && typeof parsed.params === 'object';
       const sourceParams = hasParams
         ? (parsed.params as Record<string, unknown>)
         : Object.fromEntries(
-            Object.entries(parsed).filter(([k]) => !META_KEYS.includes(k))
+            Object.entries(parsed).filter(([k]) => !META_KEYS.includes(k)),
           );
 
       const filters: Record<string, unknown> = {};
@@ -503,9 +549,7 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
 }
 
 export function stripActionBlock(content: string): string {
-  let result = content
-    .replace(/```action\s*\n[\s\S]*?\n```\s*/g, '')
-    .trim();
+  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
 
   const jsonFenceMatch = result.match(/```json\s*\n([\s\S]*?)\n```/);
   if (jsonFenceMatch && tryParseActionJson(jsonFenceMatch[1])) {
@@ -519,8 +563,14 @@ export function stripActionBlock(content: string): string {
       for (let i = 0; i < result.length; i++) {
         if (result[i] !== '{') continue;
         const candidate = extractBalancedJson(result, i);
-        if (candidate && candidate.includes('"type"') && tryParseActionJson(candidate)) {
-          result = (result.substring(0, i) + result.substring(i + candidate.length)).trim();
+        if (
+          candidate &&
+          candidate.includes('"type"') &&
+          tryParseActionJson(candidate)
+        ) {
+          result = (
+            result.substring(0, i) + result.substring(i + candidate.length)
+          ).trim();
           found = true;
           break;
         }
@@ -545,7 +595,9 @@ export async function sendChatMessage(
   const apiMessages = [
     { role: 'system' as const, content: systemPrompt },
     ...messages
-      .filter(m => m.role !== 'system' && !m.content.startsWith(QUERYING_PREFIX))
+      .filter(
+        m => m.role !== 'system' && !m.content.startsWith(QUERYING_PREFIX),
+      )
       .map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
@@ -558,7 +610,8 @@ export async function sendChatMessage(
   };
 
   if (endpoint.includes('openrouter.ai')) {
-    headers['HTTP-Referer'] = globalThis.location?.origin || 'https://actualbudget.org';
+    headers['HTTP-Referer'] =
+      globalThis.location?.origin || 'https://actualbudget.org';
     headers['X-Title'] = 'Actual Budget AI Assistant';
   }
 

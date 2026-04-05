@@ -47,7 +47,8 @@ function getDateRange(filters?: TransactionQueryFilters): {
   const now = new Date();
   const endDate = filters?.endDate || now.toISOString().split('T')[0];
   const defaultStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-  const startDate = filters?.startDate || defaultStart.toISOString().split('T')[0];
+  const startDate =
+    filters?.startDate || defaultStart.toISOString().split('T')[0];
   return { startDate, endDate };
 }
 
@@ -263,9 +264,7 @@ function formatSpendingSummary(summary: SpendingSummary): string {
   return lines.join('\n');
 }
 
-async function fetchBudgetComparison(
-  month: string,
-): Promise<BudgetComparison> {
+async function fetchBudgetComparison(month: string): Promise<BudgetComparison> {
   const bm = (await send('api/budget-month', { month })) as {
     totalBudgeted?: number;
     totalSpent?: number;
@@ -383,9 +382,7 @@ async function fetchBudgetMonth(month: string): Promise<string> {
   lines.push(`Budget for ${month}:`);
   lines.push(`- To Budget (available): ${formatCurrency(bm.toBudget ?? 0)}`);
   lines.push(`- Total Budgeted: ${formatCurrency(bm.totalBudgeted ?? 0)}`);
-  lines.push(
-    `- Total Spent: ${formatCurrency(Math.abs(bm.totalSpent ?? 0))}`,
-  );
+  lines.push(`- Total Spent: ${formatCurrency(Math.abs(bm.totalSpent ?? 0))}`);
 
   if (bm.categoryGroups) {
     lines.push('\nCategory Budgets:');
@@ -421,7 +418,12 @@ export async function executeQuery(
 
     case 'spending-by-category': {
       const txns = await fetchFilteredTransactions(action.filters, maps);
-      const summary = computeSpendingSummary(txns, 'category', startDate, endDate);
+      const summary = computeSpendingSummary(
+        txns,
+        'category',
+        startDate,
+        endDate,
+      );
       return formatSpendingSummary(summary);
     }
 
@@ -466,8 +468,7 @@ export async function executeQuery(
     }
 
     case 'budget-vs-actual': {
-      const month =
-        action.month || new Date().toISOString().substring(0, 7);
+      const month = action.month || new Date().toISOString().substring(0, 7);
       const comparison = await fetchBudgetComparison(month);
       return formatBudgetComparison(comparison);
     }
@@ -514,8 +515,7 @@ export async function executeQuery(
     }
 
     case 'budget-month': {
-      const month =
-        action.month || new Date().toISOString().substring(0, 7);
+      const month = action.month || new Date().toISOString().substring(0, 7);
       return await fetchBudgetMonth(month);
     }
 
@@ -597,8 +597,7 @@ export async function executeQuery(
       const lookback = action.lookbackMonths || 6;
       const lookbackDate = new Date();
       lookbackDate.setMonth(lookbackDate.getMonth() - lookback);
-      const filterType =
-        action.payee ? 'payee' : 'category';
+      const filterType = action.payee ? 'payee' : 'category';
       const filterName = action.payee || action.category;
       const txns = await fetchFilteredTransactions(
         {

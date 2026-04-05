@@ -23,19 +23,28 @@ export function useBudgetContext() {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    const [accountsRaw, categoriesRaw, categoryGroupsRaw, payeesRaw, schedulesRaw] =
-      await Promise.all([
-        send('api/accounts-get'),
-        send('api/categories-get', { grouped: false }),
-        send('api/category-groups-get'),
-        send('api/payees-get'),
-        send('api/schedules-get').catch(() => []),
-      ]);
+    const [
+      accountsRaw,
+      categoriesRaw,
+      categoryGroupsRaw,
+      payeesRaw,
+      schedulesRaw,
+    ] = await Promise.all([
+      send('api/accounts-get'),
+      send('api/categories-get', { grouped: false }),
+      send('api/category-groups-get'),
+      send('api/payees-get'),
+      send('api/schedules-get').catch(() => []),
+    ]);
 
     const rawAccounts = accountsRaw as Array<{ id: string }>;
-    const budgetFingerprint = rawAccounts.length > 0
-      ? rawAccounts.map(a => a.id).sort().join(':')
-      : 'empty-budget';
+    const budgetFingerprint =
+      rawAccounts.length > 0
+        ? rawAccounts
+            .map(a => a.id)
+            .sort()
+            .join(':')
+        : 'empty-budget';
     setBudgetId(budgetFingerprint);
     setMemoryBudgetId(budgetFingerprint);
 
@@ -114,18 +123,25 @@ export function useBudgetContext() {
         amount?: number;
         payee?: string;
         account?: string;
-        date?: { frequency?: string; interval?: number; start?: string } | string;
+        date?:
+          | { frequency?: string; interval?: number; start?: string }
+          | string;
         completed?: boolean;
       }>
     ).map(s => {
       let frequency: string | undefined;
       if (s.date && typeof s.date === 'object' && s.date.frequency) {
         const interval = s.date.interval || 1;
-        if (s.date.frequency === 'monthly' && interval === 1) frequency = 'monthly';
-        else if (s.date.frequency === 'weekly' && interval === 1) frequency = 'weekly';
-        else if (s.date.frequency === 'weekly' && interval === 2) frequency = 'biweekly';
-        else if (s.date.frequency === 'monthly' && interval === 3) frequency = 'quarterly';
-        else if (s.date.frequency === 'yearly' && interval === 1) frequency = 'yearly';
+        if (s.date.frequency === 'monthly' && interval === 1)
+          frequency = 'monthly';
+        else if (s.date.frequency === 'weekly' && interval === 1)
+          frequency = 'weekly';
+        else if (s.date.frequency === 'weekly' && interval === 2)
+          frequency = 'biweekly';
+        else if (s.date.frequency === 'monthly' && interval === 3)
+          frequency = 'quarterly';
+        else if (s.date.frequency === 'yearly' && interval === 1)
+          frequency = 'yearly';
         else frequency = `every ${interval} ${s.date.frequency}`;
       }
       return {
@@ -269,7 +285,9 @@ export function useBudgetContext() {
             date: tx.date,
             amount: tx.amount,
             payee_name: tx.payee ? payeeMap.get(tx.payee) : undefined,
-            category_name: tx.category ? categoryMap.get(tx.category) : undefined,
+            category_name: tx.category
+              ? categoryMap.get(tx.category)
+              : undefined,
           });
         }
       }
@@ -390,10 +408,7 @@ export function useBudgetContext() {
   }, []);
 
   const runQuery = useCallback(
-    async (
-      action: QueryAction,
-      context: BudgetContext,
-    ): Promise<string> => {
+    async (action: QueryAction, context: BudgetContext): Promise<string> => {
       const payeeMap = new Map<string, string>();
       if (context.payees) {
         for (const p of context.payees) {
@@ -432,7 +447,10 @@ export function useBudgetContext() {
       const accountsRaw = await send('api/accounts-get');
       const rawAccounts = accountsRaw as Array<{ id: string }>;
       if (rawAccounts.length > 0) {
-        const budgetFingerprint = rawAccounts.map(a => a.id).sort().join(':');
+        const budgetFingerprint = rawAccounts
+          .map(a => a.id)
+          .sort()
+          .join(':');
         setBudgetId(budgetFingerprint);
         setMemoryBudgetId(budgetFingerprint);
       }

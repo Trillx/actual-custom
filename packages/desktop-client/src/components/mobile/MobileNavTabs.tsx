@@ -190,7 +190,10 @@ export function MobileNavTabs() {
   );
 
   const totalTabs = navTabs.length + 1;
-  const bufferTabsCount = totalTabs % COLUMN_COUNT === 0 ? 0 : COLUMN_COUNT - (totalTabs % COLUMN_COUNT);
+  const bufferTabsCount =
+    totalTabs % COLUMN_COUNT === 0
+      ? 0
+      : COLUMN_COUNT - (totalTabs % COLUMN_COUNT);
   const bufferTabs = Array.from({ length: bufferTabsCount }).map((_, idx) => (
     <div key={idx} style={navTabStyle} />
   ));

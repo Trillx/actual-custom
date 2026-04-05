@@ -26,11 +26,7 @@ import { useResizeObserver } from '@desktop-client/hooks/useResizeObserver';
 import { replaceModal } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
-export function Sidebar({
-  onToggleChat,
-}: {
-  onToggleChat?: () => void;
-}) {
+export function Sidebar({ onToggleChat }: { onToggleChat?: () => void }) {
   const hasWindowButtons = !Platform.isBrowser && Platform.OS === 'mac';
 
   const { t } = useTranslation();
