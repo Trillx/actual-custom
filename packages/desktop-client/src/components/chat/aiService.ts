@@ -1,13 +1,13 @@
-import { ACTUAL_DOCS_KNOWLEDGE } from './actualDocsKnowledge';
-import { getMemories } from './memoryStorage';
+import { ACTUAL_DOCS_KNOWLEDGE } from "./actualDocsKnowledge";
+import { getMemories } from "./memoryStorage";
 import type {
   BudgetAction,
   BudgetContext,
   ChatMessage,
   QueryAction,
-} from './types';
+} from "./types";
 
-const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
 function formatCurrency(amount: number): string {
   const abs = Math.abs(amount / 100).toFixed(2);
@@ -18,17 +18,17 @@ function buildSystemPrompt(context: BudgetContext): string {
   const parts: string[] = [];
 
   parts.push(
-    'You are a helpful personal finance assistant for the Actual Budget app. ' +
-      'You help users understand their budget, spending, and finances. ' +
-      'You have deep knowledge of Actual Budget features from the official documentation (provided below as a knowledge base). ' +
-      'Use this knowledge to give accurate guidance on budgeting concepts, features like rules, schedules, transfers, credit cards, payees, and more. ' +
-      'Be concise and helpful. Format currency amounts with $ and two decimal places. ' +
-      'All amounts in the data are in cents (divide by 100 for dollars). ' +
-      'Negative amounts represent money spent/outflow, positive amounts represent income/inflow.\n\n' +
-      'IMPORTANT: When the user asks you to perform a WRITE action (set a budget amount, add a transaction, create a category, etc.), ' +
-      'you MUST respond with a JSON action block on its own line, wrapped like this:\n' +
+    "You are a helpful personal finance assistant for the Actual Budget app. " +
+      "You help users understand their budget, spending, and finances. " +
+      "You have deep knowledge of Actual Budget features from the official documentation (provided below as a knowledge base). " +
+      "Use this knowledge to give accurate guidance on budgeting concepts, features like rules, schedules, transfers, credit cards, payees, and more. " +
+      "Be concise and helpful. Format currency amounts with $ and two decimal places. " +
+      "All amounts in the data are in cents (divide by 100 for dollars). " +
+      "Negative amounts represent money spent/outflow, positive amounts represent income/inflow.\n\n" +
+      "IMPORTANT: When the user asks you to perform a WRITE action (set a budget amount, add a transaction, create a category, etc.), " +
+      "you MUST respond with a JSON action block on its own line, wrapped like this:\n" +
       '```action\n{"type":"<action-type>","description":"<human readable description>","params":{...}}\n```\n\n' +
-      'Available WRITE action types:\n' +
+      "Available WRITE action types:\n" +
       '- "set-budget-amount": params: {month, categoryId, amount} (amount in cents, ABSOLUTE value — this sets the total budget to this amount, NOT an increment. When adding $X to an existing budget, calculate: existing_budgeted_amount + X)\n' +
       '- "add-transaction": params: {accountId, date, amount, payee_name, category_id, notes} (amount in cents, negative for expenses)\n' +
       '- "update-transaction": params: {transactionId, date?, amount?, payee_name?, category_id?, notes?} (only include fields to change, amount in cents)\n' +
@@ -65,7 +65,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "create-rule": params: {containsPattern?, fromNames?, toPayee} — Create a payee rename rule. Two modes:\n' +
       '  (a) Contains mode (preferred for normalization): set containsPattern to a substring (e.g., "netflix") — catches ALL current and future variants containing that text (case-insensitive). Example: containsPattern:"netflix", toPayee:"Netflix" will match "NETFLIX.COM", "Netflix Inc", "NETFLIX 123", etc.\n' +
       '  (b) Exact match mode: set fromNames to an array of specific imported payee strings (e.g., ["NETFLIX.COM", "Netflix Inc"]). Use this only when you need to match specific strings without catching other variants.\n' +
-      '  toPayee is the clean canonical payee name. Provide either containsPattern OR fromNames, not both.\n' +
+      "  toPayee is the clean canonical payee name. Provide either containsPattern OR fromNames, not both.\n" +
       '- "delete-rule": params: {ruleId} — Delete an existing rule by its ID. Use list-rules first to find rule IDs.\n' +
       '- "list-rules": params: {} — List all existing rules. This is a read-only action that auto-executes without confirmation, like list-memories.\n\n' +
       'When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.\n\n' +
@@ -74,50 +74,49 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
       'Use "close-account" when the user wants to close an account. Warn if the account has a non-zero balance.\n' +
       'Use "reopen-account" when the user wants to reopen a previously closed account.\n\n' +
-      'CRITICAL — Budget amounts are ABSOLUTE, not incremental:\n' +
+      "CRITICAL — Budget amounts are ABSOLUTE, not incremental:\n" +
       '"set-budget-amount" and "bulk-set-budget" SET the total budget to the specified amount. They do NOT add to the existing budget.\n' +
-      'When adjusting a budget upward (e.g., to cover overspending), you MUST calculate the new total: new_amount = current_budgeted + adjustment.\n' +
-      'Example: Food is budgeted $400 (40000 cents) and overspent by $81. To cover the overspend, set amount to 48100 (40000 + 8100), NOT 8100.\n' +
+      "When adjusting a budget upward (e.g., to cover overspending), you MUST calculate the new total: new_amount = current_budgeted + adjustment.\n" +
+      "Example: Food is budgeted $400 (40000 cents) and overspent by $81. To cover the overspend, set amount to 48100 (40000 + 8100), NOT 8100.\n" +
       'For multi-category redistribution or rebalancing (adjusting 2+ categories at once), ALWAYS use "bulk-set-budget" so the user only needs to confirm ONCE. ' +
       "Look up each category's current budgeted amount from the Category Budgets context and add the adjustment to get the new absolute total for each.\n" +
       'Use "transfer-budget" ONLY for simple one-to-one transfers between exactly two categories.\n\n' +
       'IMPORTANT — Creating multiple category groups from scratch: When the user asks to create or set up multiple new category groups (e.g., "create Housing, Groceries, Entertainment groups with subcategories"), ' +
       'ALWAYS use "bulk-create-category-groups" to create them all in one action. Do NOT use individual "create-category-group" actions one at a time.\n\n' +
-      'IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their EXISTING categories into new groups, ' +
+      "IMPORTANT — Reorganizing categories: When the user asks to reorganize, rearrange, or restructure their EXISTING categories into new groups, " +
       'ALWAYS use the "reorganize-categories" action. This handles everything in a single step: creating new groups, moving existing categories by name (or creating them if they do not already exist), and deleting old empty groups. ' +
-      'Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history. ' +
+      "Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history. " +
       'Do NOT use individual "create-category-group", "move-category", or "delete-category-group" actions for reorganization — use "reorganize-categories" instead.\n\n' +
-      'After the action block(s), add a brief explanation of what will happen. ' +
-      'The user will need to confirm the actions before they execute. ' +
-      'You may include MULTIPLE action blocks in a single response when the user\'s request involves multiple distinct steps ' +
+      "After the action block(s), add a brief explanation of what will happen. " +
+      "The user will need to confirm the actions before they execute. " +
+      "You may include MULTIPLE action blocks in a single response when the user's request involves multiple distinct steps " +
       '(e.g., "create a schedule for rent and add a rule to categorize the payee"). ' +
-      'Order actions logically — put prerequisite actions first (e.g., create a payee before creating a rule that references it). ' +
-      'Each action block must be a separate ```action fenced block. ' +
-      'If a later action depends on a result from an earlier action, use {{<key>}} placeholders in params — available keys are: ' +
-      '{{<action_type>_result_id}} for the ID extracted from the most recent action of that type (e.g., {{create-schedule_result_id}}), ' +
-      'and {{action_<id>_result}} for the full result text of a specific action. ' +
+      "Order actions logically — put prerequisite actions first (e.g., create a payee before creating a rule that references it). " +
+      "Each action block must be a separate ```action fenced block. " +
+      "If a later action depends on a result from an earlier action, use {{<key>}} placeholders in params — available keys are: " +
+      "{{<action_type>_result_id}} for the ID extracted from the most recent action of that type (e.g., {{create-schedule_result_id}}), " +
+      "and {{action_<id>_result}} for the full result text of a specific action. " +
       'Note: "reorganize-categories", "bulk-create-category-groups", and "bulk-update-transactions" each count as a single action even though they perform multiple steps internally.\n\n' +
       'IMPORTANT — Bulk transaction categorization: When the user asks to categorize multiple uncategorized transactions (e.g., "categorize all my uncategorized transactions", "fix my uncategorized stuff"), ' +
       'ALWAYS use "bulk-update-transactions" to update them all in a single action. Do NOT use individual "update-transaction" actions one at a time, and NEVER dump raw JSON into your response text.\n\n' +
-      'SMART AUTO-CATEGORIZATION WORKFLOW:\n' +
-      'When the user asks to categorize uncategorized transactions, follow this multi-step process:\n' +
-      '1. First, query uncategorized transactions: use search-transactions with filters: {uncategorized: true}. Results are grouped by payee with transaction IDs listed for each group.\n' +
-      '2. Then, query payee-category-history to get historical payee→category mappings and the full category list with IDs.\n' +
-      '3. Cross-reference uncategorized transaction payees against the history:\n' +
-      '   - For payees WITH history matches: use the historical category (high confidence). These are reliable.\n' +
-      '   - For payees WITHOUT history: use your general knowledge of the merchant/payee name to pick the best-matching category from the Available Categories list. Mark these as "AI suggestion" in your response.\n' +
-      '   - Also check saved categorization memories (listed in context) for additional matches.\n' +
-      '   - For payees you truly cannot identify, group them separately and ask the user what category to use.\n' +
-      '4. Present a summary grouping transactions by suggested category, clearly distinguishing:\n' +
-      '   - "Based on your history" (high confidence) vs "AI suggestion" (best guess from merchant name)\n' +
-      '   - Show payee name, count of transactions, and suggested category for each group\n' +
-      '5. Emit a single bulk-update-transactions action with all the categorization suggestions (using transaction IDs from step 1 and category IDs from step 2).\n' +
-      '6. IMPORTANT: Only use category IDs that appear in the Available Categories list from the payee-category-history result. Never invent category names or IDs.\n\n' +
-      'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
-      '(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), ' +
-      'you MUST respond with a QUERY action block:\n' +
+      "SMART AUTO-CATEGORIZATION WORKFLOW:\n" +
+      'When the user asks to categorize uncategorized transactions, use the "auto-categorize" query type. It does everything in ONE query:\n' +
+      "- Fetches all uncategorized transactions grouped by payee (with transaction IDs)\n" +
+      "- Looks up historical payee→category patterns with confidence levels\n" +
+      "- Lists all available categories with IDs\n" +
+      "After receiving auto-categorize results, you MUST:\n" +
+      '1. For payees marked "HISTORY": use the suggested category (it is based on the user\'s own past categorization).\n' +
+      '2. For payees marked "NO HISTORY": use your knowledge of the merchant/payee name to pick the best category from the Available Categories list. Mark these as "AI suggestion" in your response.\n' +
+      "3. For payees you truly cannot identify, group them separately and ask the user.\n" +
+      '4. Present a summary distinguishing "Based on your history" vs "AI suggestion" for each payee group.\n' +
+      "5. Emit a SINGLE bulk-update-transactions action with all categorization suggestions (transaction IDs + category IDs from the results).\n" +
+      "6. IMPORTANT: Only use category IDs from the Available Categories list. Never invent category names or IDs.\n" +
+      "CRITICAL: Do NOT issue additional query actions after auto-categorize. You have ALL the data you need.\n\n" +
+      "IMPORTANT: When the user asks analytical questions that need more data than what is in your context " +
+      "(e.g., searching for specific transactions, spending breakdowns, budget comparisons, top payees, or data from other months), " +
+      "you MUST respond with a QUERY action block:\n" +
       '```action\n{"type":"query","description":"<what you are looking up>","params":{"queryType":"<type>","filters":{...},"month":"YYYY-MM","limit":N}}\n```\n\n' +
-      'Available query types:\n' +
+      "Available query types:\n" +
       '- "search-transactions": Search/filter transactions. filters: {startDate, endDate, payee (name search), payeeId, category (name search), categoryId, uncategorized (boolean — when true, finds ALL transactions with NO category assigned across all time; fetches all results without limit), accountId, amountMin, amountMax, notes}\n' +
       '- "spending-by-category": Spending totals grouped by category. filters: {startDate, endDate, accountId}\n' +
       '- "spending-by-payee": Spending totals grouped by payee. filters: {startDate, endDate, accountId}\n' +
@@ -134,21 +133,22 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "detect-anomalies": Find unusual spending this month compared to historical patterns. params: {lookbackMonths: N} (default 6)\n' +
       '- "spending-trend": Analyze month-over-month spending trends. params: {category: "name", payee: "name", lookbackMonths: N} (use category OR payee filter, omit both for all categories)\n' +
       '- "historical-comparison": Compare current month spending to historical averages by category. params: {lookbackMonths: 3|6|12} (default 3)\n' +
-      '- "payee-category-history": Analyze how each payee has been categorized historically. Returns a payee→category mapping with confidence levels (high/medium/low) based on transaction count, plus the full list of available categories with IDs. params: {lookbackMonths: N} (default 12). Use this for smart auto-categorization workflows.\n\n' +
-      'Query actions execute automatically without user confirmation. After the query result is returned to you, ' +
-      'you MUST summarize the results in a natural, helpful way for the user. ' +
+      '- "payee-category-history": Analyze how each payee has been categorized historically. Returns a payee→category mapping with confidence levels (high/medium/low) based on transaction count, plus the full list of available categories with IDs. params: {lookbackMonths: N} (default 12).\n' +
+      '- "auto-categorize": ALL-IN-ONE smart auto-categorization. Fetches all uncategorized transactions, looks up historical payee→category patterns, and returns everything grouped by payee with suggested categories and transaction IDs ready for bulk-update. ALWAYS use this instead of separate search+history queries when the user wants to categorize uncategorized transactions.\n\n' +
+      "Query actions execute automatically without user confirmation. After the query result is returned to you, " +
+      "you MUST summarize the results in a natural, helpful way for the user. " +
       'CRITICAL: If you see a "Query Result" section in the context below, that means your previous query has ALREADY been executed and the data is available. ' +
-      'Do NOT issue another query action for the same data — instead, read the query result and present it to the user in a clear, formatted response. ' +
-      'Never re-query for data that is already provided in the Query Result section. ' +
-      'After a query has been executed and results are provided, you MUST present the results immediately in your response. ' +
-      'Do NOT issue another query action — summarize what was found. If you keep issuing query actions instead of summarizing, the system will fail.\n\n' +
+      "Do NOT issue another query action for the same data — instead, read the query result and present it to the user in a clear, formatted response. " +
+      "Never re-query for data that is already provided in the Query Result section. " +
+      "After a query has been executed and results are provided, you MUST present the results immediately in your response. " +
+      "Do NOT issue another query action — summarize what was found. If you keep issuing query actions instead of summarizing, the system will fail.\n\n" +
       'NEVER respond with "please hold", "let me gather", "I will look up", "let me analyze", "hold on while I", ' +
       '"let me check", or similar waiting/gathering narrative text WITHOUT an action block. ' +
-      'When the user asks for analysis or data lookup, you MUST emit the query action block IMMEDIATELY in your response. ' +
+      "When the user asks for analysis or data lookup, you MUST emit the query action block IMMEDIATELY in your response. " +
       "Act, don't announce. Do not narrate what you plan to do — just do it by including the action block.\n\n" +
       'Date format for filters: "YYYY-MM-DD". Amount filters are in cents (negative for expenses, positive for income). ' +
-      'For example, to find expenses over $50, use amountMax: -5000 (since expenses are negative).\n\n' +
-      'Examples of queries:\n' +
+      "For example, to find expenses over $50, use amountMax: -5000 (since expenses are negative).\n\n" +
+      "Examples of queries:\n" +
       '- User asks "Find all Amazon purchases last month" → use search-transactions with payee filter and date range\n' +
       '- User asks "How much did I spend on dining in Q1?" → use spending-by-category with category and date filters\n' +
       '- User asks "Am I on track this month?" → use budget-vs-actual with current month\n' +
@@ -157,99 +157,99 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- User asks "Compare my last 3 months" → use budget-trend with months array\n' +
       '- User asks "What subscriptions do I have?" → use detect-subscriptions\n' +
       '- User asks "Any unusual spending this month?" → use detect-anomalies\n' +
-      '- User asks "Help me categorize my uncategorized transactions" → use search-transactions with filters: {uncategorized: true} to find them, then use payee-category-history to look up past patterns, then build a bulk-update-transactions action with suggested categories\n' +
+      '- User asks "Help me categorize my uncategorized transactions" → use auto-categorize (single query that finds uncategorized transactions AND looks up historical patterns). Then emit a single bulk-update-transactions action.\n' +
       '- User asks "Am I spending more on dining lately?" → use spending-trend with category "Dining"\n' +
       '- User asks "How does this month compare to my average?" → use historical-comparison\n\n' +
-      'GOAL TRACKING & SPENDING FORECASTING:\n' +
-      'You can help users set and track savings goals, project spending, and analyze what-if scenarios.\n' +
+      "GOAL TRACKING & SPENDING FORECASTING:\n" +
+      "You can help users set and track savings goals, project spending, and analyze what-if scenarios.\n" +
       '- When a user says "I want to save $X by [date]", create a goal using the create-goal action.\n' +
       '- When asked "Am I on track?" or about goal progress, use the goal progress data in context to give a clear answer.\n' +
       '- When asked "Will I stay within budget this month?", use the spending projection data to give an extrapolated estimate.\n' +
       '- When asked about category spending projections (e.g., "How much will I spend on groceries?"), use the category forecast data.\n' +
-      '- When asked about credit card payoff, calculate based on the account balance and recent payment patterns.\n' +
+      "- When asked about credit card payoff, calculate based on the account balance and recent payment patterns.\n" +
       '- When asked "What if I cut [category] by X%?", calculate the monthly and annual savings, and impact on goals.\n' +
       '- When mentioning projections, always state assumptions clearly (e.g., "Based on 15 days of spending at $X/day").\n' +
-      '- When the user asks about spending and has active goals, proactively mention relevant goal progress.\n' +
-      '- Goals persist across sessions. Users can create, update, and delete goals.\n\n' +
-      'MEMORY SYSTEM:\n' +
-      'You have a persistent memory system. Memories survive across chat sessions and page reloads.\n' +
+      "- When the user asks about spending and has active goals, proactively mention relevant goal progress.\n" +
+      "- Goals persist across sessions. Users can create, update, and delete goals.\n\n" +
+      "MEMORY SYSTEM:\n" +
+      "You have a persistent memory system. Memories survive across chat sessions and page reloads.\n" +
       '- When the user teaches you a pattern, rule, or preference (e.g., "Starbucks should always be Dining Out", "I prefer weekly summaries", "my partner\'s name is Alex", "I get paid on the 15th", "ignore transactions under $1"), ' +
       'proactively propose a "save-memory" action to remember it.\n' +
-      '- When making categorization suggestions or performing actions, ALWAYS consult your memories (listed below in context) and apply any relevant rules.\n' +
+      "- When making categorization suggestions or performing actions, ALWAYS consult your memories (listed below in context) and apply any relevant rules.\n" +
       '- When the user says "forget" or "stop remembering" something, use "delete-memory" with the appropriate memoryId.\n' +
       '- When the user asks "what do you remember?" or "show my memories", use "list-memories".\n' +
       '- Memory categories: "categorization" for transaction/category rules, "preference" for general preferences, "context" for personal financial context.\n' +
-      '- Memories persist across chat sessions. Users can also manage memories from the memory panel.\n' +
+      "- Memories persist across chat sessions. Users can also manage memories from the memory panel.\n" +
       '- "list-memories" is a read-only action that auto-executes without confirmation, like query actions.\n' +
       '- "save-memory" and "delete-memory" are write actions that require user confirmation.\n' +
-      '- Only save genuinely useful, lasting preferences — not one-time instructions.\n\n' +
-      'SCHEDULE MANAGEMENT & SUBSCRIPTION CONVERSION:\n' +
-      'You can create, update, and delete scheduled/recurring transactions.\n' +
+      "- Only save genuinely useful, lasting preferences — not one-time instructions.\n\n" +
+      "SCHEDULE MANAGEMENT & SUBSCRIPTION CONVERSION:\n" +
+      "You can create, update, and delete scheduled/recurring transactions.\n" +
       '- Use "create-schedule" for a single new schedule (e.g., "Create a schedule for my Netflix payment").\n' +
       '- Use "update-schedule" to change an existing schedule (e.g., "Update my rent schedule to $1,500"). Reference schedules by their ID from context.\n' +
       '- Use "delete-schedule" to remove an existing schedule (e.g., "Delete the gym membership schedule").\n' +
-      '- When the user asks about subscriptions and detect-subscriptions reveals recurring charges with matchesSchedule=false, proactively suggest creating schedules for them.\n' +
+      "- When the user asks about subscriptions and detect-subscriptions reveals recurring charges with matchesSchedule=false, proactively suggest creating schedules for them.\n" +
       '- Present the untracked subscriptions conversationally: "I found N recurring charges without schedules. Want me to set them up?"\n' +
       '- If the user agrees, IMMEDIATELY emit a "create-schedules-batch" action block with the detected data. For each entry, ALWAYS include: name (use payee name), payee_name, amount (in cents, negative for expenses), frequency, and date. Map frequencies: monthly→frequency:"monthly", weekly→frequency:"weekly", biweekly→frequency:"weekly" interval:2, quarterly→frequency:"monthly" interval:3, yearly→frequency:"yearly".\n' +
       '- CRITICAL — Account assignment: Each detected subscription includes "[account: ...]" showing which account it was charged from. You MUST look up that account name in the Accounts context to get its accountId and include it in the schedule. Do NOT default all schedules to the same account.\n' +
       '- CRITICAL — Due date calculation: Each detected subscription includes "[typical due day: N]" showing what day of the month charges typically occur. Use this to calculate the NEXT occurrence date: take the typical due day, apply it to the next month after lastDate. For example, if lastDate is 2026-03-15 and typical due day is 15, the next date is 2026-04-15. If typical due day is not provided, fall back to calculating from lastDate + frequency. NEVER default all schedules to the 1st of the month.\n' +
-      '- The user confirms the batch once and all schedules are created.\n' +
+      "- The user confirms the batch once and all schedules are created.\n" +
       '- Clearly separate "confirmed" subscriptions (already matching a schedule) from "detected" ones in your response.\n\n' +
-      'SCHEDULE DISCOVERY FLOW (triggered from Schedules page AI Assist button):\n' +
+      "SCHEDULE DISCOVERY FLOW (triggered from Schedules page AI Assist button):\n" +
       'When the user asks you to "analyze transactions and find recurring charges that should be schedules", follow this flow:\n' +
       '1. First, use "detect-subscriptions" to scan their transactions for recurring patterns.\n' +
-      '2. Present a clear summary: list confirmed schedules separately from detected-but-untracked recurring charges.\n' +
-      '3. For untracked charges, show payee name, typical amount, and detected frequency.\n' +
+      "2. Present a clear summary: list confirmed schedules separately from detected-but-untracked recurring charges.\n" +
+      "3. For untracked charges, show payee name, typical amount, and detected frequency.\n" +
       '4. The subscription detection uses fuzzy payee matching — it groups variants like "Netflix", "NETFLIX.COM", "Netflix Inc" automatically. When name variants are detected, they are shown with a ⚠ warning in the results.\n' +
-      '5. If name variants are found:\n' +
+      "5. If name variants are found:\n" +
       '   a. First offer to merge/rename existing duplicate payees using "merge-payees" if applicable.\n' +
       '   b. Then offer to create a contains-based payee rename rule using "create-rule" with containsPattern (e.g., containsPattern:"netflix", toPayee:"Netflix") to catch all future import variants automatically.\n' +
-      '   c. Ask the user which approach they prefer if unsure — merging cleans up past data, rules prevent future messiness.\n' +
+      "   c. Ask the user which approach they prefer if unsure — merging cleans up past data, rules prevent future messiness.\n" +
       '6. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
       '7. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
-      'PAYEE RENAME RULES:\n' +
-      'Rules are powerful automation tools that normalize messy imported payee names.\n' +
+      "PAYEE RENAME RULES:\n" +
+      "Rules are powerful automation tools that normalize messy imported payee names.\n" +
       '- When the user asks about rules, show them, or asks "what rules do I have?", use "list-rules" to fetch and display all rules.\n' +
       '- When the user wants to clean up inconsistent payee names, PREFER containsPattern mode over fromNames — it catches future unseen variants automatically. Use a distinctive substring (e.g., "netflix" for Netflix variants, "spotify" for Spotify variants).\n' +
-      '- Only use fromNames (exact match) when the user specifically wants to match only certain exact strings and not a broad pattern.\n' +
+      "- Only use fromNames (exact match) when the user specifically wants to match only certain exact strings and not a broad pattern.\n" +
       '- When the user wants to remove a rule, use "list-rules" first to find the rule ID, then "delete-rule".\n' +
       '- "list-rules" is a read-only action that auto-executes without confirmation (like list-memories and query actions).\n' +
       '- "create-rule" and "delete-rule" are write actions that require user confirmation.\n\n' +
-      'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
+      "For simple read-only questions that can be answered from the context below, just answer normally without action blocks."
   );
 
-  parts.push('\n\n' + ACTUAL_DOCS_KNOWLEDGE);
+  parts.push("\n\n" + ACTUAL_DOCS_KNOWLEDGE);
 
   const memories = getMemories();
   if (memories.length > 0) {
-    parts.push('\n\nMemories & Preferences:');
+    parts.push("\n\nMemories & Preferences:");
     memories.forEach((m, i) => {
       parts.push(`${i + 1}. [${m.category}] ${m.content} (id: ${m.id})`);
     });
   }
 
   if (context.accounts.length > 0) {
-    parts.push('\n\nAccounts:');
+    parts.push("\n\nAccounts:");
     for (const acct of context.accounts) {
       parts.push(
-        `- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`,
+        `- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`
       );
     }
   }
 
   if (context.closedAccounts && context.closedAccounts.length > 0) {
-    parts.push('\n\nClosed Accounts (can be reopened):');
+    parts.push("\n\nClosed Accounts (can be reopened):");
     for (const acct of context.closedAccounts) {
       parts.push(
-        `- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`,
+        `- ${acct.name} (id: ${acct.id}): $${formatCurrency(acct.balance)}`
       );
     }
   }
 
   if (context.categoryGroups.length > 0 && context.categories.length > 0) {
-    parts.push('\n\nCategory Groups and Categories:');
+    parts.push("\n\nCategory Groups and Categories:");
     for (const group of context.categoryGroups) {
-      const cats = context.categories.filter(c => c.group_id === group.id);
+      const cats = context.categories.filter((c) => c.group_id === group.id);
       if (cats.length > 0) {
         parts.push(`${group.name} (id: ${group.id}):`);
         for (const cat of cats) {
@@ -267,84 +267,96 @@ function buildSystemPrompt(context: BudgetContext): string {
     parts.push(`- Total Spent: $${formatCurrency(Math.abs(bm.totalSpent))}`);
 
     if (bm.categoryBudgets.length > 0) {
-      parts.push('\nCategory Budgets:');
+      parts.push("\nCategory Budgets:");
       for (const cb of bm.categoryBudgets) {
         parts.push(
-          `  - ${cb.name}: budgeted $${formatCurrency(cb.budgeted)}, spent $${formatCurrency(Math.abs(cb.spent))}, remaining $${formatCurrency(cb.balance)}`,
+          `  - ${cb.name}: budgeted $${formatCurrency(
+            cb.budgeted
+          )}, spent $${formatCurrency(
+            Math.abs(cb.spent)
+          )}, remaining $${formatCurrency(cb.balance)}`
         );
       }
     }
   }
 
   if (context.payees && context.payees.length > 0) {
-    parts.push('\n\nPayees:');
+    parts.push("\n\nPayees:");
     for (const p of context.payees) {
       parts.push(`- ${p.name} (id: ${p.id})`);
     }
   }
 
   if (context.schedules.length > 0) {
-    parts.push('\n\nScheduled Transactions:');
+    parts.push("\n\nScheduled Transactions:");
     for (const sched of context.schedules) {
       const amount =
-        sched.amount != null ? `$${formatCurrency(sched.amount)}` : 'unknown';
-      const freq = sched.frequency ? `, ${sched.frequency}` : '';
-      const acct = sched.account_name ? `, account: ${sched.account_name}` : '';
-      const status = sched.completed ? ' [completed]' : '';
+        sched.amount != null ? `$${formatCurrency(sched.amount)}` : "unknown";
+      const freq = sched.frequency ? `, ${sched.frequency}` : "";
+      const acct = sched.account_name ? `, account: ${sched.account_name}` : "";
+      const status = sched.completed ? " [completed]" : "";
       parts.push(
-        `  - ${sched.name || 'Unnamed'} (id: ${sched.id}): next ${sched.next_date || 'N/A'}, amount ${amount}${freq}${acct}${status}`,
+        `  - ${sched.name || "Unnamed"} (id: ${sched.id}): next ${
+          sched.next_date || "N/A"
+        }, amount ${amount}${freq}${acct}${status}`
       );
     }
   }
 
   if (context.subscriptionInsights && context.subscriptionInsights.length > 0) {
     parts.push(
-      '\n\nDetected Recurring Charges (from recent transaction history — use detect-subscriptions query for full details):',
+      "\n\nDetected Recurring Charges (from recent transaction history — use detect-subscriptions query for full details):"
     );
     for (const sub of context.subscriptionInsights) {
       const amount = formatCurrency(Math.abs(sub.amount));
       const status = sub.matchesSchedule
-        ? '✓ confirmed'
+        ? "✓ confirmed"
         : `detected (${sub.confidence})`;
       parts.push(
-        `  - ${sub.payee_name}: $${amount}/${sub.frequency} [${status}]`,
+        `  - ${sub.payee_name}: $${amount}/${sub.frequency} [${status}]`
       );
     }
   }
 
   if (context.anomalyInsights && context.anomalyInsights.length > 0) {
     parts.push(
-      '\n\nSpending Anomalies Detected (use detect-anomalies query for full report):',
+      "\n\nSpending Anomalies Detected (use detect-anomalies query for full report):"
     );
     for (const a of context.anomalyInsights) {
       const amount = formatCurrency(a.amount);
       const avg = formatCurrency(a.average);
       parts.push(
-        `  - ${a.name}: $${amount} vs $${avg} average (${a.deviations}x std dev above normal)`,
+        `  - ${a.name}: $${amount} vs $${avg} average (${a.deviations}x std dev above normal)`
       );
     }
   }
 
   if (context.recentTransactions.length > 0) {
     parts.push(
-      `\n\nRecent Transactions (last 7 days from all accounts — use query actions for broader date ranges or filtered searches):`,
+      `\n\nRecent Transactions (last 7 days from all accounts — use query actions for broader date ranges or filtered searches):`
     );
     for (const tx of context.recentTransactions) {
       const amount = formatCurrency(tx.amount);
-      const payee = tx.payee_name || 'Unknown';
-      const category = tx.category_name || 'Uncategorized';
-      const account = tx.account_name || '';
+      const payee = tx.payee_name || "Unknown";
+      const category = tx.category_name || "Uncategorized";
+      const account = tx.account_name || "";
       parts.push(
-        `  - [id: ${tx.id}] ${tx.date}: ${payee} | $${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
+        `  - [id: ${tx.id}] ${
+          tx.date
+        }: ${payee} | $${amount} | ${category} | ${account}${
+          tx.notes ? ` | ${tx.notes}` : ""
+        }`
       );
     }
   }
 
   if (context.goals && context.goals.length > 0) {
-    parts.push('\n\nSavings Goals:');
+    parts.push("\n\nSavings Goals:");
     for (const g of context.goals) {
       parts.push(
-        `- ${g.name} (id: ${g.id}): target $${(g.targetAmount / 100).toFixed(2)} by ${g.targetDate}`,
+        `- ${g.name} (id: ${g.id}): target $${(g.targetAmount / 100).toFixed(
+          2
+        )} by ${g.targetDate}`
       );
     }
   }
@@ -355,7 +367,7 @@ function buildSystemPrompt(context: BudgetContext): string {
 
   if (context.spendingProjection) {
     parts.push(
-      `\n\nMonthly Spending Projection:\n${context.spendingProjection}`,
+      `\n\nMonthly Spending Projection:\n${context.spendingProjection}`
     );
   }
 
@@ -369,71 +381,72 @@ function buildSystemPrompt(context: BudgetContext): string {
 
   if (context.queryResult) {
     parts.push(
-      `\n\nQuery Result (from your previous query):\n${context.queryResult}`,
+      `\n\nQuery Result (from your previous query):\n${context.queryResult}`
     );
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 const VALID_ACTION_TYPES = [
-  'set-budget-amount',
-  'add-transaction',
-  'update-transaction',
-  'bulk-update-transactions',
-  'delete-transaction',
-  'transfer-between-accounts',
-  'create-category',
-  'create-account',
-  'rename-category',
-  'delete-category',
-  'create-category-group',
-  'move-category',
-  'delete-category-group',
-  'rename-payee',
-  'merge-payees',
-  'copy-previous-month',
-  'set-budget-average',
-  'bulk-set-budget',
-  'transfer-budget',
-  'query',
-  'close-account',
-  'reopen-account',
-  'create-goal',
-  'update-goal',
-  'delete-goal',
-  'bulk-create-category-groups',
-  'reorganize-categories',
-  'create-schedule',
-  'update-schedule',
-  'delete-schedule',
-  'create-schedules-batch',
-  'save-memory',
-  'delete-memory',
-  'list-memories',
-  'create-rule',
-  'delete-rule',
-  'list-rules',
+  "set-budget-amount",
+  "add-transaction",
+  "update-transaction",
+  "bulk-update-transactions",
+  "delete-transaction",
+  "transfer-between-accounts",
+  "create-category",
+  "create-account",
+  "rename-category",
+  "delete-category",
+  "create-category-group",
+  "move-category",
+  "delete-category-group",
+  "rename-payee",
+  "merge-payees",
+  "copy-previous-month",
+  "set-budget-average",
+  "bulk-set-budget",
+  "transfer-budget",
+  "query",
+  "close-account",
+  "reopen-account",
+  "create-goal",
+  "update-goal",
+  "delete-goal",
+  "bulk-create-category-groups",
+  "reorganize-categories",
+  "create-schedule",
+  "update-schedule",
+  "delete-schedule",
+  "create-schedules-batch",
+  "save-memory",
+  "delete-memory",
+  "list-memories",
+  "create-rule",
+  "delete-rule",
+  "list-rules",
 ];
 
 const QUERY_TYPE_NAMES = [
-  'search-transactions',
-  'spending-by-category',
-  'spending-by-payee',
-  'spending-by-month',
-  'budget-vs-actual',
-  'top-payees',
-  'top-categories',
-  'budget-month',
-  'budget-trend',
-  'spending-by-week',
-  'spending-by-quarter',
-  'spending-by-account',
-  'detect-subscriptions',
-  'detect-anomalies',
-  'spending-trend',
-  'historical-comparison',
-  'payee-category-history',
+  "search-transactions",
+  "spending-by-category",
+  "spending-by-payee",
+  "spending-by-month",
+  "budget-vs-actual",
+  "top-payees",
+  "top-categories",
+  "budget-month",
+  "budget-trend",
+  "spending-by-week",
+  "spending-by-quarter",
+  "spending-by-account",
+  "detect-subscriptions",
+  "detect-anomalies",
+  "spending-trend",
+  "historical-comparison",
+  "payee-category-history",
+  "auto-categorize",
 ];
 
 function extractBalancedJson(content: string, startPos: number): string | null {
@@ -447,7 +460,7 @@ function extractBalancedJson(content: string, startPos: number): string | null {
       escaped = false;
       continue;
     }
-    if (ch === '\\' && inString) {
+    if (ch === "\\" && inString) {
       escaped = true;
       continue;
     }
@@ -456,8 +469,8 @@ function extractBalancedJson(content: string, startPos: number): string | null {
       continue;
     }
     if (inString) continue;
-    if (ch === '{') depth++;
-    else if (ch === '}') depth--;
+    if (ch === "{") depth++;
+    else if (ch === "}") depth--;
     if (depth === 0 && j > startPos) {
       return content.substring(startPos, j + 1);
     }
@@ -473,24 +486,24 @@ function tryParseActionJson(json: string): BudgetAction | null {
 
     if (QUERY_TYPE_NAMES.includes(rawType)) {
       const FILTER_KEYS = [
-        'startDate',
-        'endDate',
-        'payee',
-        'payeeId',
-        'category',
-        'categoryId',
-        'uncategorized',
-        'accountId',
-        'amountMin',
-        'amountMax',
-        'notes',
+        "startDate",
+        "endDate",
+        "payee",
+        "payeeId",
+        "category",
+        "categoryId",
+        "uncategorized",
+        "accountId",
+        "amountMin",
+        "amountMax",
+        "notes",
       ];
-      const META_KEYS = ['type', 'description', 'params'];
-      const hasParams = parsed.params && typeof parsed.params === 'object';
+      const META_KEYS = ["type", "description", "params"];
+      const hasParams = parsed.params && typeof parsed.params === "object";
       const sourceParams = hasParams
         ? (parsed.params as Record<string, unknown>)
         : Object.fromEntries(
-            Object.entries(parsed).filter(([k]) => !META_KEYS.includes(k)),
+            Object.entries(parsed).filter(([k]) => !META_KEYS.includes(k))
           );
 
       const filters: Record<string, unknown> = {};
@@ -508,7 +521,7 @@ function tryParseActionJson(json: string): BudgetAction | null {
       }
 
       return {
-        type: 'query',
+        type: "query",
         description: (parsed.description as string) || `Query: ${rawType}`,
         params: queryParams,
       };
@@ -546,7 +559,7 @@ export function parseAllActions(content: string): BudgetAction[] {
 
   if (results.length === 0) {
     for (let i = 0; i < content.length; i++) {
-      if (content[i] !== '{') continue;
+      if (content[i] !== "{") continue;
       const candidate = extractBalancedJson(content, i);
       if (candidate && candidate.includes('"type"')) {
         const result = tryParseActionJson(candidate);
@@ -562,13 +575,13 @@ export function parseAllActions(content: string): BudgetAction[] {
 }
 
 export function stripAllActionBlocks(content: string): string {
-  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, "").trim();
 
   let jsonStripped = result;
   const jsonFenceMatches = [...result.matchAll(/```json\s*\n([\s\S]*?)\n```/g)];
   for (const match of jsonFenceMatches) {
     if (tryParseActionJson(match[1])) {
-      jsonStripped = jsonStripped.replace(match[0], '').trim();
+      jsonStripped = jsonStripped.replace(match[0], "").trim();
     }
   }
   result = jsonStripped;
@@ -577,7 +590,7 @@ export function stripAllActionBlocks(content: string): string {
   while (found) {
     found = false;
     for (let i = 0; i < result.length; i++) {
-      if (result[i] !== '{') continue;
+      if (result[i] !== "{") continue;
       const candidate = extractBalancedJson(result, i);
       if (
         candidate &&
@@ -597,17 +610,17 @@ export function stripAllActionBlocks(content: string): string {
 }
 
 export function parseQueryAction(action: BudgetAction): QueryAction | null {
-  if (action.type !== 'query') return null;
+  if (action.type !== "query") return null;
 
   const params = action.params;
-  const queryType = params.queryType as QueryAction['queryType'];
+  const queryType = params.queryType as QueryAction["queryType"];
   if (!queryType) return null;
 
   if (!QUERY_TYPE_NAMES.includes(queryType)) return null;
 
   return {
     queryType,
-    filters: params.filters as QueryAction['filters'],
+    filters: params.filters as QueryAction["filters"],
     month: params.month as string | undefined,
     months: params.months as string[] | undefined,
     limit: params.limit as number | undefined,
@@ -618,11 +631,11 @@ export function parseQueryAction(action: BudgetAction): QueryAction | null {
 }
 
 export function stripActionBlock(content: string): string {
-  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, "").trim();
 
   const jsonFenceMatch = result.match(/```json\s*\n([\s\S]*?)\n```/);
   if (jsonFenceMatch && tryParseActionJson(jsonFenceMatch[1])) {
-    result = result.replace(/```json\s*\n[\s\S]*?\n```\s*/g, '').trim();
+    result = result.replace(/```json\s*\n[\s\S]*?\n```\s*/g, "").trim();
   }
 
   if (result === content.trim()) {
@@ -630,7 +643,7 @@ export function stripActionBlock(content: string): string {
     while (found) {
       found = false;
       for (let i = 0; i < result.length; i++) {
-        if (result[i] !== '{') continue;
+        if (result[i] !== "{") continue;
         const candidate = extractBalancedJson(result, i);
         if (
           candidate &&
@@ -655,40 +668,40 @@ export async function sendChatMessage(
   messages: ChatMessage[],
   context: BudgetContext,
   endpointUrl?: string,
-  modelName?: string,
+  modelName?: string
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(context);
   const endpoint = endpointUrl?.trim() || DEFAULT_ENDPOINT;
 
-  const QUERYING_PREFIX = 'Querying: ';
+  const QUERYING_PREFIX = "Querying: ";
   const apiMessages = [
-    { role: 'system' as const, content: systemPrompt },
+    { role: "system" as const, content: systemPrompt },
     ...messages
       .filter(
-        m => m.role !== 'system' && !m.content.startsWith(QUERYING_PREFIX),
+        (m) => m.role !== "system" && !m.content.startsWith(QUERYING_PREFIX)
       )
-      .map(m => ({
-        role: m.role as 'user' | 'assistant',
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
         content: m.content,
       })),
   ];
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
   };
 
-  if (endpoint.includes('openrouter.ai')) {
-    headers['HTTP-Referer'] =
-      globalThis.location?.origin || 'https://actualbudget.org';
-    headers['X-Title'] = 'Actual Budget AI Assistant';
+  if (endpoint.includes("openrouter.ai")) {
+    headers["HTTP-Referer"] =
+      globalThis.location?.origin || "https://actualbudget.org";
+    headers["X-Title"] = "Actual Budget AI Assistant";
   }
 
   const response = await fetch(endpoint, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: JSON.stringify({
-      model: modelName?.trim() || 'gpt-4o-mini',
+      model: modelName?.trim() || "gpt-4o-mini",
       messages: apiMessages,
       max_tokens: 2048,
       temperature: 0.7,
@@ -706,5 +719,5 @@ export async function sendChatMessage(
   const data = (await response.json()) as {
     choices: Array<{ message: { content: string } }>;
   };
-  return data.choices[0]?.message?.content || 'No response received.';
+  return data.choices[0]?.message?.content || "No response received.";
 }

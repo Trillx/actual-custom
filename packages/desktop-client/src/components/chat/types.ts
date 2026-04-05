@@ -117,7 +117,8 @@ export type QueryAction = {
     | 'detect-anomalies'
     | 'spending-trend'
     | 'historical-comparison'
-    | 'payee-category-history';
+    | 'payee-category-history'
+    | 'auto-categorize';
   filters?: TransactionQueryFilters;
   month?: string;
   months?: string[];
