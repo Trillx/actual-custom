@@ -570,9 +570,27 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     }
   }, [applyExecutionContext]);
 
+  const queueExecutingRef = useRef<Set<string>>(new Set());
+
+  const buildContextFromPriorActions = useCallback((actions: QueuedAction[], beforeIndex: number): Record<string, string> => {
+    const ctx: Record<string, string> = {};
+    for (let i = 0; i < beforeIndex; i++) {
+      const a = actions[i];
+      if (a.status === 'executed' && a.result) {
+        const resultIdMatch = a.result.match(/(?:id|ID)[:\s]+([a-f0-9-]{36}|[a-f0-9]{8,})/i);
+        if (resultIdMatch) {
+          ctx[`${a.action.type}_result_id`] = resultIdMatch[1];
+        }
+        ctx[`action_${a.id}_result`] = a.result;
+      }
+    }
+    return ctx;
+  }, []);
+
   const handleConfirmQueuedAction = useCallback(async (messageId: string, actionId: string) => {
     const msg = messagesRef.current.find(m => m.id === messageId);
     if (!msg?.pendingActions) return;
+    if (queueExecutingRef.current.has(messageId)) return;
 
     const actionIndex = msg.pendingActions.findIndex(a => a.id === actionId);
     if (actionIndex < 0) return;
@@ -585,12 +603,14 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       .some(a => a.status === 'pending' || a.status === 'executing');
     if (hasPriorPending) return;
 
-    await executeQueuedAction(messageId, queuedAction, {});
-  }, [executeQueuedAction]);
+    const ctx = buildContextFromPriorActions(msg.pendingActions, actionIndex);
+    await executeQueuedAction(messageId, queuedAction, ctx);
+  }, [executeQueuedAction, buildContextFromPriorActions]);
 
   const handleRejectQueuedAction = useCallback((messageId: string, actionId: string) => {
     const msg = messagesRef.current.find(m => m.id === messageId);
     if (!msg?.pendingActions) return;
+    if (queueExecutingRef.current.has(messageId)) return;
 
     const actionIndex = msg.pendingActions.findIndex(a => a.id === actionId);
     if (actionIndex < 0) return;
@@ -615,20 +635,33 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   }, []);
 
   const handleConfirmAllActions = useCallback(async (messageId: string) => {
+    if (queueExecutingRef.current.has(messageId)) return;
+
     const msg = messagesRef.current.find(m => m.id === messageId);
     if (!msg?.pendingActions) return;
 
     const pendingActions = msg.pendingActions.filter(a => a.status === 'pending');
     if (pendingActions.length === 0) return;
 
-    let executionContext: Record<string, string> = {};
+    queueExecutingRef.current.add(messageId);
 
-    for (const qa of pendingActions) {
-      executionContext = await executeQueuedAction(messageId, qa, executionContext);
+    try {
+      let executionContext: Record<string, string> = buildContextFromPriorActions(
+        msg.pendingActions,
+        msg.pendingActions.findIndex(a => a.status === 'pending'),
+      );
+
+      for (const qa of pendingActions) {
+        executionContext = await executeQueuedAction(messageId, qa, executionContext);
+      }
+    } finally {
+      queueExecutingRef.current.delete(messageId);
     }
-  }, [executeQueuedAction]);
+  }, [executeQueuedAction, buildContextFromPriorActions]);
 
   const handleRejectAllActions = useCallback((messageId: string) => {
+    if (queueExecutingRef.current.has(messageId)) return;
+
     setMessages(prev =>
       prev.map(m =>
         m.id === messageId

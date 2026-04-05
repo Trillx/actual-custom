@@ -81,6 +81,7 @@ export function ChatMessage({
 
   const hasMultipleActions = message.pendingActions && message.pendingActions.length > 1;
   const hasPendingInQueue = message.pendingActions?.some(a => a.status === 'pending');
+  const hasExecutingInQueue = message.pendingActions?.some(a => a.status === 'executing');
   const allQueueSettled = message.pendingActions && !message.pendingActions.some(a => a.status === 'pending' || a.status === 'executing');
 
   return (
@@ -419,13 +420,15 @@ export function ChatMessage({
               <Button
                 variant="primary"
                 onPress={() => onConfirmAllActions?.(message.id)}
+                isDisabled={hasExecutingInQueue}
                 style={{ fontSize: 12, borderRadius: 8 }}
               >
-                Confirm All
+                {hasExecutingInQueue ? 'Executing...' : 'Confirm All'}
               </Button>
               <Button
                 variant="bare"
                 onPress={() => onRejectAllActions?.(message.id)}
+                isDisabled={hasExecutingInQueue}
                 style={{ fontSize: 12 }}
               >
                 Cancel All
