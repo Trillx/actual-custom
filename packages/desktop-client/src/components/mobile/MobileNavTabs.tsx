@@ -30,10 +30,6 @@ import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
 const COLUMN_COUNT = 3;
 const PILL_HEIGHT = 15;
 const ROW_HEIGHT = 70;
-const TOTAL_HEIGHT = ROW_HEIGHT * COLUMN_COUNT;
-const OPEN_FULL_Y = 1;
-const OPEN_DEFAULT_Y = TOTAL_HEIGHT - ROW_HEIGHT;
-const HIDDEN_Y = TOTAL_HEIGHT;
 
 export const MOBILE_NAV_HEIGHT = ROW_HEIGHT + PILL_HEIGHT;
 
@@ -43,6 +39,15 @@ export function MobileNavTabs() {
   const syncServerStatus = useSyncServerStatus();
   const isTestEnv = useIsTestEnv();
   const isUsingServer = syncServerStatus !== 'no-server' || isTestEnv;
+
+  const baseTabCount = isUsingServer ? 9 : 8;
+  const tabCount = baseTabCount + 1;
+  const rowCount = Math.ceil(tabCount / COLUMN_COUNT);
+  const totalHeight = ROW_HEIGHT * rowCount;
+  const openFullY = 1;
+  const openDefaultY = totalHeight - ROW_HEIGHT;
+  const hiddenY = totalHeight;
+
   const [navbarState, setNavbarState] = useState<'default' | 'open' | 'hidden'>(
     'default',
   );
@@ -54,7 +59,7 @@ export function MobileNavTabs() {
     maxWidth: `${100 / COLUMN_COUNT}%`,
   };
 
-  const [{ y }, api] = useSpring(() => ({ from: { y: OPEN_DEFAULT_Y } }), []);
+  const [{ y }, api] = useSpring(() => ({ from: { y: openDefaultY } }), []);
 
   const openFull = useCallback(
     ({ canceled }: { canceled?: boolean }) => {
@@ -62,7 +67,7 @@ export function MobileNavTabs() {
       // so we change the spring config to create a nice wobbly effect
       setNavbarState('open');
       void api.start({
-        to: { y: OPEN_FULL_Y },
+        to: { y: openFullY },
         immediate: isTestEnv,
         config: canceled ? config.wobbly : config.stiff,
       });
@@ -74,7 +79,7 @@ export function MobileNavTabs() {
     (velocity = 0) => {
       setNavbarState('default');
       void api.start({
-        to: { y: OPEN_DEFAULT_Y },
+        to: { y: openDefaultY },
         immediate: isTestEnv,
         config: { ...config.stiff, velocity },
       });
@@ -86,7 +91,7 @@ export function MobileNavTabs() {
     (velocity = 0) => {
       setNavbarState('hidden');
       void api.start({
-        to: { y: HIDDEN_Y },
+        to: { y: hiddenY },
         immediate: isTestEnv,
         config: { ...config.stiff, velocity },
       });
@@ -243,7 +248,7 @@ export function MobileNavTabs() {
     {
       from: () => [0, y.get()],
       filterTaps: true,
-      bounds: { top: -TOTAL_HEIGHT, bottom: TOTAL_HEIGHT - ROW_HEIGHT },
+      bounds: { top: -totalHeight, bottom: totalHeight - ROW_HEIGHT },
       axis: 'y',
       rubberband: true,
     },
@@ -259,7 +264,7 @@ export function MobileNavTabs() {
         backgroundColor: theme.mobileNavBackground,
         borderTop: `1px solid ${theme.menuBorder}`,
         ...styles.shadow,
-        height: TOTAL_HEIGHT + PILL_HEIGHT,
+        height: totalHeight + PILL_HEIGHT,
         width: '100%',
         position: 'fixed',
         zIndex: 100,
@@ -284,7 +289,7 @@ export function MobileNavTabs() {
           style={{
             flexDirection: 'row',
             flexWrap: 'wrap',
-            height: TOTAL_HEIGHT,
+            height: totalHeight,
             width: '100%',
           }}
         >
