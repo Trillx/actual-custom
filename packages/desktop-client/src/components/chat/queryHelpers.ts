@@ -46,7 +46,8 @@ function getDateRange(filters?: TransactionQueryFilters): {
 } {
   const now = new Date();
   const endDate = filters?.endDate || now.toISOString().split('T')[0];
-  const defaultStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const defaultLookbackDays = filters?.uncategorized ? 365 * 3 : 90;
+  const defaultStart = new Date(now.getTime() - defaultLookbackDays * 24 * 60 * 60 * 1000);
   const startDate =
     filters?.startDate || defaultStart.toISOString().split('T')[0];
   return { startDate, endDate };
@@ -69,10 +70,11 @@ function buildAqlFilter(filters: TransactionQueryFilters | undefined) {
   if (filters.payee) {
     conditions.push({ 'payee.name': { $like: `%${filters.payee}%` } });
   }
-  if (filters.categoryId) {
+  if (filters.uncategorized) {
+    conditions.push({ category: null });
+  } else if (filters.categoryId) {
     conditions.push({ category: filters.categoryId });
-  }
-  if (filters.category) {
+  } else if (filters.category) {
     conditions.push({ 'category.name': { $like: `%${filters.category}%` } });
   }
   if (filters.amountMin !== undefined) {
@@ -408,12 +410,14 @@ export async function executeQuery(
 
   switch (action.queryType) {
     case 'search-transactions': {
+      const defaultLimit = action.filters?.uncategorized ? 500 : 50;
+      const limit = action.limit || defaultLimit;
       const txns = await fetchFilteredTransactions(
         action.filters,
         maps,
-        action.limit || 50,
+        limit,
       );
-      return formatTransactionList(txns, action.limit || 50);
+      return formatTransactionList(txns, limit);
     }
 
     case 'spending-by-category': {

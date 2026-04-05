@@ -65,6 +65,7 @@ export type TransactionQueryFilters = {
   payeeId?: string;
   category?: string;
   categoryId?: string;
+  uncategorized?: boolean;
   accountId?: string;
   amountMin?: number;
   amountMax?: number;

@@ -104,7 +104,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       'you MUST respond with a QUERY action block:\n' +
       '```action\n{"type":"query","description":"<what you are looking up>","params":{"queryType":"<type>","filters":{...},"month":"YYYY-MM","limit":N}}\n```\n\n' +
       'Available query types:\n' +
-      '- "search-transactions": Search/filter transactions. filters: {startDate, endDate, payee (name search), payeeId, category (name search), categoryId, accountId, amountMin, amountMax, notes}\n' +
+      '- "search-transactions": Search/filter transactions. filters: {startDate, endDate, payee (name search), payeeId, category (name search), categoryId, uncategorized (boolean — when true, finds transactions with NO category assigned; date range automatically extends to 3 years), accountId, amountMin, amountMax, notes}\n' +
       '- "spending-by-category": Spending totals grouped by category. filters: {startDate, endDate, accountId}\n' +
       '- "spending-by-payee": Spending totals grouped by payee. filters: {startDate, endDate, accountId}\n' +
       '- "spending-by-month": Spending totals grouped by month. filters: {startDate, endDate}\n' +
@@ -142,6 +142,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- User asks "Compare my last 3 months" → use budget-trend with months array\n' +
       '- User asks "What subscriptions do I have?" → use detect-subscriptions\n' +
       '- User asks "Any unusual spending this month?" → use detect-anomalies\n' +
+      '- User asks "Help me categorize my uncategorized transactions" → use search-transactions with filters: {uncategorized: true} and a high limit (e.g., 500) to find all of them, then use bulk-update-transactions to categorize\n' +
       '- User asks "Am I spending more on dining lately?" → use spending-trend with category "Dining"\n' +
       '- User asks "How does this month compare to my average?" → use historical-comparison\n\n' +
       'GOAL TRACKING & SPENDING FORECASTING:\n' +
