@@ -380,8 +380,14 @@ function buildSystemPrompt(context: BudgetContext): string {
   }
 
   if (context.queryResult) {
+    const maxQueryLen = 12000;
+    const truncatedResult =
+      context.queryResult.length > maxQueryLen
+        ? context.queryResult.substring(0, maxQueryLen) +
+          "\n... (truncated — use the data above to respond)"
+        : context.queryResult;
     parts.push(
-      `\n\nQuery Result (from your previous query):\n${context.queryResult}`
+      `\n\nQuery Result (from your previous query):\n${truncatedResult}`
     );
   }
 
@@ -703,7 +709,7 @@ export async function sendChatMessage(
     body: JSON.stringify({
       model: modelName?.trim() || "gpt-4o-mini",
       messages: apiMessages,
-      max_tokens: 2048,
+      max_tokens: 8192,
       temperature: 0.7,
     }),
   });
@@ -717,7 +723,17 @@ export async function sendChatMessage(
   }
 
   const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
+    choices: Array<{ message: { content: string }; finish_reason?: string }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+    };
   };
+  if (data.usage) {
+    console.log(
+      `[AI] tokens — prompt: ${data.usage.prompt_tokens}, completion: ${data.usage.completion_tokens}, total: ${data.usage.total_tokens}, finish: ${data.choices[0]?.finish_reason}`
+    );
+  }
   return data.choices[0]?.message?.content || "No response received.";
 }
