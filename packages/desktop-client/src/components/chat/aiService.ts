@@ -93,6 +93,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       '(e.g., "create a schedule for rent and add a rule to categorize the payee"). ' +
       'Order actions logically — put prerequisite actions first (e.g., create a payee before creating a rule that references it). ' +
       'Each action block must be a separate ```action fenced block. ' +
+      'If a later action depends on a result from an earlier action, use {{<key>}} placeholders in params — available keys are: ' +
+      '{{<action_type>_result_id}} for the ID extracted from the most recent action of that type (e.g., {{create-schedule_result_id}}), ' +
+      'and {{action_<id>_result}} for the full result text of a specific action. ' +
       'Note: "reorganize-categories", "bulk-create-category-groups", and "bulk-update-transactions" each count as a single action even though they perform multiple steps internally.\n\n' +
       'IMPORTANT — Bulk transaction categorization: When the user asks to categorize multiple uncategorized transactions (e.g., "categorize all my uncategorized transactions", "fix my uncategorized stuff"), ' +
       'ALWAYS use "bulk-update-transactions" to update them all in a single action. Do NOT use individual "update-transaction" actions one at a time, and NEVER dump raw JSON into your response text.\n\n' +

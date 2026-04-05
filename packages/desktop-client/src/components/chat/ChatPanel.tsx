@@ -327,10 +327,18 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         }
 
         const autoExecTypes = ['list-memories', 'list-rules'];
-        if (action && autoExecTypes.includes(action.type)) {
+        const allActions = parseAllActions(rawResponse);
+        const autoExecActions = allActions.filter(a => autoExecTypes.includes(a.type));
+        const writeActions = allActions.filter(
+          a => a.type !== 'query' && !autoExecTypes.includes(a.type),
+        );
+
+        if (autoExecActions.length > 0 && action && autoExecTypes.includes(action.type)) {
           try {
-            const autoResult = await executeAction(action);
-            currentContext = { ...currentContext, queryResult: autoResult };
+            for (const autoAction of autoExecActions) {
+              const autoResult = await executeAction(autoAction);
+              currentContext = { ...currentContext, queryResult: autoResult };
+            }
             const strippedText = stripActionBlock(rawResponse);
             const statusLabel =
               action.type === 'list-rules'
@@ -347,14 +355,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             setMessages(displayMessages);
             apiHistory = [...apiHistory, autoStatusMsg];
 
-            rawResponse = await sendChatMessage(
-              apiKey,
-              apiHistory,
-              currentContext,
-              endpointUrl || undefined,
-              modelName || undefined,
-            );
-            action = parseAction(rawResponse);
+            if (writeActions.length === 0) {
+              rawResponse = await sendChatMessage(
+                apiKey,
+                apiHistory,
+                currentContext,
+                endpointUrl || undefined,
+                modelName || undefined,
+              );
+              action = parseAction(rawResponse);
+            }
           } catch (autoErr) {
             const autoErrMsg =
               autoErr instanceof Error
@@ -373,11 +383,6 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             return;
           }
         }
-
-        const allActions = parseAllActions(rawResponse);
-        const writeActions = allActions.filter(
-          a => a.type !== 'query' && !autoExecTypes.includes(a.type),
-        );
         const stripped = stripAllActionBlocks(rawResponse);
         const hasWriteActions = writeActions.length > 0;
         let displayContent: string;
