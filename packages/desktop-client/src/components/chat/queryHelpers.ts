@@ -413,7 +413,7 @@ export async function executeQuery(
   switch (action.queryType) {
     case 'search-transactions': {
       const isUncategorized = action.filters?.uncategorized;
-      const limit = action.limit || (isUncategorized ? 0 : 50);
+      const limit = isUncategorized ? 0 : (action.limit || 50);
       const txns = await fetchFilteredTransactions(
         action.filters,
         maps,
