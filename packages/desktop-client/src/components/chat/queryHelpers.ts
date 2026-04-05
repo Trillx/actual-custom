@@ -917,10 +917,15 @@ export async function executeQuery(
         `=== AUTO-CATEGORIZE: ${uncategorizedTxns.length} uncategorized transactions ===\n`
       );
 
-      lines.push("UNCATEGORIZED TRANSACTIONS (grouped by payee):");
+      lines.push("PAYEE GROUPS WITH SUGGESTED CATEGORIES:");
       const groups = new Map<
         string,
-        { displayName: string; payeeId: string; txIds: string[]; total: number }
+        {
+          displayName: string;
+          payeeId: string;
+          txIds: string[];
+          total: number;
+        }
       >();
       for (const tx of uncategorizedTxns) {
         const payee = tx.payee_name || "Unknown";
@@ -942,17 +947,21 @@ export async function executeQuery(
       const sorted = Array.from(groups.entries()).sort(
         (a, b) => b[1].txIds.length - a[1].txIds.length
       );
+
+      let groupIndex = 0;
+      const txIdMap: Record<string, string[]> = {};
       for (const [key, g] of sorted) {
+        groupIndex++;
+        const groupLabel = `G${groupIndex}`;
+        txIdMap[groupLabel] = g.txIds;
         const history = payeeHistory.get(key);
         const historyNote = history
-          ? ` → HISTORY: ${history.topCategoryName} (${history.topCategoryId}), confidence: ${history.confidence}`
-          : " → NO HISTORY (use AI knowledge to suggest category)";
+          ? `HISTORY: ${history.topCategoryName} (${history.topCategoryId}), confidence: ${history.confidence}`
+          : "NO HISTORY";
         lines.push(
-          `- "${g.displayName}" | ${
+          `- ${groupLabel}: "${g.displayName}" | ${
             g.txIds.length
-          } txns | total: ${formatCurrency(g.total)} | IDs: ${g.txIds.join(
-            ", "
-          )}${historyNote}`
+          } txns | ${formatCurrency(g.total)} | ${historyNote}`
         );
       }
 
@@ -964,7 +973,14 @@ export async function executeQuery(
       }
 
       lines.push(
-        "\nIMPORTANT: Respond with a single bulk-update-transactions action using the transaction IDs and category IDs above."
+        "\n--- Transaction ID Map (use in bulk-update-transactions) ---"
+      );
+      for (const [groupLabel, ids] of Object.entries(txIdMap)) {
+        lines.push(`${groupLabel}: ${ids.join(",")}`);
+      }
+
+      lines.push(
+        "\nINSTRUCTIONS: For each group (G1, G2, etc.), assign a category. For HISTORY groups use the suggested category. For NO HISTORY groups, use your knowledge of the payee name. Emit a single bulk-update-transactions action mapping each transaction ID to its categoryId."
       );
 
       return lines.join("\n");
