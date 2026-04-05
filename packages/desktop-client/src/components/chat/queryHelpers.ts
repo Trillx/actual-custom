@@ -656,6 +656,7 @@ export async function executeQuery(
         string,
         Map<string, { categoryId: string; categoryName: string; count: number }>
       >();
+      const payeeDisplayNames = new Map<string, string>();
 
       for (const tx of txns) {
         if (!tx.payee_name || !tx.category_name) continue;
@@ -663,6 +664,7 @@ export async function executeQuery(
 
         if (!payeeStats.has(payeeKey)) {
           payeeStats.set(payeeKey, new Map());
+          payeeDisplayNames.set(payeeKey, tx.payee_name);
         }
         const catMap = payeeStats.get(payeeKey)!;
         const catKey = tx.category_name;
@@ -698,6 +700,7 @@ export async function executeQuery(
           }
           return {
             payeeKey,
+            displayName: payeeDisplayNames.get(payeeKey) || payeeKey,
             topCategory: top.categoryName,
             topCategoryId: top.categoryId,
             totalCount,
@@ -709,7 +712,7 @@ export async function executeQuery(
 
       for (const entry of sortedPayees) {
         lines.push(
-          `- "${entry.payeeKey}" → ${entry.topCategory} (${entry.topCategoryId}) | ${entry.totalCount} txns, ${entry.majorityPct}% majority | confidence: ${entry.confidence}`,
+          `- "${entry.displayName}" → ${entry.topCategory} (${entry.topCategoryId}) | ${entry.totalCount} txns, ${entry.majorityPct}% majority | confidence: ${entry.confidence}`,
         );
       }
 
