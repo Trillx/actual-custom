@@ -23,6 +23,7 @@ type ResolvedTransaction = {
   date: string;
   amount: number;
   payee_name?: string;
+  payee_id?: string;
   category_name?: string;
   category_id?: string;
   account_name?: string;
@@ -153,6 +154,7 @@ async function fetchFilteredTransactions(
     date: tx.date,
     amount: tx.amount,
     payee_name: tx.payee ? maps.payeeMap.get(tx.payee) : undefined,
+    payee_id: tx.payee || undefined,
     category_name: tx.category ? maps.categoryMap.get(tx.category) : undefined,
     category_id: tx.category || undefined,
     account_name: tx.account ? maps.accountMap.get(tx.account) : undefined,
@@ -178,8 +180,9 @@ function formatTransactionList(
     const account = tx.account_name || '';
     const amount = formatCurrency(tx.amount);
     const idPrefix = includeIds ? `[${tx.id}] ` : '';
+    const payeeIdSuffix = includeIds && tx.payee_id ? ` (payeeId: ${tx.payee_id})` : '';
     lines.push(
-      `- ${idPrefix}${tx.date}: ${payee} | ${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
+      `- ${idPrefix}${tx.date}: ${payee}${payeeIdSuffix} | ${amount} | ${category} | ${account}${tx.notes ? ` | ${tx.notes}` : ''}`,
     );
   }
 
@@ -684,12 +687,21 @@ export async function executeQuery(
           const categories = Array.from(catMap.values()).sort((a, b) => b.count - a.count);
           const totalCount = categories.reduce((sum, c) => sum + c.count, 0);
           const top = categories[0];
-          const confidence = totalCount >= 5 ? 'high' : totalCount >= 2 ? 'medium' : 'low';
+          const majorityRatio = top.count / totalCount;
+          let confidence: string;
+          if (totalCount >= 3 && majorityRatio >= 0.8) {
+            confidence = 'high';
+          } else if (totalCount >= 2 && majorityRatio >= 0.5) {
+            confidence = 'medium';
+          } else {
+            confidence = 'low';
+          }
           return {
             payeeKey,
             topCategory: top.categoryName,
             topCategoryId: top.categoryId,
             totalCount,
+            majorityPct: Math.round(majorityRatio * 100),
             confidence,
           };
         })
@@ -697,7 +709,7 @@ export async function executeQuery(
 
       for (const entry of sortedPayees) {
         lines.push(
-          `- "${entry.payeeKey}" → ${entry.topCategory} (${entry.topCategoryId}) | ${entry.totalCount} txns | confidence: ${entry.confidence}`,
+          `- "${entry.payeeKey}" → ${entry.topCategory} (${entry.topCategoryId}) | ${entry.totalCount} txns, ${entry.majorityPct}% majority | confidence: ${entry.confidence}`,
         );
       }
 
