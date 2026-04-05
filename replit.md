@@ -57,9 +57,19 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 3. On each message, the system gathers lightweight baseline context (accounts, categories, budget for current month, a small sample of recent transactions, scheduled transactions). Detailed data is fetched on-demand via query actions only when needed.
 4. Context + conversation history is sent to OpenAI's API (or custom endpoint)
 5. Response is displayed in the chat panel
-6. If the AI proposes a write action (set budget, add transaction, create category/account), a confirmation card is shown
+6. If the AI proposes write action(s), a confirmation card is shown. For multiple actions, the queue UI shows all actions with individual and batch confirm/reject controls.
 7. User must explicitly confirm or cancel before any write operation executes
 8. If the AI proposes a read-only query action, it auto-executes, fetches data, and sends a follow-up request to summarize results
+
+### Action Queue System
+
+The AI can handle compound requests (e.g., "create a schedule for rent and add a rule to categorize the payee") by emitting multiple action blocks in a single response.
+
+- **Multi-action parser**: `parseAllActions()` in `aiService.ts` extracts all fenced action blocks from a response
+- **Queue UI**: When multiple write actions are detected, ChatMessage renders a grouped action list with per-action Confirm/Skip buttons plus batch Confirm All/Cancel All
+- **Sequential execution**: Confirm All executes actions in order, updating status as each completes. Failures don't block remaining actions.
+- **Race protection**: Actions transition atomically from `pending` → `executing` to prevent double-submission
+- **Types**: `QueuedAction` type in `types.ts` tracks per-action id, status, and result
 
 ### Write Actions (with confirmation)
 

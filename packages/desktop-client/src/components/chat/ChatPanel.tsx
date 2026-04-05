@@ -16,9 +16,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import {
   parseAction,
+  parseAllActions,
   parseQueryAction,
   sendChatMessage,
   stripActionBlock,
+  stripAllActionBlocks,
 } from './aiService';
 import { useChat } from './ChatContext';
 import { ChatMessage, shouldShowTimestamp } from './ChatMessage';
@@ -29,7 +31,7 @@ import {
 } from './chatState';
 import { executeAction } from './executeAction';
 import { MemoryPanel } from './MemoryPanel';
-import type { BudgetContext, ChatMessage as ChatMessageType } from './types';
+import type { BudgetContext, ChatMessage as ChatMessageType, QueuedAction } from './types';
 import { useBudgetContext } from './useBudgetContext';
 
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
@@ -372,11 +374,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           }
         }
 
-        const stripped = stripActionBlock(rawResponse);
-        const isWriteAction =
-          action &&
-          action.type !== 'query' &&
-          !autoExecTypes.includes(action.type);
+        const allActions = parseAllActions(rawResponse);
+        const writeActions = allActions.filter(
+          a => a.type !== 'query' && !autoExecTypes.includes(a.type),
+        );
+        const stripped = stripAllActionBlocks(rawResponse);
+        const hasWriteActions = writeActions.length > 0;
         let displayContent: string;
         if (action && action.type === 'query') {
           if (currentContext.queryResult) {
@@ -391,18 +394,32 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               stripped ||
               'I was unable to complete the data lookup. Please try rephrasing your question.';
           }
-        } else {
+        } else if (hasWriteActions && writeActions.length === 1) {
           displayContent =
-            stripped || (isWriteAction ? action!.description : rawResponse);
+            stripped || writeActions[0].description;
+        } else if (hasWriteActions) {
+          displayContent =
+            stripped || writeActions.map(a => a.description).join('\n');
+        } else {
+          displayContent = stripped || rawResponse;
         }
+
+        const queuedActions: QueuedAction[] | undefined = hasWriteActions
+          ? writeActions.map(a => ({
+              id: uuidv4(),
+              action: a,
+              status: 'pending' as const,
+            }))
+          : undefined;
 
         const assistantMessage: ChatMessageType = {
           id: uuidv4(),
           role: 'assistant',
           content: displayContent,
           timestamp: Date.now(),
-          pendingAction: isWriteAction ? action! : undefined,
-          actionStatus: isWriteAction ? 'pending' : undefined,
+          pendingAction: hasWriteActions && writeActions.length === 1 ? writeActions[0] : undefined,
+          actionStatus: hasWriteActions && writeActions.length === 1 ? 'pending' : undefined,
+          pendingActions: queuedActions,
         };
         if (currentRequestId !== requestIdRef.current) return;
         setMessages(prev => [...prev, assistantMessage]);
@@ -471,6 +488,140 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     setMessages(prev =>
       prev.map(m =>
         m.id === messageId ? { ...m, actionStatus: 'rejected' } : m,
+      ),
+    );
+  }, []);
+
+  const handleConfirmQueuedAction = useCallback(async (messageId: string, actionId: string) => {
+    const msg = messagesRef.current.find(m => m.id === messageId);
+    const queuedAction = msg?.pendingActions?.find(a => a.id === actionId);
+    if (!queuedAction || queuedAction.status !== 'pending') return;
+
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              pendingActions: m.pendingActions?.map(a =>
+                a.id === actionId && a.status === 'pending' ? { ...a, status: 'executing' as const } : a,
+              ),
+            }
+          : m,
+      ),
+    );
+
+    try {
+      const result = await executeAction(queuedAction.action);
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                pendingActions: m.pendingActions?.map(a =>
+                  a.id === actionId ? { ...a, status: 'executed' as const, result } : a,
+                ),
+              }
+            : m,
+        ),
+      );
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Action failed';
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                pendingActions: m.pendingActions?.map(a =>
+                  a.id === actionId ? { ...a, status: 'failed' as const, result: errorMsg } : a,
+                ),
+              }
+            : m,
+        ),
+      );
+    }
+  }, []);
+
+  const handleRejectQueuedAction = useCallback((messageId: string, actionId: string) => {
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              pendingActions: m.pendingActions?.map(a =>
+                a.id === actionId ? { ...a, status: 'rejected' as const } : a,
+              ),
+            }
+          : m,
+      ),
+    );
+  }, []);
+
+  const handleConfirmAllActions = useCallback(async (messageId: string) => {
+    const msg = messagesRef.current.find(m => m.id === messageId);
+    if (!msg?.pendingActions) return;
+
+    const pendingActions = msg.pendingActions
+      .filter(a => a.status === 'pending');
+
+    if (pendingActions.length === 0) return;
+
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              pendingActions: m.pendingActions?.map(a =>
+                a.status === 'pending' ? { ...a, status: 'executing' as const } : a,
+              ),
+            }
+          : m,
+      ),
+    );
+
+    for (const qa of pendingActions) {
+      try {
+        const result = await executeAction(qa.action);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  pendingActions: m.pendingActions?.map(a =>
+                    a.id === qa.id ? { ...a, status: 'executed' as const, result } : a,
+                  ),
+                }
+              : m,
+          ),
+        );
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Action failed';
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  pendingActions: m.pendingActions?.map(a =>
+                    a.id === qa.id ? { ...a, status: 'failed' as const, result: errorMsg } : a,
+                  ),
+                }
+              : m,
+          ),
+        );
+      }
+    }
+  }, []);
+
+  const handleRejectAllActions = useCallback((messageId: string) => {
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId
+          ? {
+              ...m,
+              pendingActions: m.pendingActions?.map(a =>
+                a.status === 'pending' ? { ...a, status: 'rejected' as const } : a,
+              ),
+            }
+          : m,
       ),
     );
   }, []);
@@ -759,6 +910,10 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
                 showTimestamp={shouldShowTimestamp(messages, idx)}
                 onConfirmAction={handleConfirmAction}
                 onRejectAction={handleRejectAction}
+                onConfirmQueuedAction={handleConfirmQueuedAction}
+                onRejectQueuedAction={handleRejectQueuedAction}
+                onConfirmAllActions={handleConfirmAllActions}
+                onRejectAllActions={handleRejectAllActions}
               />
             ))}
 

@@ -87,9 +87,13 @@ function buildSystemPrompt(context: BudgetContext): string {
       'ALWAYS use the "reorganize-categories" action. This handles everything in a single step: creating new groups, moving existing categories by name (or creating them if they do not already exist), and deleting old empty groups. ' +
       'Never create new categories with the same name as existing ones during reorganization — always move the originals to preserve their budgeted amounts, spent totals, and transaction history. ' +
       'Do NOT use individual "create-category-group", "move-category", or "delete-category-group" actions for reorganization — use "reorganize-categories" instead.\n\n' +
-      'After the action block, add a brief explanation of what will happen. ' +
-      'The user will need to confirm the action before it executes. ' +
-      'Only include ONE action per response. Note: "reorganize-categories", "bulk-create-category-groups", and "bulk-update-transactions" each count as a single action even though they perform multiple steps internally.\n\n' +
+      'After the action block(s), add a brief explanation of what will happen. ' +
+      'The user will need to confirm the actions before they execute. ' +
+      'You may include MULTIPLE action blocks in a single response when the user\'s request involves multiple distinct steps ' +
+      '(e.g., "create a schedule for rent and add a rule to categorize the payee"). ' +
+      'Order actions logically — put prerequisite actions first (e.g., create a payee before creating a rule that references it). ' +
+      'Each action block must be a separate ```action fenced block. ' +
+      'Note: "reorganize-categories", "bulk-create-category-groups", and "bulk-update-transactions" each count as a single action even though they perform multiple steps internally.\n\n' +
       'IMPORTANT — Bulk transaction categorization: When the user asks to categorize multiple uncategorized transactions (e.g., "categorize all my uncategorized transactions", "fix my uncategorized stuff"), ' +
       'ALWAYS use "bulk-update-transactions" to update them all in a single action. Do NOT use individual "update-transaction" actions one at a time, and NEVER dump raw JSON into your response text.\n\n' +
       'IMPORTANT: When the user asks analytical questions that need more data than what is in your context ' +
@@ -503,28 +507,79 @@ function tryParseActionJson(json: string): BudgetAction | null {
 }
 
 export function parseAction(content: string): BudgetAction | null {
-  const actionMatch = content.match(/```action\s*\n([\s\S]*?)\n```/);
-  if (actionMatch) {
-    const result = tryParseActionJson(actionMatch[1]);
-    if (result) return result;
-  }
+  const all = parseAllActions(content);
+  return all.length > 0 ? all[0] : null;
+}
 
-  const jsonMatch = content.match(/```json\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) {
-    const result = tryParseActionJson(jsonMatch[1]);
-    if (result) return result;
-  }
+export function parseAllActions(content: string): BudgetAction[] {
+  const results: BudgetAction[] = [];
 
-  for (let i = 0; i < content.length; i++) {
-    if (content[i] !== '{') continue;
-    const candidate = extractBalancedJson(content, i);
-    if (candidate && candidate.includes('"type"')) {
-      const result = tryParseActionJson(candidate);
-      if (result) return result;
+  const actionMatches = content.matchAll(/```action\s*\n([\s\S]*?)\n```/g);
+  for (const match of actionMatches) {
+    const result = tryParseActionJson(match[1]);
+    if (result) {
+      results.push(result);
     }
   }
 
-  return null;
+  const jsonMatches = content.matchAll(/```json\s*\n([\s\S]*?)\n```/g);
+  for (const match of jsonMatches) {
+    const result = tryParseActionJson(match[1]);
+    if (result) {
+      results.push(result);
+    }
+  }
+
+  if (results.length === 0) {
+    for (let i = 0; i < content.length; i++) {
+      if (content[i] !== '{') continue;
+      const candidate = extractBalancedJson(content, i);
+      if (candidate && candidate.includes('"type"')) {
+        const result = tryParseActionJson(candidate);
+        if (result) {
+          results.push(result);
+          break;
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+export function stripAllActionBlocks(content: string): string {
+  let result = content.replace(/```action\s*\n[\s\S]*?\n```\s*/g, '').trim();
+
+  let jsonStripped = result;
+  const jsonFenceMatches = [...result.matchAll(/```json\s*\n([\s\S]*?)\n```/g)];
+  for (const match of jsonFenceMatches) {
+    if (tryParseActionJson(match[1])) {
+      jsonStripped = jsonStripped.replace(match[0], '').trim();
+    }
+  }
+  result = jsonStripped;
+
+  let found = true;
+  while (found) {
+    found = false;
+    for (let i = 0; i < result.length; i++) {
+      if (result[i] !== '{') continue;
+      const candidate = extractBalancedJson(result, i);
+      if (
+        candidate &&
+        candidate.includes('"type"') &&
+        tryParseActionJson(candidate)
+      ) {
+        result = (
+          result.substring(0, i) + result.substring(i + candidate.length)
+        ).trim();
+        found = true;
+        break;
+      }
+    }
+  }
+
+  return result;
 }
 
 export function parseQueryAction(action: BudgetAction): QueryAction | null {

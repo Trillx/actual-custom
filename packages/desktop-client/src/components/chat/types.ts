@@ -1,3 +1,10 @@
+export type QueuedAction = {
+  id: string;
+  action: BudgetAction;
+  status: 'pending' | 'confirmed' | 'executing' | 'executed' | 'failed' | 'rejected';
+  result?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -5,6 +12,7 @@ export type ChatMessage = {
   timestamp: number;
   pendingAction?: BudgetAction;
   actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed' | 'failed';
+  pendingActions?: QueuedAction[];
 };
 
 export type BudgetAction = {

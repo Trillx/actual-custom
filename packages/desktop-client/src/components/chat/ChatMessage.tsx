@@ -12,7 +12,7 @@ import { View } from '@actual-app/components/view';
 
 import { formatActionDetails } from './executeAction';
 import { MarkdownText } from './MarkdownText';
-import type { ChatMessage as ChatMessageType } from './types';
+import type { ChatMessage as ChatMessageType, QueuedAction } from './types';
 
 type ChatMessageProps = {
   message: ChatMessageType;
@@ -20,7 +20,49 @@ type ChatMessageProps = {
   showTimestamp?: boolean;
   onConfirmAction?: (messageId: string) => void;
   onRejectAction?: (messageId: string) => void;
+  onConfirmQueuedAction?: (messageId: string, actionId: string) => void;
+  onRejectQueuedAction?: (messageId: string, actionId: string) => void;
+  onConfirmAllActions?: (messageId: string) => void;
+  onRejectAllActions?: (messageId: string) => void;
 };
+
+function ActionStatusBadge({ status, result }: { status: QueuedAction['status']; result?: string }) {
+  if (status === 'executed') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <SvgCheckmark style={{ width: 10, height: 10, color: theme.noticeTextDark }} />
+        <Text style={{ fontSize: 10, color: theme.noticeTextDark }}>Done</Text>
+      </View>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <View style={{ gap: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <SvgExclamationOutline style={{ width: 10, height: 10, color: theme.errorText }} />
+          <Text style={{ fontSize: 10, color: theme.errorText }}>Failed</Text>
+        </View>
+        {result && (
+          <Text style={{ fontSize: 10, color: theme.errorText, fontStyle: 'italic' }}>{result}</Text>
+        )}
+      </View>
+    );
+  }
+  if (status === 'rejected') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <SvgClose style={{ width: 10, height: 10, color: theme.pageTextSubdued }} />
+        <Text style={{ fontSize: 10, color: theme.pageTextSubdued }}>Skipped</Text>
+      </View>
+    );
+  }
+  if (status === 'executing') {
+    return (
+      <Text style={{ fontSize: 10, color: theme.pageTextSubdued, fontStyle: 'italic' }}>Running...</Text>
+    );
+  }
+  return null;
+}
 
 export function ChatMessage({
   message,
@@ -28,10 +70,18 @@ export function ChatMessage({
   showTimestamp = true,
   onConfirmAction,
   onRejectAction,
+  onConfirmQueuedAction,
+  onRejectQueuedAction,
+  onConfirmAllActions,
+  onRejectAllActions,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const maxBubbleWidth = isNarrowWidth ? '85%' : '88%';
   const fontSize = isNarrowWidth ? 14 : 13;
+
+  const hasMultipleActions = message.pendingActions && message.pendingActions.length > 1;
+  const hasPendingInQueue = message.pendingActions?.some(a => a.status === 'pending');
+  const allQueueSettled = message.pendingActions && !message.pendingActions.some(a => a.status === 'pending' || a.status === 'executing');
 
   return (
     <View
@@ -86,7 +136,7 @@ export function ChatMessage({
         )}
       </View>
 
-      {message.pendingAction && message.actionStatus === 'pending' && (
+      {message.pendingAction && message.actionStatus === 'pending' && !hasMultipleActions && (
         <View
           style={{
             marginTop: 6,
@@ -157,7 +207,7 @@ export function ChatMessage({
         </View>
       )}
 
-      {message.pendingAction && message.actionStatus === 'executed' && (
+      {message.pendingAction && message.actionStatus === 'executed' && !hasMultipleActions && (
         <View
           style={{
             marginTop: 4,
@@ -181,7 +231,7 @@ export function ChatMessage({
         </View>
       )}
 
-      {message.pendingAction && message.actionStatus === 'rejected' && (
+      {message.pendingAction && message.actionStatus === 'rejected' && !hasMultipleActions && (
         <View
           style={{
             marginTop: 4,
@@ -205,7 +255,7 @@ export function ChatMessage({
         </View>
       )}
 
-      {message.pendingAction && message.actionStatus === 'failed' && (
+      {message.pendingAction && message.actionStatus === 'failed' && !hasMultipleActions && (
         <View
           style={{
             marginTop: 4,
@@ -226,6 +276,153 @@ export function ChatMessage({
           <Text style={{ fontSize: 11, color: theme.errorText }}>
             Action failed
           </Text>
+        </View>
+      )}
+
+      {hasMultipleActions && (
+        <View
+          style={{
+            marginTop: 6,
+            padding: '10px 12px',
+            backgroundColor: theme.cardBackground,
+            border: `1px solid ${theme.tableBorder}`,
+            borderRadius: 12,
+            minWidth: 0,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 8,
+            }}
+          >
+            <SvgExclamationOutline
+              style={{
+                width: 13,
+                height: 13,
+                color: theme.warningText,
+                flexShrink: 0,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: theme.pageText,
+              }}
+            >
+              {allQueueSettled
+                ? `${message.pendingActions!.filter(a => a.status === 'executed').length} of ${message.pendingActions!.length} actions completed`
+                : `${message.pendingActions!.length} actions to confirm`}
+            </Text>
+          </View>
+
+          {message.pendingActions!.map((qa, idx) => (
+            <View
+              key={qa.id}
+              style={{
+                padding: '8px 10px',
+                marginBottom: idx < message.pendingActions!.length - 1 ? 6 : 0,
+                backgroundColor: qa.status === 'executed'
+                  ? 'rgba(0, 160, 0, 0.04)'
+                  : qa.status === 'failed'
+                  ? 'rgba(200, 0, 0, 0.04)'
+                  : 'transparent',
+                border: `1px solid ${
+                  qa.status === 'executed'
+                    ? 'rgba(0, 160, 0, 0.15)'
+                    : qa.status === 'failed'
+                    ? 'rgba(200, 0, 0, 0.15)'
+                    : String(theme.tableBorder)
+                }`,
+                borderRadius: 8,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginBottom: qa.status === 'pending' ? 4 : 0,
+                }}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: theme.pageText,
+                      marginBottom: 2,
+                    }}
+                  >
+                    {`${idx + 1}. ${qa.action.type}`}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: theme.pageTextSubdued,
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {qa.action.description}
+                  </Text>
+                </View>
+                <View style={{ flexShrink: 0 }}>
+                  <ActionStatusBadge status={qa.status} result={qa.result} />
+                </View>
+              </View>
+
+              {qa.status === 'pending' && (
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                  <Button
+                    variant="primary"
+                    onPress={() => onConfirmQueuedAction?.(message.id, qa.id)}
+                    style={{ fontSize: 11, borderRadius: 6, padding: '3px 10px' }}
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="bare"
+                    onPress={() => onRejectQueuedAction?.(message.id, qa.id)}
+                    style={{ fontSize: 11 }}
+                  >
+                    Skip
+                  </Button>
+                </View>
+              )}
+            </View>
+          ))}
+
+          {hasPendingInQueue && (
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 10,
+                borderTop: `1px solid ${theme.tableBorder}`,
+                paddingTop: 10,
+              }}
+            >
+              <Button
+                variant="primary"
+                onPress={() => onConfirmAllActions?.(message.id)}
+                style={{ fontSize: 12, borderRadius: 8 }}
+              >
+                Confirm All
+              </Button>
+              <Button
+                variant="bare"
+                onPress={() => onRejectAllActions?.(message.id)}
+                style={{ fontSize: 12 }}
+              >
+                Cancel All
+              </Button>
+            </View>
+          )}
         </View>
       )}
 
