@@ -46,8 +46,10 @@ function getDateRange(filters?: TransactionQueryFilters): {
 } {
   const now = new Date();
   const endDate = filters?.endDate || now.toISOString().split('T')[0];
-  const defaultLookbackDays = filters?.uncategorized ? 365 * 3 : 90;
-  const defaultStart = new Date(now.getTime() - defaultLookbackDays * 24 * 60 * 60 * 1000);
+  if (filters?.uncategorized && !filters?.startDate) {
+    return { startDate: '2000-01-01', endDate };
+  }
+  const defaultStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
   const startDate =
     filters?.startDate || defaultStart.toISOString().split('T')[0];
   return { startDate, endDate };
@@ -410,14 +412,14 @@ export async function executeQuery(
 
   switch (action.queryType) {
     case 'search-transactions': {
-      const defaultLimit = action.filters?.uncategorized ? 500 : 50;
-      const limit = action.limit || defaultLimit;
+      const isUncategorized = action.filters?.uncategorized;
+      const limit = action.limit || (isUncategorized ? 0 : 50);
       const txns = await fetchFilteredTransactions(
         action.filters,
         maps,
         limit,
       );
-      return formatTransactionList(txns, limit);
+      return formatTransactionList(txns, isUncategorized ? txns.length : (action.limit || 50));
     }
 
     case 'spending-by-category': {
