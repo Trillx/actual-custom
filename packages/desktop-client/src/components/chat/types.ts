@@ -1,7 +1,7 @@
 export type QueuedAction = {
   id: string;
   action: BudgetAction;
-  status: 'pending' | 'confirmed' | 'executing' | 'executed' | 'failed' | 'rejected';
+  status: 'pending' | 'executing' | 'executed' | 'failed' | 'rejected';
   result?: string;
 };
 

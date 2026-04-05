@@ -31,7 +31,7 @@ import {
 } from './chatState';
 import { executeAction } from './executeAction';
 import { MemoryPanel } from './MemoryPanel';
-import type { BudgetContext, ChatMessage as ChatMessageType, QueuedAction } from './types';
+import type { BudgetAction, BudgetContext, ChatMessage as ChatMessageType, QueuedAction } from './types';
 import { useBudgetContext } from './useBudgetContext';
 
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
@@ -492,6 +492,25 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     );
   }, []);
 
+  const applyExecutionContext = useCallback((
+    action: BudgetAction,
+    ctx: Record<string, string>,
+  ): BudgetAction => {
+    if (Object.keys(ctx).length === 0) return action;
+
+    const resolvedParams = { ...action.params };
+    for (const [paramKey, paramValue] of Object.entries(resolvedParams)) {
+      if (typeof paramValue === 'string') {
+        let resolved = paramValue;
+        for (const [ctxKey, ctxValue] of Object.entries(ctx)) {
+          resolved = resolved.replace(`{{${ctxKey}}}`, ctxValue);
+        }
+        resolvedParams[paramKey] = resolved;
+      }
+    }
+    return { ...action, params: resolvedParams };
+  }, []);
+
   const executeQueuedAction = useCallback(async (
     messageId: string,
     qa: QueuedAction,
@@ -511,7 +530,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     );
 
     try {
-      const result = await executeAction(qa.action);
+      const resolvedAction = applyExecutionContext(qa.action, executionContext);
+      const result = await executeAction(resolvedAction);
       const updatedContext = { ...executionContext };
       const resultIdMatch = result.match(/(?:id|ID)[:\s]+([a-f0-9-]{36}|[a-f0-9]{8,})/i);
       if (resultIdMatch) {
@@ -548,7 +568,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       );
       return executionContext;
     }
-  }, []);
+  }, [applyExecutionContext]);
 
   const handleConfirmQueuedAction = useCallback(async (messageId: string, actionId: string) => {
     const msg = messagesRef.current.find(m => m.id === messageId);

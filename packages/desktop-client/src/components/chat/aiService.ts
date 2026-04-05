@@ -514,16 +514,9 @@ export function parseAction(content: string): BudgetAction | null {
 export function parseAllActions(content: string): BudgetAction[] {
   const results: BudgetAction[] = [];
 
-  const actionMatches = content.matchAll(/```action\s*\n([\s\S]*?)\n```/g);
-  for (const match of actionMatches) {
-    const result = tryParseActionJson(match[1]);
-    if (result) {
-      results.push(result);
-    }
-  }
-
-  const jsonMatches = content.matchAll(/```json\s*\n([\s\S]*?)\n```/g);
-  for (const match of jsonMatches) {
+  const fencedPattern = /```(?:action|json)\s*\n([\s\S]*?)\n```/g;
+  let match;
+  while ((match = fencedPattern.exec(content)) !== null) {
     const result = tryParseActionJson(match[1]);
     if (result) {
       results.push(result);
