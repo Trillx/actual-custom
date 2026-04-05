@@ -167,6 +167,10 @@ function formatTransactionList(
   limit = 50,
   includeIds = false,
 ): string {
+  if (includeIds && transactions.length > 20) {
+    return formatGroupedUncategorized(transactions);
+  }
+
   const lines: string[] = [];
   const displayed = transactions.slice(0, limit);
 
@@ -188,6 +192,46 @@ function formatTransactionList(
 
   const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
   lines.push(`\nTotal: ${formatCurrency(total)}`);
+
+  return lines.join('\n');
+}
+
+function formatGroupedUncategorized(transactions: ResolvedTransaction[]): string {
+  const lines: string[] = [];
+  lines.push(`Found ${transactions.length} uncategorized transactions, grouped by payee:\n`);
+
+  const groups = new Map<
+    string,
+    { displayName: string; payeeId: string; txIds: string[]; total: number }
+  >();
+
+  for (const tx of transactions) {
+    const payee = tx.payee_name || 'Unknown';
+    const key = payee.toLowerCase().trim();
+    const existing = groups.get(key);
+    if (existing) {
+      existing.txIds.push(tx.id);
+      existing.total += tx.amount;
+    } else {
+      groups.set(key, {
+        displayName: payee,
+        payeeId: tx.payee_id || '',
+        txIds: [tx.id],
+        total: tx.amount,
+      });
+    }
+  }
+
+  const sorted = Array.from(groups.values()).sort((a, b) => b.txIds.length - a.txIds.length);
+
+  for (const g of sorted) {
+    lines.push(
+      `- "${g.displayName}" (payeeId: ${g.payeeId}) | ${g.txIds.length} txns | total: ${formatCurrency(g.total)} | IDs: ${g.txIds.join(', ')}`,
+    );
+  }
+
+  const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+  lines.push(`\nGrand total: ${formatCurrency(total)}`);
 
   return lines.join('\n');
 }

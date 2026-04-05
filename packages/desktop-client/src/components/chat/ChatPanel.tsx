@@ -389,8 +389,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         if (action && action.type === 'query') {
           if (currentContext.queryResult) {
             const truncated =
-              currentContext.queryResult.length > 3000
-                ? currentContext.queryResult.substring(0, 3000) +
+              currentContext.queryResult.length > 5000
+                ? currentContext.queryResult.substring(0, 5000) +
                   '\n... (data truncated for display)'
                 : currentContext.queryResult;
             displayContent = `Here are the results from your query:\n\n${truncated}`;

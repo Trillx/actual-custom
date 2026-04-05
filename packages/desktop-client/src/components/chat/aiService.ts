@@ -101,7 +101,7 @@ function buildSystemPrompt(context: BudgetContext): string {
       'ALWAYS use "bulk-update-transactions" to update them all in a single action. Do NOT use individual "update-transaction" actions one at a time, and NEVER dump raw JSON into your response text.\n\n' +
       'SMART AUTO-CATEGORIZATION WORKFLOW:\n' +
       'When the user asks to categorize uncategorized transactions, follow this multi-step process:\n' +
-      '1. First, query uncategorized transactions: use search-transactions with filters: {uncategorized: true}. Results include transaction IDs (in [brackets]) needed for bulk-update.\n' +
+      '1. First, query uncategorized transactions: use search-transactions with filters: {uncategorized: true}. Results are grouped by payee with transaction IDs listed for each group.\n' +
       '2. Then, query payee-category-history to get historical payee→category mappings and the full category list with IDs.\n' +
       '3. Cross-reference uncategorized transaction payees against the history:\n' +
       '   - For payees WITH history matches: use the historical category (high confidence). These are reliable.\n' +
