@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 import { createApp } from '../app';
 import * as db from '../db';
 import { mutator } from '../mutators';
@@ -83,25 +85,34 @@ async function saveChatMessages({
         : null;
 
       if (existingIds.has(msg.id)) {
-        await db.update('chat_messages', {
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          action_status: msg.actionStatus || null,
-          pending_action: pendingAction,
-          pending_actions: pendingActions,
-        });
+        await db.run(
+          `UPDATE chat_messages
+           SET role = ?, content = ?, timestamp = ?, action_status = ?, pending_action = ?, pending_actions = ?
+           WHERE id = ?`,
+          [
+            msg.role,
+            msg.content,
+            msg.timestamp,
+            msg.actionStatus || null,
+            pendingAction,
+            pendingActions,
+            msg.id,
+          ],
+        );
       } else {
-        await db.insertWithUUID('chat_messages', {
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          action_status: msg.actionStatus || null,
-          pending_action: pendingAction,
-          pending_actions: pendingActions,
-        });
+        await db.run(
+          `INSERT INTO chat_messages (id, role, content, timestamp, action_status, pending_action, pending_actions, tombstone)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+          [
+            msg.id,
+            msg.role,
+            msg.content,
+            msg.timestamp,
+            msg.actionStatus || null,
+            pendingAction,
+            pendingActions,
+          ],
+        );
       }
     }
 
@@ -117,7 +128,9 @@ async function saveChatMessages({
         [total.length - MAX_MESSAGES],
       );
       for (const row of toDelete) {
-        await db.delete_('chat_messages', row.id);
+        await db.run(`UPDATE chat_messages SET tombstone = 1 WHERE id = ?`, [
+          row.id,
+        ]);
       }
     }
   } catch {
@@ -127,12 +140,7 @@ async function saveChatMessages({
 
 async function clearChatMessages(): Promise<void> {
   try {
-    const rows = await db.all<{ id: string }>(
-      `SELECT id FROM chat_messages WHERE tombstone = 0`,
-    );
-    for (const row of rows) {
-      await db.delete_('chat_messages', row.id);
-    }
+    await db.run(`UPDATE chat_messages SET tombstone = 1 WHERE tombstone = 0`);
   } catch {
     // table may not exist yet
   }
@@ -170,13 +178,12 @@ async function addChatMemory({
   category: string;
   source: string;
 }): Promise<string> {
-  const id = await db.insertWithUUID('chat_memories', {
-    ...(existingId ? { id: existingId } : {}),
-    content,
-    category,
-    created_at: Date.now(),
-    source,
-  });
+  const id = existingId || uuidv4();
+  await db.run(
+    `INSERT INTO chat_memories (id, content, category, created_at, source, tombstone)
+     VALUES (?, ?, ?, ?, ?, 0)`,
+    [id, content, category, Date.now(), source],
+  );
   return id;
 }
 
@@ -189,22 +196,33 @@ async function updateChatMemory({
   content?: string;
   category?: string;
 }): Promise<void> {
-  const updates: Record<string, unknown> = { id };
-  if (content !== undefined) updates.content = content;
-  if (category !== undefined) updates.category = category;
-  await db.update('chat_memories', updates);
+  const sets: string[] = [];
+  const params: (string | number)[] = [];
+  if (content !== undefined) {
+    sets.push('content = ?');
+    params.push(content);
+  }
+  if (category !== undefined) {
+    sets.push('category = ?');
+    params.push(category);
+  }
+  if (sets.length === 0) return;
+  params.push(id);
+  await db.run(
+    `UPDATE chat_memories SET ${sets.join(', ')} WHERE id = ?`,
+    params,
+  );
 }
 
 async function deleteChatMemory({ id }: { id: string }): Promise<void> {
-  await db.delete_('chat_memories', id);
+  await db.run(`UPDATE chat_memories SET tombstone = 1 WHERE id = ?`, [id]);
 }
 
 async function clearChatMemories(): Promise<void> {
-  const rows = await db.all<{ id: string }>(
-    `SELECT id FROM chat_memories WHERE tombstone = 0`,
-  );
-  for (const row of rows) {
-    await db.delete_('chat_memories', row.id);
+  try {
+    await db.run(`UPDATE chat_memories SET tombstone = 1 WHERE tombstone = 0`);
+  } catch {
+    // table may not exist yet
   }
 }
 
@@ -248,20 +266,21 @@ async function createChatGoal({
   associatedCategoryIds?: string[];
 }): Promise<string> {
   const now = Date.now();
-  const id = await db.insertWithUUID('chat_goals', {
-    ...(existingId ? { id: existingId } : {}),
-    name,
-    target_amount: targetAmount,
-    target_date: targetDate,
-    associated_account_ids: associatedAccountIds
-      ? JSON.stringify(associatedAccountIds)
-      : null,
-    associated_category_ids: associatedCategoryIds
-      ? JSON.stringify(associatedCategoryIds)
-      : null,
-    created_at: now,
-    updated_at: now,
-  });
+  const id = existingId || uuidv4();
+  await db.run(
+    `INSERT INTO chat_goals (id, name, target_amount, target_date, associated_account_ids, associated_category_ids, created_at, updated_at, tombstone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      id,
+      name,
+      targetAmount,
+      targetDate,
+      associatedAccountIds ? JSON.stringify(associatedAccountIds) : null,
+      associatedCategoryIds ? JSON.stringify(associatedCategoryIds) : null,
+      now,
+      now,
+    ],
+  );
   return id;
 }
 
@@ -280,17 +299,32 @@ async function updateChatGoal({
   associatedAccountIds?: string[];
   associatedCategoryIds?: string[];
 }): Promise<void> {
-  const updates: Record<string, unknown> = { id, updated_at: Date.now() };
-  if (name !== undefined) updates.name = name;
-  if (targetAmount !== undefined) updates.target_amount = targetAmount;
-  if (targetDate !== undefined) updates.target_date = targetDate;
-  if (associatedAccountIds !== undefined)
-    updates.associated_account_ids = JSON.stringify(associatedAccountIds);
-  if (associatedCategoryIds !== undefined)
-    updates.associated_category_ids = JSON.stringify(associatedCategoryIds);
-  await db.update('chat_goals', updates);
+  const sets: string[] = ['updated_at = ?'];
+  const params: (string | number | null)[] = [Date.now()];
+  if (name !== undefined) {
+    sets.push('name = ?');
+    params.push(name);
+  }
+  if (targetAmount !== undefined) {
+    sets.push('target_amount = ?');
+    params.push(targetAmount);
+  }
+  if (targetDate !== undefined) {
+    sets.push('target_date = ?');
+    params.push(targetDate);
+  }
+  if (associatedAccountIds !== undefined) {
+    sets.push('associated_account_ids = ?');
+    params.push(JSON.stringify(associatedAccountIds));
+  }
+  if (associatedCategoryIds !== undefined) {
+    sets.push('associated_category_ids = ?');
+    params.push(JSON.stringify(associatedCategoryIds));
+  }
+  params.push(id);
+  await db.run(`UPDATE chat_goals SET ${sets.join(', ')} WHERE id = ?`, params);
 }
 
 async function deleteChatGoal({ id }: { id: string }): Promise<void> {
-  await db.delete_('chat_goals', id);
+  await db.run(`UPDATE chat_goals SET tombstone = 1 WHERE id = ?`, [id]);
 }
