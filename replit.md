@@ -53,10 +53,10 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 
 ### Chat History & Data Persistence
 
-Chat messages, memories, goals, and AI settings are persisted in the budget's SQLite database via loot-core, enabling sync across devices:
-- **Chat messages**: `chat_messages` table — syncs via CRDT when budget syncs
-- **AI memories**: `chat_memories` table — learned preferences carry across devices
-- **Savings goals**: `chat_goals` table — goals created via chat available everywhere
+Chat messages, memories, goals, and AI settings are persisted in the budget's SQLite database via loot-core:
+- **Chat messages**: `chat_messages` table — stored locally via raw SQL (not CRDT sync, since chat data is local-only)
+- **AI memories**: `chat_memories` table — stored locally via raw SQL
+- **Savings goals**: `chat_goals` table — stored locally via raw SQL
 - **AI settings**: Stored in `preferences` table via `SyncedPrefs` (`ai.apiKey`, `ai.modelName`, `ai.endpointUrl`)
 - Each budget has isolated chat data (budget-scoped by virtue of separate SQLite DBs)
 - A rolling window of 200 messages is maintained (older messages are pruned on save)
