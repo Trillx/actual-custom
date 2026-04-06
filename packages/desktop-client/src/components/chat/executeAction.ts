@@ -1853,6 +1853,124 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
       return `Created ${results.length} schedule(s):\n${results.map(r => `  ✓ ${r}`).join('\n')}`;
     }
+    case 'reorganize-categories': {
+      const newGroups = action.params.newGroups;
+      const deleteOldGroups = action.params.deleteOldGroups;
+      if (!Array.isArray(newGroups) || newGroups.length === 0) {
+        throw new Error(
+          'reorganize-categories requires a non-empty "newGroups" array.',
+        );
+      }
+
+      const allCategories = (await send('api/categories-get', {
+        grouped: false,
+      })) as Array<{ id: string; name: string; group_id?: string }>;
+      const catByName = new Map<string, { id: string; group_id?: string }>();
+      for (const c of allCategories) {
+        catByName.set(c.name.toLowerCase(), { id: c.id, group_id: c.group_id });
+      }
+
+      const allGroups = (await send('api/category-groups-get')) as Array<{
+        id: string;
+        name: string;
+      }>;
+      const groupByName = new Map<string, string>();
+      for (const g of allGroups) {
+        groupByName.set(g.name.toLowerCase(), g.id);
+      }
+
+      const summary: string[] = [];
+
+      for (const group of newGroups as Array<{
+        name: string;
+        categories?: string[];
+      }>) {
+        if (typeof group.name !== 'string' || !group.name.trim()) {
+          throw new Error(
+            'Each entry in newGroups must have a non-empty string "name".',
+          );
+        }
+
+        const trimmedGroupName = group.name.trim();
+        let groupId = groupByName.get(trimmedGroupName.toLowerCase());
+        if (!groupId) {
+          groupId = (await send('api/category-group-create', {
+            group: { name: trimmedGroupName },
+          })) as unknown as string;
+          groupByName.set(trimmedGroupName.toLowerCase(), groupId);
+        }
+
+        const movedCats: string[] = [];
+        const createdCats: string[] = [];
+
+        if (Array.isArray(group.categories)) {
+          for (const catName of group.categories) {
+            if (typeof catName !== 'string' || !catName.trim()) continue;
+            const catKey = catName.toLowerCase().trim();
+            const existing = catByName.get(catKey);
+            if (existing) {
+              if (existing.group_id !== groupId) {
+                await send('api/category-update', {
+                  id: existing.id,
+                  fields: { group_id: groupId },
+                });
+                existing.group_id = groupId;
+                movedCats.push(catName);
+              } else {
+                movedCats.push(catName);
+              }
+            } else {
+              const newCatId = (await send('api/category-create', {
+                category: {
+                  name: catName.trim(),
+                  group_id: groupId,
+                  hidden: false,
+                },
+              })) as unknown as string;
+              catByName.set(catKey, { id: newCatId, group_id: groupId });
+              createdCats.push(catName);
+            }
+          }
+        }
+
+        const parts: string[] = [`"${group.name}"`];
+        if (movedCats.length > 0) {
+          parts.push(`moved: ${movedCats.join(', ')}`);
+        }
+        if (createdCats.length > 0) {
+          parts.push(`created: ${createdCats.join(', ')}`);
+        }
+        summary.push(parts.join(' — '));
+      }
+
+      if (Array.isArray(deleteOldGroups)) {
+        const refreshedCategories = (await send('api/categories-get', {
+          grouped: false,
+        })) as Array<{ group_id?: string }>;
+
+        for (const groupName of deleteOldGroups as string[]) {
+          if (typeof groupName !== 'string' || !groupName.trim()) continue;
+          const gId = groupByName.get(groupName.toLowerCase().trim());
+          if (!gId) {
+            summary.push(
+              `Could not find group "${groupName}" to delete — skipped.`,
+            );
+            continue;
+          }
+          const remaining = refreshedCategories.filter(c => c.group_id === gId);
+          if (remaining.length > 0) {
+            summary.push(
+              `Group "${groupName}" still has ${remaining.length} categor${remaining.length === 1 ? 'y' : 'ies'} — skipped deletion.`,
+            );
+          } else {
+            await send('api/category-group-delete', { id: gId });
+            summary.push(`Deleted old group "${groupName}".`);
+          }
+        }
+      }
+
+      return `Categories reorganized:\n${summary.join('\n')}`;
+    }
     case 'bulk-create-category-groups': {
       const groups = action.params.groups;
       if (!Array.isArray(groups) || groups.length === 0) {
