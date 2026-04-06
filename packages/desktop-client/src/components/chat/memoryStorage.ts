@@ -98,7 +98,9 @@ export async function getMemories(): Promise<Memory[]> {
       }
       try {
         localStorage.removeItem(getLocalStorageKey());
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       if (newFromLocal.length > 0) {
         const refreshed = await send('chat-memories-get');
         if (Array.isArray(refreshed)) {
@@ -172,7 +174,11 @@ export async function deleteMemory(id: string): Promise<boolean> {
 }
 
 export async function clearMemories(): Promise<void> {
-  await send('chat-memories-clear');
+  try {
+    await send('chat-memories-clear');
+  } catch {
+    // ignore clear errors
+  }
 }
 
 export async function getMemoryById(id: string): Promise<Memory | null> {

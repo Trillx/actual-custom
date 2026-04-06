@@ -57,17 +57,29 @@ function mapRow(r: {
   created_at: number;
   updated_at: number;
 }): SavingsGoal {
+  let associatedAccountIds: string[] | undefined;
+  let associatedCategoryIds: string[] | undefined;
+  try {
+    associatedAccountIds = r.associated_account_ids
+      ? JSON.parse(r.associated_account_ids)
+      : undefined;
+  } catch {
+    associatedAccountIds = undefined;
+  }
+  try {
+    associatedCategoryIds = r.associated_category_ids
+      ? JSON.parse(r.associated_category_ids)
+      : undefined;
+  } catch {
+    associatedCategoryIds = undefined;
+  }
   return {
     id: r.id,
     name: r.name,
     targetAmount: r.target_amount,
     targetDate: r.target_date,
-    associatedAccountIds: r.associated_account_ids
-      ? JSON.parse(r.associated_account_ids)
-      : undefined,
-    associatedCategoryIds: r.associated_category_ids
-      ? JSON.parse(r.associated_category_ids)
-      : undefined,
+    associatedAccountIds,
+    associatedCategoryIds,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -98,7 +110,9 @@ export async function getGoals(): Promise<SavingsGoal[]> {
       }
       try {
         localStorage.removeItem(getLocalStorageKey());
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       if (newFromLocal.length > 0) {
         const refreshed = await send('chat-goals-get');
         if (Array.isArray(refreshed)) {

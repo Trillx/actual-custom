@@ -44,7 +44,7 @@ export function updateSessionMessage(
 
 export function clearSessionMessages(): void {
   sessionMessages = [];
-  void send('chat-messages-clear');
+  send('chat-messages-clear').catch(() => {});
 }
 
 function pruneMessages(messages: ChatMessage[]): ChatMessage[] {
