@@ -69,7 +69,7 @@ Chat messages are persisted in localStorage, keyed by budget ID (budget fingerpr
 4. On each message, the system gathers lightweight baseline context (accounts, categories, budget for current month, a small sample of recent transactions, scheduled transactions). Detailed data is fetched on-demand via query actions only when needed.
 5. Context + conversation history is sent to OpenAI's API (or custom endpoint)
 6. Response is displayed in the chat panel
-7. If the AI proposes write action(s), a confirmation card is shown with human-readable details (names instead of UUIDs for categories, accounts, payees, and transactions). The AI's description is used as the card header. For bulk updates (6+ with common changes), items are grouped into a summary. For multiple actions, the queue UI shows all actions with individual and batch confirm/reject controls.
+7. If the AI proposes write action(s), a confirmation card is shown with human-readable details (names instead of UUIDs for categories, accounts, payees, and transactions). The AI's description is used as the card header. For bulk updates (10+ transactions), items are grouped into a summary with an expandable "Show all" section for full per-transaction details. For multiple actions, the queue UI shows all actions with individual and batch confirm/reject controls.
 8. User must explicitly confirm or cancel before any write operation executes
 9. If the AI proposes a read-only query action, it auto-executes, fetches data, and sends a follow-up request to summarize results
 
