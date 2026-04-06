@@ -1,7 +1,7 @@
 export type QueuedAction = {
   id: string;
   action: BudgetAction;
-  status: 'pending' | 'executing' | 'executed' | 'failed' | 'rejected';
+  status: 'pending' | 'executing' | 'executed' | 'failed' | 'rejected' | 'expired';
   result?: string;
 };
 
@@ -11,7 +11,7 @@ export type ChatMessage = {
   content: string;
   timestamp: number;
   pendingAction?: BudgetAction;
-  actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed' | 'failed';
+  actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed' | 'failed' | 'expired';
   pendingActions?: QueuedAction[];
 };
 
@@ -242,6 +242,7 @@ export type BudgetContext = {
     deviations: number;
   }>;
   queryResult?: string;
+  conversationSummary?: string;
   goals?: Array<{
     id: string;
     name: string;

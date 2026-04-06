@@ -91,6 +91,15 @@ function ActionStatusBadge({
       </Text>
     );
   }
+  if (status === 'expired') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Text style={{ fontSize: 10, color: theme.pageTextSubdued }}>
+          Expired
+        </Text>
+      </View>
+    );
+  }
   return null;
 }
 
@@ -323,6 +332,25 @@ export function ChatMessage({
             />
             <Text style={{ fontSize: 11, color: theme.errorText }}>
               Action failed
+            </Text>
+          </View>
+        )}
+
+      {message.pendingAction &&
+        message.actionStatus === 'expired' &&
+        !hasMultipleActions && (
+          <View
+            style={{
+              marginTop: 4,
+              padding: '4px 8px',
+              borderRadius: 6,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <Text style={{ fontSize: 11, color: theme.pageTextSubdued }}>
+              Action expired
             </Text>
           </View>
         )}

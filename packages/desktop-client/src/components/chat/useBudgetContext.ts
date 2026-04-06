@@ -9,6 +9,7 @@ import {
   formatProjectionSummary,
   projectMonthlySpending,
 } from './forecastEngine';
+import { setChatBudgetId } from './chatState';
 import { getGoals, setBudgetId } from './goalStorage';
 import { setMemoryBudgetId } from './memoryStorage';
 import { executeQuery } from './queryHelpers';
@@ -47,6 +48,7 @@ export function useBudgetContext() {
         : 'empty-budget';
     setBudgetId(budgetFingerprint);
     setMemoryBudgetId(budgetFingerprint);
+    setChatBudgetId(budgetFingerprint);
 
     const allAccounts = accountsRaw as Array<{
       id: string;
@@ -453,6 +455,7 @@ export function useBudgetContext() {
           .join(':');
         setBudgetId(budgetFingerprint);
         setMemoryBudgetId(budgetFingerprint);
+        setChatBudgetId(budgetFingerprint);
       }
     } catch {
       // Accounts not available yet

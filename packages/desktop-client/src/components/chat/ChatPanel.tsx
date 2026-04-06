@@ -25,8 +25,9 @@ import {
 import { useChat } from './ChatContext';
 import { ChatMessage, shouldShowTimestamp } from './ChatMessage';
 import {
+  buildConversationSummary,
   clearSessionMessages,
-  getSessionMessages,
+  loadPersistedMessages,
   setSessionMessages,
 } from './chatState';
 import { executeAction } from './executeAction';
@@ -92,10 +93,10 @@ function TypingIndicator() {
 }
 
 export function ChatPanel({ onClose }: ChatPanelProps) {
-  const [messages, setMessages] =
-    useState<ChatMessageType[]>(getSessionMessages);
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
@@ -104,6 +105,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const requestIdRef = useRef(0);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const isRestoredSession = useRef(false);
+  const restoreCompleteRef = useRef(false);
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
   const [modelName] = useLocalPref('ai.modelName');
@@ -113,7 +116,9 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const lastProcessedPendingId = useRef(0);
 
   useEffect(() => {
-    setSessionMessages(messages);
+    if (restoreCompleteRef.current) {
+      setSessionMessages(messages);
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -121,8 +126,18 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   }, [messages, isLoading]);
 
   useEffect(() => {
-    inputRef.current?.focus();
-    void gatherContext();
+    async function init() {
+      await gatherContext();
+      const persisted = loadPersistedMessages();
+      if (persisted.length > 0) {
+        setMessages(persisted);
+        isRestoredSession.current = true;
+      }
+      restoreCompleteRef.current = true;
+      setIsRestoring(false);
+      inputRef.current?.focus();
+    }
+    void init();
   }, []);
 
   const handleSend = useCallback(
@@ -153,9 +168,18 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
       try {
         const context = await gatherContext();
+        let apiMessages = newMessages;
+        if (isRestoredSession.current) {
+          const summary = buildConversationSummary(messages);
+          if (summary) {
+            context.conversationSummary = summary;
+          }
+          apiMessages = [userMessage];
+          isRestoredSession.current = false;
+        }
         let rawResponse = await sendChatMessage(
           apiKey,
-          newMessages,
+          apiMessages,
           context,
           endpointUrl || undefined,
           modelName || undefined,
@@ -163,7 +187,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
         let action = parseAction(rawResponse);
         let displayMessages = newMessages;
-        let apiHistory = newMessages;
+        let apiHistory = apiMessages;
         let currentContext = context;
         const MAX_QUERY_ROUNDS = 4;
 
@@ -952,7 +976,29 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               paddingBottom: isNarrowWidth ? 24 : 16,
             }}
           >
-            {messages.length === 0 && (
+            {isRestoring && (
+              <View
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 16,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.pageTextSubdued,
+                    fontSize: 13,
+                    fontStyle: 'italic',
+                  }}
+                >
+                  Restoring chat history...
+                </Text>
+              </View>
+            )}
+
+            {!isRestoring && messages.length === 0 && (
               <View
                 style={{
                   flex: 1,

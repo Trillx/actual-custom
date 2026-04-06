@@ -50,16 +50,28 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 - **Budget Context**: `useBudgetContext.ts` — gathers accounts, categories, budget month data, and recent transactions via the `send()` API bridge
 - **Settings**: `packages/desktop-client/src/components/settings/AISettings.tsx` — OpenAI API key configuration stored in `LocalPrefs`
 
+### Chat History Persistence
+
+Chat messages are persisted in localStorage, keyed by budget ID (budget fingerprint). This means:
+- Messages survive page refreshes and browser restarts
+- Each budget has isolated chat history
+- A rolling window of 200 messages is maintained (older messages are pruned on save)
+- On reload, any pending/executing actions are marked as "expired" so they don't appear as active confirmations
+- The AI receives a summary of the last 10 messages from the prior session for conversation continuity
+- Users can clear all chat history using the trash icon in the chat header
+- Key file: `chatState.ts` — localStorage persistence layer with `setChatBudgetId()`, `loadPersistedMessages()`, `buildConversationSummary()`
+
 ### How It Works
 
 1. User clicks "AI Chat" button in the sidebar (uses `SvgChatBubbleDots` icon)
 2. Chat panel opens on the right side of FinancesApp (or full-screen overlay on mobile)
-3. On each message, the system gathers lightweight baseline context (accounts, categories, budget for current month, a small sample of recent transactions, scheduled transactions). Detailed data is fetched on-demand via query actions only when needed.
-4. Context + conversation history is sent to OpenAI's API (or custom endpoint)
-5. Response is displayed in the chat panel
-6. If the AI proposes write action(s), a confirmation card is shown. For multiple actions, the queue UI shows all actions with individual and batch confirm/reject controls.
-7. User must explicitly confirm or cancel before any write operation executes
-8. If the AI proposes a read-only query action, it auto-executes, fetches data, and sends a follow-up request to summarize results
+3. On mount, persisted messages are loaded from localStorage (with expired action state handling)
+4. On each message, the system gathers lightweight baseline context (accounts, categories, budget for current month, a small sample of recent transactions, scheduled transactions). Detailed data is fetched on-demand via query actions only when needed.
+5. Context + conversation history is sent to OpenAI's API (or custom endpoint)
+6. Response is displayed in the chat panel
+7. If the AI proposes write action(s), a confirmation card is shown. For multiple actions, the queue UI shows all actions with individual and batch confirm/reject controls.
+8. User must explicitly confirm or cancel before any write operation executes
+9. If the AI proposes a read-only query action, it auto-executes, fetches data, and sends a follow-up request to summarize results
 
 ### Action Queue System
 

@@ -391,6 +391,10 @@ function buildSystemPrompt(context: BudgetContext): string {
     );
   }
 
+  if (context.conversationSummary) {
+    parts.push(context.conversationSummary);
+  }
+
   return parts.join('\n');
 }
 
