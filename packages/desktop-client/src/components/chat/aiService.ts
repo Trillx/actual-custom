@@ -720,37 +720,57 @@ export async function sendChatMessage(
     headers['X-Title'] = 'Actual Budget AI Assistant';
   }
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: modelName?.trim() || 'gpt-4o-mini',
-      messages: apiMessages,
-      max_tokens: 16384,
-      temperature: 0.7,
-    }),
-  });
+  const MAX_RETRIES = 2;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: modelName?.trim() || 'gpt-4o-mini',
+        messages: apiMessages,
+        max_tokens: 16384,
+        temperature: 0.7,
+      }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMessage =
-      (errorData as { error?: { message?: string } })?.error?.message ||
-      `API error: ${response.status}`;
-    throw new Error(errorMessage);
-  }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage =
+        (errorData as { error?: { message?: string } })?.error?.message ||
+        `API error: ${response.status}`;
+      throw new Error(errorMessage);
+    }
 
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string }; finish_reason?: string }>;
-    usage?: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      total_tokens?: number;
+    const data = (await response.json()) as {
+      choices: Array<{ message: { content: string }; finish_reason?: string }>;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
     };
-  };
-  if (data.usage) {
-    console.log(
-      `[AI] tokens — prompt: ${data.usage.prompt_tokens}, completion: ${data.usage.completion_tokens}, total: ${data.usage.total_tokens}, finish: ${data.choices[0]?.finish_reason}`,
+    if (data.usage) {
+      console.log(
+        `[AI] tokens — prompt: ${data.usage.prompt_tokens}, completion: ${data.usage.completion_tokens}, total: ${data.usage.total_tokens}, finish: ${data.choices[0]?.finish_reason}`,
+      );
+    }
+
+    const content = data.choices[0]?.message?.content;
+    if (content) {
+      return content;
+    }
+
+    const finishReason = data.choices[0]?.finish_reason;
+    console.warn(
+      `[AI] Empty response on attempt ${attempt + 1}/${MAX_RETRIES}, finish_reason: ${finishReason}, usage: ${JSON.stringify(data.usage)}`,
     );
+
+    if (attempt < MAX_RETRIES - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
-  return data.choices[0]?.message?.content || 'No response received.';
+
+  throw new Error(
+    'The AI returned an empty response after retrying. This can happen with very large datasets. Please try rephrasing your request or narrowing it down.',
+  );
 }
