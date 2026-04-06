@@ -717,6 +717,30 @@ function formatCents(amount: number): string {
   return '$' + (amount / 100).toFixed(2);
 }
 
+function formatDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (monthIdx < 0 || monthIdx > 11) return dateStr;
+  return `${months[monthIdx]} ${day}`;
+}
+
 export function formatActionDetails(
   action: BudgetAction,
   ctx?: DisplayContext,
@@ -748,7 +772,7 @@ export function formatActionDetails(
     case 'add-transaction':
       lines.push(`Type: Add Transaction`);
       if (p.accountId) lines.push(`Account: ${resolveAcct(p.accountId)}`);
-      if (p.date) lines.push(`Date: ${p.date}`);
+      if (p.date) lines.push(`Date: ${formatDate(p.date as string)}`);
       if (typeof p.amount === 'number')
         lines.push(`Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`Payee: ${p.payee_name}`);
@@ -760,12 +784,12 @@ export function formatActionDetails(
       const txInfo = resolveTx(p.transactionId);
       if (txInfo) {
         lines.push(
-          `Transaction: ${txInfo.payee_name || 'Unknown'} | ${formatCents(txInfo.amount ?? 0)} | ${txInfo.date || ''}`,
+          `Transaction: ${txInfo.payee_name || 'Unknown'} | ${formatCents(txInfo.amount ?? 0)} | ${formatDate(txInfo.date)}`,
         );
       } else {
         lines.push(`Transaction: ${p.transactionId}`);
       }
-      if (p.date) lines.push(`New Date: ${p.date}`);
+      if (p.date) lines.push(`New Date: ${formatDate(p.date as string)}`);
       if (typeof p.amount === 'number')
         lines.push(`New Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`New Payee: ${p.payee_name}`);
@@ -820,7 +844,7 @@ export function formatActionDetails(
 
         if (txInfo) {
           detailLines.push(
-            `  ${payeeName} | ${formatCents(txInfo.amount ?? 0)} | ${txInfo.date || ''} → ${changeParts.join(', ')}`,
+            `  ${payeeName} | ${formatCents(txInfo.amount ?? 0)} | ${formatDate(txInfo.date)} → ${changeParts.join(', ')}`,
           );
         } else {
           detailLines.push(
@@ -829,7 +853,7 @@ export function formatActionDetails(
         }
       }
 
-      if (updates.length >= 10 && changeGroups.size <= updates.length / 2) {
+      if (updates.length >= 10) {
         for (const [change, group] of changeGroups) {
           const payeeList = Array.from(group.payees);
           const payeeSummary =
@@ -860,7 +884,7 @@ export function formatActionDetails(
       const delTx = resolveTx(p.transactionId);
       if (delTx) {
         lines.push(
-          `Transaction: ${delTx.payee_name || 'Unknown'} | ${formatCents(delTx.amount ?? 0)} | ${delTx.date || ''}`,
+          `Transaction: ${delTx.payee_name || 'Unknown'} | ${formatCents(delTx.amount ?? 0)} | ${formatDate(delTx.date)}`,
         );
       } else {
         lines.push(`Transaction: ${p.transactionId}`);
@@ -873,7 +897,7 @@ export function formatActionDetails(
       lines.push(`To: ${resolveAcct(p.toAccountId)}`);
       if (typeof p.amount === 'number')
         lines.push(`Amount: ${formatCents(p.amount as number)}`);
-      if (p.date) lines.push(`Date: ${p.date}`);
+      if (p.date) lines.push(`Date: ${formatDate(p.date as string)}`);
       if (p.notes) lines.push(`Notes: ${p.notes}`);
       break;
     case 'create-category':
@@ -1110,7 +1134,7 @@ export function formatActionDetails(
         lines.push(
           `Frequency: ${p.interval && (p.interval as number) > 1 ? `every ${p.interval} ${p.frequency}` : p.frequency}`,
         );
-      if (p.date) lines.push(`Starting: ${p.date}`);
+      if (p.date) lines.push(`Starting: ${formatDate(p.date as string)}`);
       break;
     case 'update-schedule':
       lines.push(`Type: Update Schedule`);
@@ -1120,7 +1144,7 @@ export function formatActionDetails(
       if (typeof p.amount === 'number')
         lines.push(`New Amount: ${formatCents(p.amount as number)}`);
       if (p.frequency) lines.push(`New Frequency: ${p.frequency}`);
-      if (p.date) lines.push(`New Date: ${p.date}`);
+      if (p.date) lines.push(`New Date: ${formatDate(p.date as string)}`);
       break;
     case 'delete-schedule':
       lines.push(`Type: Delete Schedule`);
