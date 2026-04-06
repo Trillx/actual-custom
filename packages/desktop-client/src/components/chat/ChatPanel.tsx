@@ -14,6 +14,8 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { v4 as uuidv4 } from 'uuid';
 
+import { send } from 'loot-core/platform/client/connection';
+
 import {
   parseAction,
   parseAllActions,
@@ -36,11 +38,75 @@ import type {
   BudgetAction,
   BudgetContext,
   ChatMessage as ChatMessageType,
+  DisplayContext,
   QueuedAction,
 } from './types';
 import { useBudgetContext } from './useBudgetContext';
 
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+
+function extractTransactionIds(actions: BudgetAction[]): string[] {
+  const ids: string[] = [];
+  for (const a of actions) {
+    const p = a.params;
+    if (p.transactionId && typeof p.transactionId === 'string') {
+      ids.push(p.transactionId);
+    }
+    if (Array.isArray(p.updates)) {
+      for (const u of p.updates as Array<Record<string, unknown>>) {
+        if (u.transactionId && typeof u.transactionId === 'string') {
+          ids.push(u.transactionId);
+        }
+      }
+    }
+  }
+  return ids;
+}
+
+function buildDisplayContext(ctx: BudgetContext): DisplayContext {
+  const categoryMap = new Map<string, string>();
+  for (const c of ctx.categories) {
+    categoryMap.set(c.id, c.name);
+  }
+  for (const g of ctx.categoryGroups) {
+    categoryMap.set(g.id, g.name);
+  }
+  const accountMap = new Map<string, string>();
+  for (const a of ctx.accounts) {
+    accountMap.set(a.id, a.name);
+  }
+  if (ctx.closedAccounts) {
+    for (const a of ctx.closedAccounts) {
+      accountMap.set(a.id, a.name);
+    }
+  }
+  const payeeMap = new Map<string, string>();
+  if (ctx.payees) {
+    for (const p of ctx.payees) {
+      payeeMap.set(p.id, p.name);
+    }
+  }
+  const transactionCache = new Map<
+    string,
+    {
+      payee_name?: string;
+      date?: string;
+      amount?: number;
+      account_name?: string;
+    }
+  >();
+  if (ctx.recentTransactions) {
+    for (const t of ctx.recentTransactions) {
+      transactionCache.set(t.id, {
+        payee_name: t.payee_name,
+        date: t.date,
+        amount: t.amount,
+        account_name: t.account_name,
+      });
+    }
+  }
+  return { payeeMap, categoryMap, accountMap, transactionCache };
+}
 
 const SUGGESTION_CHIPS = [
   'Show my budget summary',
@@ -107,6 +173,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   messagesRef.current = messages;
   const isRestoredSession = useRef(false);
   const restoreCompleteRef = useRef(false);
+  const [displayCtx, setDisplayCtx] = useState<DisplayContext | undefined>();
   const [apiKey] = useLocalPref('ai.apiKey');
   const [endpointUrl] = useLocalPref('ai.endpointUrl');
   const [modelName] = useLocalPref('ai.modelName');
@@ -127,7 +194,8 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   useEffect(() => {
     async function init() {
-      await gatherContext();
+      const ctx = await gatherContext();
+      setDisplayCtx(buildDisplayContext(ctx));
       const persisted = loadPersistedMessages();
       if (persisted.length > 0) {
         setMessages(persisted);
@@ -448,6 +516,50 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         } else {
           displayContent = stripped || rawResponse;
         }
+
+        const currentDisplayCtx = buildDisplayContext(context);
+        if (hasWriteActions) {
+          const txIds = extractTransactionIds(writeActions);
+          const missing = txIds.filter(
+            id => !currentDisplayCtx.transactionCache?.has(id),
+          );
+          if (missing.length > 0) {
+            try {
+              const missingSet = new Set(missing);
+              const payeeMap = currentDisplayCtx.payeeMap;
+              const allAccounts = [
+                ...context.accounts,
+                ...(context.closedAccounts || []),
+              ];
+              for (const acct of allAccounts) {
+                if (missingSet.size === 0) break;
+                const txns = (await send('api/transactions-get', {
+                  accountId: acct.id,
+                  startDate: '2020-01-01',
+                })) as Array<{
+                  id: string;
+                  date: string;
+                  amount: number;
+                  payee?: string;
+                }>;
+                for (const tx of txns) {
+                  if (missingSet.has(tx.id)) {
+                    currentDisplayCtx.transactionCache?.set(tx.id, {
+                      payee_name: tx.payee ? payeeMap.get(tx.payee) : undefined,
+                      date: tx.date,
+                      amount: tx.amount,
+                      account_name: acct.name,
+                    });
+                    missingSet.delete(tx.id);
+                  }
+                }
+              }
+            } catch {
+              /* transaction lookup failed, fall back to IDs */
+            }
+          }
+        }
+        setDisplayCtx(currentDisplayCtx);
 
         const queuedActions: QueuedAction[] | undefined = hasWriteActions
           ? writeActions.map(a => ({
@@ -1064,6 +1176,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
               <ChatMessage
                 key={msg.id}
                 message={msg}
+                displayContext={displayCtx}
                 isNarrowWidth={isNarrowWidth}
                 showTimestamp={shouldShowTimestamp(messages, idx)}
                 onConfirmAction={handleConfirmAction}

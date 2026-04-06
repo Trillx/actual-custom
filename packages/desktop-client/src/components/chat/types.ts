@@ -183,6 +183,16 @@ export type HistoricalComparison = {
   totalAverage: number;
 };
 
+export type DisplayContext = {
+  payeeMap: Map<string, string>;
+  categoryMap: Map<string, string>;
+  accountMap: Map<string, string>;
+  transactionCache?: Map<
+    string,
+    { payee_name?: string; date?: string; amount?: number; account_name?: string }
+  >;
+};
+
 export type BudgetContext = {
   accounts: Array<{ id: string; name: string; balance: number }>;
   closedAccounts?: Array<{ id: string; name: string; balance: number }>;

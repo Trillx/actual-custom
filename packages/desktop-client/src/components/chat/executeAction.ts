@@ -7,7 +7,7 @@ import {
   deleteMemory as deleteMemoryById,
   getMemories,
 } from './memoryStorage';
-import type { BudgetAction } from './types';
+import type { BudgetAction, DisplayContext } from './types';
 
 function validateSetBudgetAmount(params: Record<string, unknown>): {
   month: string;
@@ -58,8 +58,15 @@ function validateUpdateTransaction(params: Record<string, unknown>): {
   notes?: string;
   accountId?: string;
 } {
-  const { transactionId, date, amount, payee_name, category_id, notes, accountId } =
-    params;
+  const {
+    transactionId,
+    date,
+    amount,
+    payee_name,
+    category_id,
+    notes,
+    accountId,
+  } = params;
   if (typeof transactionId !== 'string' || !transactionId)
     throw new Error('Missing or invalid "transactionId" parameter.');
   return {
@@ -706,72 +713,160 @@ function formatCents(amount: number): string {
   return '$' + (amount / 100).toFixed(2);
 }
 
-export function formatActionDetails(action: BudgetAction): string[] {
+export function formatActionDetails(
+  action: BudgetAction,
+  ctx?: DisplayContext,
+): string[] {
   const lines: string[] = [];
   const p = action.params;
+
+  const resolveCat = (id: unknown): string => {
+    if (!id || typeof id !== 'string') return String(id);
+    return ctx?.categoryMap.get(id) || id;
+  };
+  const resolveAcct = (id: unknown): string => {
+    if (!id || typeof id !== 'string') return String(id);
+    return ctx?.accountMap.get(id) || id;
+  };
+  const resolveTx = (id: unknown) => {
+    if (!id || typeof id !== 'string') return undefined;
+    return ctx?.transactionCache?.get(id);
+  };
 
   switch (action.type) {
     case 'set-budget-amount':
       lines.push(`Type: Set Budget Amount`);
       if (p.month) lines.push(`Month: ${p.month}`);
-      if (p.categoryId) lines.push(`Category ID: ${p.categoryId}`);
+      if (p.categoryId) lines.push(`Category: ${resolveCat(p.categoryId)}`);
       if (typeof p.amount === 'number')
         lines.push(`Amount: ${formatCents(p.amount as number)}`);
       break;
     case 'add-transaction':
       lines.push(`Type: Add Transaction`);
-      if (p.accountId) lines.push(`Account ID: ${p.accountId}`);
+      if (p.accountId) lines.push(`Account: ${resolveAcct(p.accountId)}`);
       if (p.date) lines.push(`Date: ${p.date}`);
       if (typeof p.amount === 'number')
         lines.push(`Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`Payee: ${p.payee_name}`);
-      if (p.category_id) lines.push(`Category ID: ${p.category_id}`);
+      if (p.category_id) lines.push(`Category: ${resolveCat(p.category_id)}`);
       if (p.notes) lines.push(`Notes: ${p.notes}`);
       break;
-    case 'update-transaction':
+    case 'update-transaction': {
       lines.push(`Type: Update Transaction`);
-      lines.push(`Transaction ID: ${p.transactionId}`);
+      const txInfo = resolveTx(p.transactionId);
+      if (txInfo) {
+        lines.push(
+          `Transaction: ${txInfo.payee_name || 'Unknown'} | ${formatCents(txInfo.amount ?? 0)} | ${txInfo.date || ''}`,
+        );
+      } else {
+        lines.push(`Transaction: ${p.transactionId}`);
+      }
       if (p.date) lines.push(`New Date: ${p.date}`);
       if (typeof p.amount === 'number')
         lines.push(`New Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`New Payee: ${p.payee_name}`);
-      if (p.category_id) lines.push(`New Category ID: ${p.category_id}`);
-      if (p.accountId) lines.push(`Move to Account: ${p.accountId}`);
+      if (p.category_id)
+        lines.push(`New Category: ${resolveCat(p.category_id)}`);
+      if (p.accountId)
+        lines.push(`Move to Account: ${resolveAcct(p.accountId)}`);
       if (p.notes !== undefined)
         lines.push(`New Notes: ${p.notes || '(cleared)'}`);
       break;
+    }
     case 'bulk-update-transactions': {
-      lines.push(`Type: Bulk Update Transactions`);
-      if (Array.isArray(p.updates)) {
-        lines.push(
-          `Transactions: ${(p.updates as Array<Record<string, unknown>>).length}`,
-        );
-        for (const u of p.updates as Array<Record<string, unknown>>) {
-          const parts: string[] = [];
-          if (u.category_id) parts.push(`category: ${u.category_id}`);
-          if (u.payee_name) parts.push(`payee: ${u.payee_name}`);
-          if (u.accountId) parts.push(`account: ${u.accountId}`);
-          if (u.notes !== undefined)
-            parts.push(`notes: ${u.notes || '(cleared)'}`);
-          lines.push(
-            `  ${u.transactionId}${parts.length > 0 ? ` → ${parts.join(', ')}` : ''}`,
+      const updates = Array.isArray(p.updates)
+        ? (p.updates as Array<Record<string, unknown>>)
+        : [];
+      lines.push(`${updates.length} transactions`);
+
+      const changeGroups = new Map<
+        string,
+        { count: number; payees: Set<string> }
+      >();
+      const detailLines: string[] = [];
+
+      for (const u of updates) {
+        const txInfo = resolveTx(u.transactionId);
+        const payeeName = txInfo?.payee_name || 'Unknown';
+
+        const changeParts: string[] = [];
+        if (u.category_id === null || u.category_id === '') {
+          changeParts.push('remove category');
+        } else if (u.category_id) {
+          changeParts.push(`category → ${resolveCat(u.category_id)}`);
+        }
+        if (u.payee_name) changeParts.push(`payee → ${u.payee_name}`);
+        if (u.accountId)
+          changeParts.push(`account → ${resolveAcct(u.accountId)}`);
+        if (u.notes !== undefined)
+          changeParts.push(`notes → ${u.notes || '(cleared)'}`);
+
+        const changeKey = changeParts.join(', ') || 'update';
+
+        const existing = changeGroups.get(changeKey);
+        if (existing) {
+          existing.count++;
+          existing.payees.add(payeeName);
+        } else {
+          changeGroups.set(changeKey, {
+            count: 1,
+            payees: new Set([payeeName]),
+          });
+        }
+
+        if (txInfo) {
+          detailLines.push(
+            `  ${payeeName} | ${formatCents(txInfo.amount ?? 0)} | ${txInfo.date || ''} → ${changeParts.join(', ')}`,
+          );
+        } else {
+          detailLines.push(
+            `  ${String(u.transactionId).substring(0, 8)}... → ${changeParts.join(', ')}`,
           );
         }
       }
+
+      if (updates.length >= 6 && changeGroups.size <= updates.length / 2) {
+        for (const [change, group] of changeGroups) {
+          const payeeList = Array.from(group.payees);
+          const payeeSummary =
+            payeeList.length <= 3
+              ? payeeList.join(', ')
+              : `${payeeList.slice(0, 3).join(', ')} +${payeeList.length - 3} more`;
+          lines.push(`${group.count}x ${change} (${payeeSummary})`);
+        }
+      } else {
+        lines.push(...detailLines);
+      }
       break;
     }
-    case 'correct-transfer-direction':
+    case 'correct-transfer-direction': {
       lines.push(`Type: Reverse Transfer Direction`);
-      if (p.transactionId) lines.push(`Transaction ID: ${p.transactionId}`);
+      const ctdTx = resolveTx(p.transactionId);
+      if (ctdTx) {
+        lines.push(
+          `Transaction: ${ctdTx.payee_name || 'Unknown'} | ${formatCents(ctdTx.amount ?? 0)}`,
+        );
+      } else if (p.transactionId) {
+        lines.push(`Transaction: ${p.transactionId}`);
+      }
       break;
-    case 'delete-transaction':
+    }
+    case 'delete-transaction': {
       lines.push(`Type: Delete Transaction`);
-      lines.push(`Transaction ID: ${p.transactionId}`);
+      const delTx = resolveTx(p.transactionId);
+      if (delTx) {
+        lines.push(
+          `Transaction: ${delTx.payee_name || 'Unknown'} | ${formatCents(delTx.amount ?? 0)} | ${delTx.date || ''}`,
+        );
+      } else {
+        lines.push(`Transaction: ${p.transactionId}`);
+      }
       break;
+    }
     case 'transfer-between-accounts':
       lines.push(`Type: Transfer Between Accounts`);
-      lines.push(`From Account: ${p.fromAccountId}`);
-      lines.push(`To Account: ${p.toAccountId}`);
+      lines.push(`From: ${resolveAcct(p.fromAccountId)}`);
+      lines.push(`To: ${resolveAcct(p.toAccountId)}`);
       if (typeof p.amount === 'number')
         lines.push(`Amount: ${formatCents(p.amount as number)}`);
       if (p.date) lines.push(`Date: ${p.date}`);
@@ -780,7 +875,10 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'create-category':
       lines.push(`Type: Create Category`);
       if (p.name) lines.push(`Name: ${p.name}`);
-      if (p.group_id) lines.push(`Group ID: ${p.group_id}`);
+      if (p.group_id) {
+        const groupName = ctx?.categoryMap.get(p.group_id as string);
+        lines.push(`Group: ${groupName || p.group_id}`);
+      }
       break;
     case 'create-account':
       lines.push(`Type: Create Account`);
@@ -807,7 +905,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
         );
       }
       if (p.transferCategoryId)
-        lines.push(`Transfer to: ${p.transferCategoryId}`);
+        lines.push(`Transfer to: ${resolveCat(p.transferCategoryId)}`);
       break;
     case 'create-category-group':
       lines.push(`Type: Create Category Group`);
@@ -911,13 +1009,13 @@ export function formatActionDetails(action: BudgetAction): string[] {
       break;
     case 'close-account':
       lines.push(`Type: Close Account`);
-      lines.push(`Account ID: ${p.accountId}`);
+      lines.push(`Account: ${resolveAcct(p.accountId)}`);
       if (p.transferAccountId)
-        lines.push(`Transfer Balance To: ${p.transferAccountId}`);
+        lines.push(`Transfer Balance To: ${resolveAcct(p.transferAccountId)}`);
       break;
     case 'reopen-account':
       lines.push(`Type: Reopen Account`);
-      lines.push(`Account ID: ${p.accountId}`);
+      lines.push(`Account: ${resolveAcct(p.accountId)}`);
       break;
     case 'create-goal':
       lines.push(`Type: Create Savings Goal`);
@@ -1076,7 +1174,9 @@ async function resolveRuleConditions(
       } else if (Array.isArray(value)) {
         value = (value as string[]).map(v => {
           if (typeof v !== 'string') return v;
-          const match = allPayees.find(p => p.name.toLowerCase() === v.toLowerCase());
+          const match = allPayees.find(
+            p => p.name.toLowerCase() === v.toLowerCase(),
+          );
           return match ? match.id : v;
         });
       }
@@ -1090,7 +1190,9 @@ async function resolveRuleConditions(
       } else if (Array.isArray(value)) {
         value = (value as string[]).map(v => {
           if (typeof v !== 'string') return v;
-          const match = allCategories.find(cat => cat.name.toLowerCase() === v.toLowerCase());
+          const match = allCategories.find(
+            cat => cat.name.toLowerCase() === v.toLowerCase(),
+          );
           return match ? match.id : v;
         });
       }
@@ -1104,7 +1206,9 @@ async function resolveRuleConditions(
       } else if (Array.isArray(value)) {
         value = (value as string[]).map(v => {
           if (typeof v !== 'string') return v;
-          const match = allAccounts.find(a => a.name.toLowerCase() === v.toLowerCase());
+          const match = allAccounts.find(
+            a => a.name.toLowerCase() === v.toLowerCase(),
+          );
           return match ? match.id : v;
         });
       }
@@ -1241,21 +1345,19 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         .options({ splits: 'inline' });
       const { data: txResults } = (await send('api/query', {
         query: txQuery.serialize(),
-      })) as { data: Array<{ id: string; amount: number; transfer_id?: string }> };
+      })) as {
+        data: Array<{ id: string; amount: number; transfer_id?: string }>;
+      };
       const sourceTx = txResults[0];
-      if (!sourceTx)
-        throw new Error(`Transaction not found: ${transactionId}`);
+      if (!sourceTx) throw new Error(`Transaction not found: ${transactionId}`);
       if (!sourceTx.transfer_id)
         throw new Error(
           'This transaction is not a transfer. Use update-transaction with accountId to move a regular transaction.',
         );
-      await send(
-        'transaction-update',
-        {
-          id: sourceTx.id,
-          amount: -sourceTx.amount,
-        } as Parameters<typeof send<'transaction-update'>>[1],
-      );
+      await send('transaction-update', {
+        id: sourceTx.id,
+        amount: -sourceTx.amount,
+      } as Parameters<typeof send<'transaction-update'>>[1]);
       return 'Transfer direction corrected — the flow of money has been reversed between the two accounts.';
     }
     case 'bulk-update-transactions': {
@@ -1784,7 +1886,15 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       return `Created ${typedGroups.length} category group${typedGroups.length === 1 ? '' : 's'}:\n${summary.join('\n')}`;
     }
     case 'create-rule': {
-      const { fromNames, containsPattern, toPayee, conditions, actions, conditionsOp, stage } = action.params;
+      const {
+        fromNames,
+        containsPattern,
+        toPayee,
+        conditions,
+        actions,
+        conditionsOp,
+        stage,
+      } = action.params;
       if (Array.isArray(conditions) && Array.isArray(actions)) {
         const resolvedConditions = await resolveRuleConditions(
           conditions as Array<Record<string, unknown>>,
@@ -1793,8 +1903,14 @@ export async function executeAction(action: BudgetAction): Promise<string> {
           actions as Array<Record<string, unknown>>,
         );
         const rulePayload = {
-          stage: (stage === null ? null : typeof stage === 'string' ? stage : 'pre') as 'pre' | null | 'post',
-          conditionsOp: (typeof conditionsOp === 'string' ? conditionsOp : 'and') as 'and' | 'or',
+          stage: (stage === null
+            ? null
+            : typeof stage === 'string'
+              ? stage
+              : 'pre') as 'pre' | null | 'post',
+          conditionsOp: (typeof conditionsOp === 'string'
+            ? conditionsOp
+            : 'and') as 'and' | 'or',
           conditions: resolvedConditions,
           actions: resolvedActions,
         };
@@ -1817,7 +1933,9 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       }
 
       if (typeof toPayee !== 'string' || !toPayee.trim()) {
-        throw new Error('create-rule requires a non-empty "toPayee" string or "conditions"/"actions" arrays.');
+        throw new Error(
+          'create-rule requires a non-empty "toPayee" string or "conditions"/"actions" arrays.',
+        );
       }
       const cleanToPayee = (toPayee as string).trim();
       const allPayees = (await send('payees-get')) as Array<{
@@ -1876,7 +1994,8 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       return `Payee rename rule created: ${(fromNames as string[]).join(', ')} → ${cleanToPayee}`;
     }
     case 'update-rule': {
-      const { ruleId, conditions, actions, conditionsOp, stage } = action.params;
+      const { ruleId, conditions, actions, conditionsOp, stage } =
+        action.params;
       if (typeof ruleId !== 'string' || !ruleId.trim()) {
         throw new Error('update-rule requires a non-empty "ruleId" string.');
       }
@@ -1892,11 +2011,21 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       if (!existingRule) {
         throw new Error(`Rule not found: ${ruleId}`);
       }
-      const resolvedStage = stage === null ? null : typeof stage === 'string' ? stage : (existingRule.stage !== undefined ? existingRule.stage : 'pre');
+      const resolvedStage =
+        stage === null
+          ? null
+          : typeof stage === 'string'
+            ? stage
+            : existingRule.stage !== undefined
+              ? existingRule.stage
+              : 'pre';
       const updatedRule: Record<string, unknown> = {
         id: ruleId,
         stage: resolvedStage,
-        conditionsOp: typeof conditionsOp === 'string' ? conditionsOp : existingRule.conditionsOp || 'and',
+        conditionsOp:
+          typeof conditionsOp === 'string'
+            ? conditionsOp
+            : existingRule.conditionsOp || 'and',
       };
       if (Array.isArray(conditions)) {
         updatedRule.conditions = await resolveRuleConditions(

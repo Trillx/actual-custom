@@ -12,10 +12,15 @@ import { View } from '@actual-app/components/view';
 
 import { formatActionDetails } from './executeAction';
 import { MarkdownText } from './MarkdownText';
-import type { ChatMessage as ChatMessageType, QueuedAction } from './types';
+import type {
+  ChatMessage as ChatMessageType,
+  DisplayContext,
+  QueuedAction,
+} from './types';
 
 type ChatMessageProps = {
   message: ChatMessageType;
+  displayContext?: DisplayContext;
   isNarrowWidth?: boolean;
   showTimestamp?: boolean;
   onConfirmAction?: (messageId: string) => void;
@@ -105,6 +110,7 @@ function ActionStatusBadge({
 
 export function ChatMessage({
   message,
+  displayContext,
   isNarrowWidth = false,
   showTimestamp = true,
   onConfirmAction,
@@ -221,24 +227,26 @@ export function ChatMessage({
                   color: theme.pageText,
                 }}
               >
-                Confirm action
+                {message.pendingAction?.description || 'Confirm action'}
               </Text>
             </View>
-            {formatActionDetails(message.pendingAction).map((line, i) => (
-              <Text
-                key={i}
-                style={{
-                  fontSize: 11,
-                  color: theme.pageTextSubdued,
-                  lineHeight: '1.6',
-                  fontFamily: 'monospace',
-                  overflowWrap: 'break-word',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {line}
-              </Text>
-            ))}
+            {formatActionDetails(message.pendingAction, displayContext).map(
+              (line, i) => (
+                <Text
+                  key={i}
+                  style={{
+                    fontSize: 11,
+                    color: theme.pageTextSubdued,
+                    lineHeight: '1.6',
+                    fontFamily: 'monospace',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {line}
+                </Text>
+              ),
+            )}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               <Button
                 variant="primary"
@@ -438,18 +446,24 @@ export function ChatMessage({
                       marginBottom: 2,
                     }}
                   >
-                    {`${idx + 1}. ${qa.action.type}`}
+                    {`${idx + 1}. ${qa.action.description || qa.action.type}`}
                   </Text>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: theme.pageTextSubdued,
-                      overflowWrap: 'break-word',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {qa.action.description}
-                  </Text>
+                  {formatActionDetails(qa.action, displayContext).map(
+                    (line, li) => (
+                      <Text
+                        key={li}
+                        style={{
+                          fontSize: 11,
+                          color: theme.pageTextSubdued,
+                          fontFamily: 'monospace',
+                          overflowWrap: 'break-word',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {line}
+                      </Text>
+                    ),
+                  )}
                 </View>
                 <View style={{ flexShrink: 0 }}>
                   <ActionStatusBadge status={qa.status} result={qa.result} />
