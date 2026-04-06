@@ -194,12 +194,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   useEffect(() => {
     async function init() {
-      const ctx = await gatherContext();
-      setDisplayCtx(buildDisplayContext(ctx));
-      const persisted = await loadPersistedMessages();
-      if (persisted.length > 0) {
-        setMessages(persisted);
-        isRestoredSession.current = true;
+      try {
+        const ctx = await gatherContext();
+        setDisplayCtx(buildDisplayContext(ctx));
+        const persisted = await loadPersistedMessages();
+        if (persisted.length > 0) {
+          setMessages(persisted);
+          isRestoredSession.current = true;
+        }
+      } catch {
+        // ignore init errors
       }
       restoreCompleteRef.current = true;
       setIsRestoring(false);

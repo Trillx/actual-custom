@@ -56,7 +56,10 @@ function expireActions(messages: ChatMessage[]): ChatMessage[] {
   return messages.map(m => {
     let updated = m;
     if (m.actionStatus === 'pending' || m.actionStatus === 'confirmed') {
-      updated = { ...updated, actionStatus: 'expired' as ChatMessage['actionStatus'] };
+      updated = {
+        ...updated,
+        actionStatus: 'expired' as ChatMessage['actionStatus'],
+      };
     }
     if (m.pendingActions) {
       const expiredActions = m.pendingActions.map(a =>
@@ -76,7 +79,9 @@ function expireActions(messages: ChatMessage[]): ChatMessage[] {
 }
 
 function enqueueSave(messages: ChatMessage[]): Promise<void> {
-  savePromise = savePromise.then(() => persistMessages(messages)).catch(() => {});
+  savePromise = savePromise
+    .then(() => persistMessages(messages))
+    .catch(() => {});
   return savePromise;
 }
 
@@ -138,15 +143,34 @@ export async function loadPersistedMessages(): Promise<ChatMessage[]> {
     const rows = await send('chat-messages-get');
     let dbMessages: ChatMessage[] = [];
     if (Array.isArray(rows) && rows.length > 0) {
-      dbMessages = rows.map(r => ({
-        id: r.id,
-        role: r.role as ChatMessage['role'],
-        content: r.content,
-        timestamp: r.timestamp,
-        actionStatus: r.action_status as ChatMessage['actionStatus'] || undefined,
-        pendingAction: r.pending_action ? JSON.parse(r.pending_action) : undefined,
-        pendingActions: r.pending_actions ? JSON.parse(r.pending_actions) : undefined,
-      }));
+      dbMessages = rows.map(r => {
+        let pendingAction: ChatMessage['pendingAction'];
+        let pendingActions: ChatMessage['pendingActions'];
+        try {
+          pendingAction = r.pending_action
+            ? JSON.parse(r.pending_action)
+            : undefined;
+        } catch {
+          /* ignore */
+        }
+        try {
+          pendingActions = r.pending_actions
+            ? JSON.parse(r.pending_actions)
+            : undefined;
+        } catch {
+          /* ignore */
+        }
+        return {
+          id: r.id,
+          role: r.role as ChatMessage['role'],
+          content: r.content,
+          timestamp: r.timestamp,
+          actionStatus:
+            (r.action_status as ChatMessage['actionStatus']) || undefined,
+          pendingAction,
+          pendingActions,
+        };
+      });
     }
 
     let merged = dbMessages;

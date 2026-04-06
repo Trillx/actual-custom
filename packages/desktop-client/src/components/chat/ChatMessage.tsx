@@ -483,7 +483,7 @@ export function ChatMessage({
                       marginBottom: 2,
                     }}
                   >
-                    {`${idx + 1}. ${qa.action.description || qa.action.type}`}
+                    {`${idx + 1}. ${qa.action?.description || qa.action?.type || 'Action'}`}
                   </Text>
                   <ActionDetailLines
                     result={formatActionDetails(qa.action, displayContext)}

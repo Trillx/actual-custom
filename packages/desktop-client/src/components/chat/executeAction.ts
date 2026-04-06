@@ -745,8 +745,11 @@ export function formatActionDetails(
   action: BudgetAction,
   ctx?: DisplayContext,
 ): FormattedActionResult {
+  if (!action || !action.type) {
+    return { summaryLines: ['Unknown action'], isGrouped: false };
+  }
   const lines: string[] = [];
-  const p = action.params;
+  const p = action.params || {};
 
   const resolveCat = (id: unknown): string => {
     if (!id || typeof id !== 'string') return String(id);

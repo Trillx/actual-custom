@@ -43,12 +43,16 @@ async function getChatMessages(): Promise<
     pending_actions: string | null;
   }>
 > {
-  return db.all(
-    `SELECT id, role, content, timestamp, action_status, pending_action, pending_actions
-     FROM chat_messages
-     WHERE tombstone = 0
-     ORDER BY timestamp ASC`,
-  );
+  try {
+    return await db.all(
+      `SELECT id, role, content, timestamp, action_status, pending_action, pending_actions
+       FROM chat_messages
+       WHERE tombstone = 0
+       ORDER BY timestamp ASC`,
+    );
+  } catch {
+    return [];
+  }
 }
 
 async function saveChatMessages({
@@ -64,65 +68,73 @@ async function saveChatMessages({
     pendingActions?: unknown;
   }>;
 }): Promise<void> {
-  const existing = await db.all<{ id: string }>(
-    `SELECT id FROM chat_messages WHERE tombstone = 0`,
-  );
-  const existingIds = new Set(existing.map(r => r.id));
-
-  for (const msg of messages) {
-    const pendingAction = msg.pendingAction
-      ? JSON.stringify(msg.pendingAction)
-      : null;
-    const pendingActions = msg.pendingActions
-      ? JSON.stringify(msg.pendingActions)
-      : null;
-
-    if (existingIds.has(msg.id)) {
-      await db.update('chat_messages', {
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp,
-        action_status: msg.actionStatus || null,
-        pending_action: pendingAction,
-        pending_actions: pendingActions,
-      });
-    } else {
-      await db.insertWithUUID('chat_messages', {
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp,
-        action_status: msg.actionStatus || null,
-        pending_action: pendingAction,
-        pending_actions: pendingActions,
-      });
-    }
-  }
-
-  const MAX_MESSAGES = 200;
-  const total = await db.all<{ id: string }>(
-    `SELECT id FROM chat_messages WHERE tombstone = 0`,
-  );
-  if (total.length > MAX_MESSAGES) {
-    const toDelete = await db.all<{ id: string }>(
-      `SELECT id FROM chat_messages WHERE tombstone = 0
-       ORDER BY timestamp ASC
-       LIMIT ?`,
-      [total.length - MAX_MESSAGES],
+  try {
+    const existing = await db.all<{ id: string }>(
+      `SELECT id FROM chat_messages WHERE tombstone = 0`,
     );
-    for (const row of toDelete) {
-      await db.delete_('chat_messages', row.id);
+    const existingIds = new Set(existing.map(r => r.id));
+
+    for (const msg of messages) {
+      const pendingAction = msg.pendingAction
+        ? JSON.stringify(msg.pendingAction)
+        : null;
+      const pendingActions = msg.pendingActions
+        ? JSON.stringify(msg.pendingActions)
+        : null;
+
+      if (existingIds.has(msg.id)) {
+        await db.update('chat_messages', {
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          action_status: msg.actionStatus || null,
+          pending_action: pendingAction,
+          pending_actions: pendingActions,
+        });
+      } else {
+        await db.insertWithUUID('chat_messages', {
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          action_status: msg.actionStatus || null,
+          pending_action: pendingAction,
+          pending_actions: pendingActions,
+        });
+      }
     }
+
+    const MAX_MESSAGES = 200;
+    const total = await db.all<{ id: string }>(
+      `SELECT id FROM chat_messages WHERE tombstone = 0`,
+    );
+    if (total.length > MAX_MESSAGES) {
+      const toDelete = await db.all<{ id: string }>(
+        `SELECT id FROM chat_messages WHERE tombstone = 0
+         ORDER BY timestamp ASC
+         LIMIT ?`,
+        [total.length - MAX_MESSAGES],
+      );
+      for (const row of toDelete) {
+        await db.delete_('chat_messages', row.id);
+      }
+    }
+  } catch {
+    // table may not exist yet
   }
 }
 
 async function clearChatMessages(): Promise<void> {
-  const rows = await db.all<{ id: string }>(
-    `SELECT id FROM chat_messages WHERE tombstone = 0`,
-  );
-  for (const row of rows) {
-    await db.delete_('chat_messages', row.id);
+  try {
+    const rows = await db.all<{ id: string }>(
+      `SELECT id FROM chat_messages WHERE tombstone = 0`,
+    );
+    for (const row of rows) {
+      await db.delete_('chat_messages', row.id);
+    }
+  } catch {
+    // table may not exist yet
   }
 }
 
@@ -135,12 +147,16 @@ async function getChatMemories(): Promise<
     source: string;
   }>
 > {
-  return db.all(
-    `SELECT id, content, category, created_at, source
-     FROM chat_memories
-     WHERE tombstone = 0
-     ORDER BY created_at ASC`,
-  );
+  try {
+    return await db.all(
+      `SELECT id, content, category, created_at, source
+       FROM chat_memories
+       WHERE tombstone = 0
+       ORDER BY created_at ASC`,
+    );
+  } catch {
+    return [];
+  }
 }
 
 async function addChatMemory({
@@ -204,12 +220,16 @@ async function getChatGoals(): Promise<
     updated_at: number;
   }>
 > {
-  return db.all(
-    `SELECT id, name, target_amount, target_date, associated_account_ids, associated_category_ids, created_at, updated_at
-     FROM chat_goals
-     WHERE tombstone = 0
-     ORDER BY created_at ASC`,
-  );
+  try {
+    return await db.all(
+      `SELECT id, name, target_amount, target_date, associated_account_ids, associated_category_ids, created_at, updated_at
+       FROM chat_goals
+       WHERE tombstone = 0
+       ORDER BY created_at ASC`,
+    );
+  } catch {
+    return [];
+  }
 }
 
 async function createChatGoal({
