@@ -71,11 +71,6 @@ async function saveChatMessages({
   }>;
 }): Promise<void> {
   try {
-    const existing = await db.all<{ id: string }>(
-      `SELECT id FROM chat_messages WHERE tombstone = 0`,
-    );
-    const existingIds = new Set(existing.map(r => r.id));
-
     for (const msg of messages) {
       const pendingAction = msg.pendingAction
         ? JSON.stringify(msg.pendingAction)
@@ -84,36 +79,27 @@ async function saveChatMessages({
         ? JSON.stringify(msg.pendingActions)
         : null;
 
-      if (existingIds.has(msg.id)) {
-        await db.run(
-          `UPDATE chat_messages
-           SET role = ?, content = ?, timestamp = ?, action_status = ?, pending_action = ?, pending_actions = ?
-           WHERE id = ?`,
-          [
-            msg.role,
-            msg.content,
-            msg.timestamp,
-            msg.actionStatus || null,
-            pendingAction,
-            pendingActions,
-            msg.id,
-          ],
-        );
-      } else {
-        await db.run(
-          `INSERT INTO chat_messages (id, role, content, timestamp, action_status, pending_action, pending_actions, tombstone)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-          [
-            msg.id,
-            msg.role,
-            msg.content,
-            msg.timestamp,
-            msg.actionStatus || null,
-            pendingAction,
-            pendingActions,
-          ],
-        );
-      }
+      await db.run(
+        `INSERT INTO chat_messages (id, role, content, timestamp, action_status, pending_action, pending_actions, tombstone)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+         ON CONFLICT(id) DO UPDATE SET
+           role = excluded.role,
+           content = excluded.content,
+           timestamp = excluded.timestamp,
+           action_status = excluded.action_status,
+           pending_action = excluded.pending_action,
+           pending_actions = excluded.pending_actions,
+           tombstone = 0`,
+        [
+          msg.id,
+          msg.role,
+          msg.content,
+          msg.timestamp,
+          msg.actionStatus || null,
+          pendingAction,
+          pendingActions,
+        ],
+      );
     }
 
     const MAX_MESSAGES = 200;
@@ -181,7 +167,13 @@ async function addChatMemory({
   const id = existingId || uuidv4();
   await db.run(
     `INSERT INTO chat_memories (id, content, category, created_at, source, tombstone)
-     VALUES (?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, 0)
+     ON CONFLICT(id) DO UPDATE SET
+       content = excluded.content,
+       category = excluded.category,
+       created_at = excluded.created_at,
+       source = excluded.source,
+       tombstone = 0`,
     [id, content, category, Date.now(), source],
   );
   return id;
@@ -269,7 +261,16 @@ async function createChatGoal({
   const id = existingId || uuidv4();
   await db.run(
     `INSERT INTO chat_goals (id, name, target_amount, target_date, associated_account_ids, associated_category_ids, created_at, updated_at, tombstone)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       target_amount = excluded.target_amount,
+       target_date = excluded.target_date,
+       associated_account_ids = excluded.associated_account_ids,
+       associated_category_ids = excluded.associated_category_ids,
+       created_at = excluded.created_at,
+       updated_at = excluded.updated_at,
+       tombstone = 0`,
     [
       id,
       name,
