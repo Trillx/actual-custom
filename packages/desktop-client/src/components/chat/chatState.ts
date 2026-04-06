@@ -1,21 +1,19 @@
+import { send } from 'loot-core/platform/client/connection';
+
 import type { ChatMessage } from './types';
 
-const STORAGE_KEY_PREFIX = 'actual-budget-chat-history';
 const MAX_MESSAGES = 200;
+const LOCALSTORAGE_KEY_PREFIX = 'actual-budget-chat-history';
 
 let sessionMessages: ChatMessage[] = [];
 let currentBudgetId: string | null = null;
-
-function getStorageKey(): string {
-  if (currentBudgetId) {
-    return `${STORAGE_KEY_PREFIX}:${currentBudgetId}`;
-  }
-  return STORAGE_KEY_PREFIX;
-}
+let migrationDone = false;
+let savePromise: Promise<void> = Promise.resolve();
 
 export function setChatBudgetId(budgetId: string): void {
   if (currentBudgetId !== budgetId) {
     sessionMessages = [];
+    migrationDone = false;
   }
   currentBudgetId = budgetId;
 }
@@ -26,12 +24,12 @@ export function getSessionMessages(): ChatMessage[] {
 
 export function setSessionMessages(messages: ChatMessage[]): void {
   sessionMessages = messages;
-  persistMessages(messages);
+  void enqueueSave(messages);
 }
 
 export function addSessionMessage(message: ChatMessage): void {
   sessionMessages = [...sessionMessages, message];
-  persistMessages(sessionMessages);
+  void enqueueSave(sessionMessages);
 }
 
 export function updateSessionMessage(
@@ -41,16 +39,12 @@ export function updateSessionMessage(
   sessionMessages = sessionMessages.map(m =>
     m.id === id ? { ...m, ...updates } : m,
   );
-  persistMessages(sessionMessages);
+  void enqueueSave(sessionMessages);
 }
 
 export function clearSessionMessages(): void {
   sessionMessages = [];
-  try {
-    localStorage.removeItem(getStorageKey());
-  } catch {
-    // ignore storage errors
-  }
+  void send('chat-messages-clear');
 }
 
 function pruneMessages(messages: ChatMessage[]): ChatMessage[] {
@@ -81,24 +75,97 @@ function expireActions(messages: ChatMessage[]): ChatMessage[] {
   });
 }
 
-function persistMessages(messages: ChatMessage[]): void {
+function enqueueSave(messages: ChatMessage[]): Promise<void> {
+  savePromise = savePromise.then(() => persistMessages(messages)).catch(() => {});
+  return savePromise;
+}
+
+async function persistMessages(messages: ChatMessage[]): Promise<void> {
   try {
     const pruned = pruneMessages(messages);
-    localStorage.setItem(getStorageKey(), JSON.stringify(pruned));
+    await send('chat-messages-save', {
+      messages: pruned.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp,
+        actionStatus: m.actionStatus,
+        pendingAction: m.pendingAction,
+        pendingActions: m.pendingActions,
+      })),
+    });
   } catch {
-    // ignore storage errors (quota exceeded, etc.)
+    // ignore storage errors
   }
 }
 
-export function loadPersistedMessages(): ChatMessage[] {
+function getLocalStorageKey(): string {
+  return currentBudgetId
+    ? `${LOCALSTORAGE_KEY_PREFIX}:${currentBudgetId}`
+    : LOCALSTORAGE_KEY_PREFIX;
+}
+
+function readLocalStorage(): ChatMessage[] {
+  if (migrationDone) return [];
+  migrationDone = true;
   try {
-    const stored = localStorage.getItem(getStorageKey());
-    if (!stored) return [];
-    const parsed = JSON.parse(stored) as ChatMessage[];
-    if (!Array.isArray(parsed)) return [];
-    const expired = expireActions(parsed);
+    const key = getLocalStorageKey();
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored) as ChatMessage[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function clearLocalStorage(): void {
+  try {
+    localStorage.removeItem(getLocalStorageKey());
+  } catch {
+    // ignore
+  }
+}
+
+export async function loadPersistedMessages(): Promise<ChatMessage[]> {
+  try {
+    const localData = readLocalStorage();
+
+    const rows = await send('chat-messages-get');
+    let dbMessages: ChatMessage[] = [];
+    if (Array.isArray(rows) && rows.length > 0) {
+      dbMessages = rows.map(r => ({
+        id: r.id,
+        role: r.role as ChatMessage['role'],
+        content: r.content,
+        timestamp: r.timestamp,
+        actionStatus: r.action_status as ChatMessage['actionStatus'] || undefined,
+        pendingAction: r.pending_action ? JSON.parse(r.pending_action) : undefined,
+        pendingActions: r.pending_actions ? JSON.parse(r.pending_actions) : undefined,
+      }));
+    }
+
+    let merged = dbMessages;
+    if (localData.length > 0) {
+      const existingIds = new Set(dbMessages.map(m => m.id));
+      const newFromLocal = localData.filter(m => !existingIds.has(m.id));
+      if (newFromLocal.length > 0) {
+        merged = [...dbMessages, ...newFromLocal].sort(
+          (a, b) => a.timestamp - b.timestamp,
+        );
+        await persistMessages(merged);
+      }
+      clearLocalStorage();
+    }
+
+    if (merged.length === 0) return [];
+    const expired = expireActions(merged);
     sessionMessages = expired;
-    persistMessages(expired);
+    await persistMessages(expired);
     return expired;
   } catch {
     return [];

@@ -15,7 +15,7 @@ import type { ScheduleItemAction } from './SchedulesTable';
 import { useChat } from '@desktop-client/components/chat/ChatContext';
 import { Search } from '@desktop-client/components/common/Search';
 import { Page } from '@desktop-client/components/Page';
-import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 import { useSchedules } from '@desktop-client/hooks/useSchedules';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
@@ -25,7 +25,7 @@ export function Schedules() {
 
   const dispatch = useDispatch();
   const [filter, setFilter] = useState('');
-  const [apiKey] = useLocalPref('ai.apiKey');
+  const [apiKey] = useSyncedPref('ai.apiKey');
   const { openChatWithMessage } = useChat();
 
   const onEdit = useCallback(

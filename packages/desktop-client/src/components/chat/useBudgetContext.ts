@@ -320,7 +320,8 @@ export function useBudgetContext() {
       // Insights may not be available
     }
 
-    const goals = getGoals().map(g => ({
+    const allGoals = await getGoals();
+    const goals = allGoals.map(g => ({
       id: g.id,
       name: g.name,
       targetAmount: g.targetAmount,
@@ -350,9 +351,8 @@ export function useBudgetContext() {
     }
 
     let goalProgress: string | undefined;
-    if (goals.length > 0) {
-      const fullGoals = getGoals();
-      const progressItems = fullGoals.map(g =>
+    if (allGoals.length > 0) {
+      const progressItems = allGoals.map(g =>
         calculateGoalProgress(g, baseContext, monthlyNetSavings),
       );
       goalProgress = progressItems.map(formatGoalProgressSummary).join('\n\n');

@@ -1,3 +1,5 @@
+import { send } from 'loot-core/platform/client/connection';
+
 export type SavingsGoal = {
   id: string;
   name: string;
@@ -9,49 +11,129 @@ export type SavingsGoal = {
   updatedAt: number;
 };
 
-const STORAGE_KEY_PREFIX = 'actual-budget-chat-goals';
+const LOCALSTORAGE_KEY_PREFIX = 'actual-budget-chat-goals';
 
 let currentBudgetId: string | null = null;
+let migrationDone = false;
 
 export function setBudgetId(budgetId: string): void {
+  if (currentBudgetId !== budgetId) {
+    migrationDone = false;
+  }
   currentBudgetId = budgetId;
 }
 
-function getStorageKey(): string {
-  if (currentBudgetId) {
-    return `${STORAGE_KEY_PREFIX}:${currentBudgetId}`;
-  }
-  return STORAGE_KEY_PREFIX;
+function getLocalStorageKey(): string {
+  return currentBudgetId
+    ? `${LOCALSTORAGE_KEY_PREFIX}:${currentBudgetId}`
+    : LOCALSTORAGE_KEY_PREFIX;
 }
 
-function generateId(): string {
-  return `goal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function getGoals(): SavingsGoal[] {
+function readLocalStorage(): SavingsGoal[] {
+  if (migrationDone) return [];
+  migrationDone = true;
   try {
-    const raw = localStorage.getItem(getStorageKey());
-    if (!raw) return [];
-    return JSON.parse(raw) as SavingsGoal[];
+    const key = getLocalStorageKey();
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as SavingsGoal[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function mapRow(r: {
+  id: string;
+  name: string;
+  target_amount: number;
+  target_date: string;
+  associated_account_ids: string | null;
+  associated_category_ids: string | null;
+  created_at: number;
+  updated_at: number;
+}): SavingsGoal {
+  return {
+    id: r.id,
+    name: r.name,
+    targetAmount: r.target_amount,
+    targetDate: r.target_date,
+    associatedAccountIds: r.associated_account_ids
+      ? JSON.parse(r.associated_account_ids)
+      : undefined,
+    associatedCategoryIds: r.associated_category_ids
+      ? JSON.parse(r.associated_category_ids)
+      : undefined,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export async function getGoals(): Promise<SavingsGoal[]> {
+  try {
+    const localData = readLocalStorage();
+
+    const rows = await send('chat-goals-get');
+    let dbGoals: SavingsGoal[] = [];
+    if (Array.isArray(rows)) {
+      dbGoals = rows.map(mapRow);
+    }
+
+    if (localData.length > 0) {
+      const existingIds = new Set(dbGoals.map(g => g.id));
+      const newFromLocal = localData.filter(g => !existingIds.has(g.id));
+      for (const goal of newFromLocal) {
+        await send('chat-goal-create', {
+          id: goal.id,
+          name: goal.name,
+          targetAmount: goal.targetAmount,
+          targetDate: goal.targetDate,
+          associatedAccountIds: goal.associatedAccountIds,
+          associatedCategoryIds: goal.associatedCategoryIds,
+        });
+      }
+      try {
+        localStorage.removeItem(getLocalStorageKey());
+      } catch { /* ignore */ }
+      if (newFromLocal.length > 0) {
+        const refreshed = await send('chat-goals-get');
+        if (Array.isArray(refreshed)) {
+          return refreshed.map(mapRow);
+        }
+      }
+    }
+
+    return dbGoals;
   } catch {
     return [];
   }
 }
 
-export function saveGoals(goals: SavingsGoal[]): void {
-  localStorage.setItem(getStorageKey(), JSON.stringify(goals));
+export async function saveGoals(_goals: SavingsGoal[]): Promise<void> {
+  // no-op: individual operations handle persistence
 }
 
-export function createGoal(params: {
+export async function createGoal(params: {
   name: string;
   targetAmount: number;
   targetDate: string;
   associatedAccountIds?: string[];
   associatedCategoryIds?: string[];
-}): SavingsGoal {
+}): Promise<SavingsGoal> {
   const now = Date.now();
-  const goal: SavingsGoal = {
-    id: generateId(),
+  const id = await send('chat-goal-create', {
+    name: params.name,
+    targetAmount: params.targetAmount,
+    targetDate: params.targetDate,
+    associatedAccountIds: params.associatedAccountIds,
+    associatedCategoryIds: params.associatedCategoryIds,
+  });
+  return {
+    id,
     name: params.name,
     targetAmount: params.targetAmount,
     targetDate: params.targetDate,
@@ -60,32 +142,38 @@ export function createGoal(params: {
     createdAt: now,
     updatedAt: now,
   };
-  const goals = getGoals();
-  goals.push(goal);
-  saveGoals(goals);
-  return goal;
 }
 
-export function updateGoal(
+export async function updateGoal(
   id: string,
   updates: Partial<Omit<SavingsGoal, 'id' | 'createdAt'>>,
-): SavingsGoal | null {
-  const goals = getGoals();
-  const idx = goals.findIndex(g => g.id === id);
-  if (idx === -1) return null;
-  goals[idx] = { ...goals[idx], ...updates, updatedAt: Date.now() };
-  saveGoals(goals);
-  return goals[idx];
+): Promise<SavingsGoal | null> {
+  try {
+    await send('chat-goal-update', {
+      id,
+      name: updates.name,
+      targetAmount: updates.targetAmount,
+      targetDate: updates.targetDate,
+      associatedAccountIds: updates.associatedAccountIds,
+      associatedCategoryIds: updates.associatedCategoryIds,
+    });
+    const goals = await getGoals();
+    return goals.find(g => g.id === id) || null;
+  } catch {
+    return null;
+  }
 }
 
-export function deleteGoal(id: string): boolean {
-  const goals = getGoals();
-  const filtered = goals.filter(g => g.id !== id);
-  if (filtered.length === goals.length) return false;
-  saveGoals(filtered);
-  return true;
+export async function deleteGoal(id: string): Promise<boolean> {
+  try {
+    await send('chat-goal-delete', { id });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function getGoalById(id: string): SavingsGoal | null {
-  return getGoals().find(g => g.id === id) || null;
+export async function getGoalById(id: string): Promise<SavingsGoal | null> {
+  const goals = await getGoals();
+  return goals.find(g => g.id === id) || null;
 }

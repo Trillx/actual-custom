@@ -36,6 +36,8 @@ import { Permissions } from '@desktop-client/auth/types';
 import { useAccounts } from '@desktop-client/hooks/useAccounts';
 import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 import { useMetaThemeColor } from '@desktop-client/hooks/useMetaThemeColor';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
 import { ScrollProvider } from '@desktop-client/hooks/useScrollListener';
@@ -86,9 +88,46 @@ function RouterBehaviors() {
   return null;
 }
 
+function useAISettingsMigration() {
+  const [budgetId] = useMetadataPref('id');
+  const [apiKey, setApiKey] = useSyncedPref('ai.apiKey');
+  const [endpointUrl, setEndpointUrl] = useSyncedPref('ai.endpointUrl');
+  const [modelName, setModelName] = useSyncedPref('ai.modelName');
+  const migratedBudget = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!budgetId || migratedBudget.current === budgetId) return;
+    migratedBudget.current = budgetId;
+    try {
+      const migrateKey = (
+        prefKey: string,
+        currentValue: string | undefined,
+        setter: (v: string) => void,
+      ) => {
+        const localKey = `${budgetId}-${prefKey}`;
+        const raw = localStorage.getItem(localKey);
+        if (!raw) return;
+        try {
+          const val = JSON.parse(raw) as string;
+          if (val && !currentValue) {
+            setter(val);
+          }
+          localStorage.removeItem(localKey);
+        } catch { /* ignore */ }
+      };
+      migrateKey('ai.apiKey', apiKey, setApiKey);
+      migrateKey('ai.endpointUrl', endpointUrl, setEndpointUrl);
+      migrateKey('ai.modelName', modelName, setModelName);
+    } catch {
+      // ignore migration errors
+    }
+  }, [budgetId]);
+}
+
 function FinancesAppInner() {
   const { isNarrowWidth } = useResponsive();
   useMetaThemeColor(isNarrowWidth ? theme.mobileViewTheme : undefined);
+  useAISettingsMigration();
 
   const { chatOpen, toggleChat, closeChat } = useChat();
 

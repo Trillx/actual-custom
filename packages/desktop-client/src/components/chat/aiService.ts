@@ -14,7 +14,7 @@ function formatCurrency(amount: number): string {
   return amount < 0 ? `-${abs}` : abs;
 }
 
-function buildSystemPrompt(context: BudgetContext): string {
+async function buildSystemPrompt(context: BudgetContext): Promise<string> {
   const parts: string[] = [];
 
   parts.push(
@@ -231,7 +231,7 @@ function buildSystemPrompt(context: BudgetContext): string {
 
   parts.push('\n\n' + ACTUAL_DOCS_KNOWLEDGE);
 
-  const memories = getMemories();
+  const memories = await getMemories();
   if (memories.length > 0) {
     parts.push('\n\nMemories & Preferences:');
     memories.forEach((m, i) => {
@@ -693,7 +693,7 @@ export async function sendChatMessage(
   endpointUrl?: string,
   modelName?: string,
 ): Promise<string> {
-  const systemPrompt = buildSystemPrompt(context);
+  const systemPrompt = await buildSystemPrompt(context);
   const endpoint = endpointUrl?.trim() || DEFAULT_ENDPOINT;
 
   const QUERYING_PREFIX = 'Querying: ';

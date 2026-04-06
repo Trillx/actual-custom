@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -9,7 +10,7 @@ import { View } from '@actual-app/components/view';
 
 import { Setting } from './UI';
 
-import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 const PROVIDERS = [
   {
@@ -45,9 +46,9 @@ function detectProvider(endpoint: string): ProviderId {
 
 export function AISettings() {
   const { t } = useTranslation();
-  const [apiKey, setApiKeyPref] = useLocalPref('ai.apiKey');
-  const [endpointUrl, setEndpointUrlPref] = useLocalPref('ai.endpointUrl');
-  const [modelName, setModelNamePref] = useLocalPref('ai.modelName');
+  const [apiKey, setApiKeyPref] = useSyncedPref('ai.apiKey');
+  const [endpointUrl, setEndpointUrlPref] = useSyncedPref('ai.endpointUrl');
+  const [modelName, setModelNamePref] = useSyncedPref('ai.modelName');
   const [keyInput, setKeyInput] = useState(apiKey || '');
   const [urlInput, setUrlInput] = useState(endpointUrl || '');
   const [modelInput, setModelInput] = useState(modelName || '');
@@ -55,6 +56,26 @@ export function AISettings() {
     detectProvider(endpointUrl || ''),
   );
   const [saved, setSaved] = useState(false);
+
+  const prevApiKey = useRef(apiKey);
+  const prevEndpointUrl = useRef(endpointUrl);
+  const prevModelName = useRef(modelName);
+
+  useEffect(() => {
+    if (apiKey !== prevApiKey.current) {
+      prevApiKey.current = apiKey;
+      setKeyInput(apiKey || '');
+    }
+    if (endpointUrl !== prevEndpointUrl.current) {
+      prevEndpointUrl.current = endpointUrl;
+      setUrlInput(endpointUrl || '');
+      setProvider(detectProvider(endpointUrl || ''));
+    }
+    if (modelName !== prevModelName.current) {
+      prevModelName.current = modelName;
+      setModelInput(modelName || '');
+    }
+  }, [apiKey, endpointUrl, modelName]);
 
   const currentProvider = PROVIDERS.find(p => p.id === provider)!;
 

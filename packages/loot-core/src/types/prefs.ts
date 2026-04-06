@@ -51,7 +51,10 @@ export type SyncedPrefs = Partial<
     | `camt-swap-payee-memo-${string}`
     | `flip-amount-${string}-${'csv' | 'qif'}`
     | `flags.${FeatureFlag}`
-    | `learn-categories`,
+    | `learn-categories`
+    | 'ai.apiKey'
+    | 'ai.modelName'
+    | 'ai.endpointUrl',
     string
   >
 >;
@@ -90,9 +93,6 @@ export type LocalPrefs = Partial<{
   reportsViewLabel: boolean;
   sidebarWidth: number;
   'mobile.showSpentColumn': boolean;
-  'ai.apiKey': string;
-  'ai.modelName': string;
-  'ai.endpointUrl': string;
 }>;
 
 export type Theme = 'light' | 'dark' | 'auto' | 'midnight' | string;

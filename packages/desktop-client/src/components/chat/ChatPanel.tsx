@@ -43,7 +43,7 @@ import type {
 } from './types';
 import { useBudgetContext } from './useBudgetContext';
 
-import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 function extractTransactionIds(actions: BudgetAction[]): string[] {
   const ids: string[] = [];
@@ -174,9 +174,9 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const isRestoredSession = useRef(false);
   const restoreCompleteRef = useRef(false);
   const [displayCtx, setDisplayCtx] = useState<DisplayContext | undefined>();
-  const [apiKey] = useLocalPref('ai.apiKey');
-  const [endpointUrl] = useLocalPref('ai.endpointUrl');
-  const [modelName] = useLocalPref('ai.modelName');
+  const [apiKey] = useSyncedPref('ai.apiKey');
+  const [endpointUrl] = useSyncedPref('ai.endpointUrl');
+  const [modelName] = useSyncedPref('ai.modelName');
   const { gatherContext, runQuery, initBudgetScope } = useBudgetContext();
   const { isNarrowWidth } = useResponsive();
   const { pendingMessage, clearPendingMessage } = useChat();
@@ -196,7 +196,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     async function init() {
       const ctx = await gatherContext();
       setDisplayCtx(buildDisplayContext(ctx));
-      const persisted = loadPersistedMessages();
+      const persisted = await loadPersistedMessages();
       if (persisted.length > 0) {
         setMessages(persisted);
         isRestoredSession.current = true;

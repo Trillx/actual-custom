@@ -1641,7 +1641,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
     }
     case 'create-goal': {
       const validated = validateCreateGoal(action.params);
-      const goal = createGoal(validated);
+      const goal = await createGoal(validated);
       return `Savings goal "${goal.name}" created successfully. Target: ${formatCents(goal.targetAmount)} by ${goal.targetDate}.`;
     }
     case 'update-goal': {
@@ -1656,13 +1656,13 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         updates.associatedAccountIds = validated.associatedAccountIds;
       if (validated.associatedCategoryIds !== undefined)
         updates.associatedCategoryIds = validated.associatedCategoryIds;
-      const updated = updateGoal(validated.goalId, updates);
+      const updated = await updateGoal(validated.goalId, updates);
       if (!updated) throw new Error('Goal not found.');
       return `Savings goal "${updated.name}" updated successfully.`;
     }
     case 'delete-goal': {
       const validated = validateDeleteGoal(action.params);
-      const deleted = deleteGoal(validated.goalId);
+      const deleted = await deleteGoal(validated.goalId);
       if (!deleted) throw new Error('Goal not found.');
       return `Savings goal "${validated.goalName}" deleted successfully.`;
     }
@@ -2159,11 +2159,11 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       const { memoryId } = action.params;
       if (typeof memoryId !== 'string')
         throw new Error('Memory ID must be a string.');
-      deleteMemoryById(memoryId);
+      await deleteMemoryById(memoryId);
       return 'Memory deleted successfully.';
     }
     case 'list-memories': {
-      const memories = getMemories();
+      const memories = await getMemories();
       if (memories.length === 0) return "You haven't saved any memories yet.";
       return `Here are your saved memories:\n${memories.map(m => `• [${m.category || 'General'}] ${m.content}`).join('\n')}`;
     }

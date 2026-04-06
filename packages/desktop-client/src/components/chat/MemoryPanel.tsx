@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@actual-app/components/button';
 import { SvgClose, SvgTrash } from '@actual-app/components/icons/v1';
@@ -35,36 +35,41 @@ export function MemoryPanel({
   onClose,
   isNarrowWidth = false,
 }: MemoryPanelProps) {
-  const [memories, setMemories] = useState<Memory[]>(getMemories);
+  const [memories, setMemories] = useState<Memory[]>([]);
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<MemoryCategory>('preference');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const refreshMemories = useCallback(() => {
-    setMemories(getMemories());
+  const refreshMemories = useCallback(async () => {
+    const mems = await getMemories();
+    setMemories(mems);
   }, []);
 
+  useEffect(() => {
+    void refreshMemories();
+  }, [refreshMemories]);
+
   const handleDelete = useCallback(
-    (id: string) => {
-      deleteMemory(id);
-      refreshMemories();
+    async (id: string) => {
+      await deleteMemory(id);
+      await refreshMemories();
     },
     [refreshMemories],
   );
 
-  const handleClearAll = useCallback(() => {
+  const handleClearAll = useCallback(async () => {
     if (!window.confirm('Delete all memories? This cannot be undone.')) return;
-    clearMemories();
-    refreshMemories();
+    await clearMemories();
+    await refreshMemories();
   }, [refreshMemories]);
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = useCallback(async () => {
     const trimmed = newContent.trim();
     if (!trimmed) return;
-    addMemory({ content: trimmed, category: newCategory, source: 'user' });
+    await addMemory({ content: trimmed, category: newCategory, source: 'user' });
     setNewContent('');
     setShowAddForm(false);
-    refreshMemories();
+    await refreshMemories();
   }, [newContent, newCategory, refreshMemories]);
 
   return (

@@ -48,24 +48,29 @@ The app includes an AI-powered budget chat assistant that lets users ask questio
 - **Chat Panel**: `packages/desktop-client/src/components/chat/` — sliding panel on the right side of the app
 - **AI Service**: `aiService.ts` — calls OpenAI API (gpt-4o-mini) directly from the browser
 - **Budget Context**: `useBudgetContext.ts` — gathers accounts, categories, budget month data, and recent transactions via the `send()` API bridge
-- **Settings**: `packages/desktop-client/src/components/settings/AISettings.tsx` — OpenAI API key configuration stored in `LocalPrefs`
+- **Settings**: `packages/desktop-client/src/components/settings/AISettings.tsx` — OpenAI API key configuration stored in `SyncedPrefs` (syncs across devices)
+- **Server Handlers**: `packages/loot-core/src/server/chat/app.ts` — CRUD handlers for chat data stored in budget SQLite DB
 
-### Chat History Persistence
+### Chat History & Data Persistence
 
-Chat messages are persisted in localStorage, keyed by budget ID (budget fingerprint). This means:
-- Messages survive page refreshes and browser restarts
-- Each budget has isolated chat history
+Chat messages, memories, goals, and AI settings are persisted in the budget's SQLite database via loot-core, enabling sync across devices:
+- **Chat messages**: `chat_messages` table — syncs via CRDT when budget syncs
+- **AI memories**: `chat_memories` table — learned preferences carry across devices
+- **Savings goals**: `chat_goals` table — goals created via chat available everywhere
+- **AI settings**: Stored in `preferences` table via `SyncedPrefs` (`ai.apiKey`, `ai.modelName`, `ai.endpointUrl`)
+- Each budget has isolated chat data (budget-scoped by virtue of separate SQLite DBs)
 - A rolling window of 200 messages is maintained (older messages are pruned on save)
 - On reload, any pending/executing actions are marked as "expired" so they don't appear as active confirmations
 - The AI receives a summary of the last 10 messages from the prior session for conversation continuity
 - Users can clear all chat history using the trash icon in the chat header
-- Key file: `chatState.ts` — localStorage persistence layer with `setChatBudgetId()`, `loadPersistedMessages()`, `buildConversationSummary()`
+- On first load after upgrade, existing localStorage data is automatically migrated to the database
+- Key files: `chatState.ts`, `memoryStorage.ts`, `goalStorage.ts` — async persistence layers using `send()` API
 
 ### How It Works
 
 1. User clicks "AI Chat" button in the sidebar (uses `SvgChatBubbleDots` icon)
 2. Chat panel opens on the right side of FinancesApp (or full-screen overlay on mobile)
-3. On mount, persisted messages are loaded from localStorage (with expired action state handling)
+3. On mount, persisted messages are loaded from the database (with expired action state handling)
 4. On each message, the system gathers lightweight baseline context (accounts, categories, budget for current month, a small sample of recent transactions, scheduled transactions). Detailed data is fetched on-demand via query actions only when needed.
 5. Context + conversation history is sent to OpenAI's API (or custom endpoint)
 6. Response is displayed in the chat panel
