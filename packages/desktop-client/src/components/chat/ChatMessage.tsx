@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { Button } from '@actual-app/components/button';
 import {
@@ -15,6 +15,7 @@ import { MarkdownText } from './MarkdownText';
 import type {
   ChatMessage as ChatMessageType,
   DisplayContext,
+  FormattedActionResult,
   QueuedAction,
 } from './types';
 
@@ -106,6 +107,53 @@ function ActionStatusBadge({
     );
   }
   return null;
+}
+
+function ActionDetailLines({ result }: { result: FormattedActionResult }) {
+  const [showAll, setShowAll] = useState(false);
+
+  const lineStyle = {
+    fontSize: 11,
+    color: theme.pageTextSubdued,
+    lineHeight: '1.6' as const,
+    fontFamily: 'monospace' as const,
+    overflowWrap: 'break-word' as const,
+    wordBreak: 'break-word' as const,
+  };
+
+  return (
+    <>
+      {result.summaryLines.map((line, i) => (
+        <Text key={`s-${i}`} style={lineStyle}>
+          {line}
+        </Text>
+      ))}
+      {result.isGrouped && result.detailLines && (
+        <>
+          <Text
+            style={{
+              fontSize: 11,
+              color: theme.pageTextLink,
+              cursor: 'pointer',
+              marginTop: 4,
+              userSelect: 'none',
+            }}
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll
+              ? '▼ Hide details'
+              : `▶ Show all ${result.detailLines.length} transactions`}
+          </Text>
+          {showAll &&
+            result.detailLines.map((line, i) => (
+              <Text key={`d-${i}`} style={lineStyle}>
+                {line}
+              </Text>
+            ))}
+        </>
+      )}
+    </>
+  );
 }
 
 export function ChatMessage({
@@ -230,23 +278,12 @@ export function ChatMessage({
                 {message.pendingAction?.description || 'Confirm action'}
               </Text>
             </View>
-            {formatActionDetails(message.pendingAction, displayContext).map(
-              (line, i) => (
-                <Text
-                  key={i}
-                  style={{
-                    fontSize: 11,
-                    color: theme.pageTextSubdued,
-                    lineHeight: '1.6',
-                    fontFamily: 'monospace',
-                    overflowWrap: 'break-word',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {line}
-                </Text>
-              ),
-            )}
+            <ActionDetailLines
+              result={formatActionDetails(
+                message.pendingAction,
+                displayContext,
+              )}
+            />
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               <Button
                 variant="primary"
@@ -448,22 +485,9 @@ export function ChatMessage({
                   >
                     {`${idx + 1}. ${qa.action.description || qa.action.type}`}
                   </Text>
-                  {formatActionDetails(qa.action, displayContext).map(
-                    (line, li) => (
-                      <Text
-                        key={li}
-                        style={{
-                          fontSize: 11,
-                          color: theme.pageTextSubdued,
-                          fontFamily: 'monospace',
-                          overflowWrap: 'break-word',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {line}
-                      </Text>
-                    ),
-                  )}
+                  <ActionDetailLines
+                    result={formatActionDetails(qa.action, displayContext)}
+                  />
                 </View>
                 <View style={{ flexShrink: 0 }}>
                   <ActionStatusBadge status={qa.status} result={qa.result} />

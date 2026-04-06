@@ -1,7 +1,13 @@
 export type QueuedAction = {
   id: string;
   action: BudgetAction;
-  status: 'pending' | 'executing' | 'executed' | 'failed' | 'rejected' | 'expired';
+  status:
+    | 'pending'
+    | 'executing'
+    | 'executed'
+    | 'failed'
+    | 'rejected'
+    | 'expired';
   result?: string;
 };
 
@@ -11,7 +17,13 @@ export type ChatMessage = {
   content: string;
   timestamp: number;
   pendingAction?: BudgetAction;
-  actionStatus?: 'pending' | 'confirmed' | 'rejected' | 'executed' | 'failed' | 'expired';
+  actionStatus?:
+    | 'pending'
+    | 'confirmed'
+    | 'rejected'
+    | 'executed'
+    | 'failed'
+    | 'expired';
   pendingActions?: QueuedAction[];
 };
 
@@ -183,13 +195,24 @@ export type HistoricalComparison = {
   totalAverage: number;
 };
 
+export type FormattedActionResult = {
+  summaryLines: string[];
+  detailLines?: string[];
+  isGrouped: boolean;
+};
+
 export type DisplayContext = {
   payeeMap: Map<string, string>;
   categoryMap: Map<string, string>;
   accountMap: Map<string, string>;
   transactionCache?: Map<
     string,
-    { payee_name?: string; date?: string; amount?: number; account_name?: string }
+    {
+      payee_name?: string;
+      date?: string;
+      amount?: number;
+      account_name?: string;
+    }
   >;
 };
 

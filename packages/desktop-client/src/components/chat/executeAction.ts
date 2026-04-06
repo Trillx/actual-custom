@@ -7,7 +7,11 @@ import {
   deleteMemory as deleteMemoryById,
   getMemories,
 } from './memoryStorage';
-import type { BudgetAction, DisplayContext } from './types';
+import type {
+  BudgetAction,
+  DisplayContext,
+  FormattedActionResult,
+} from './types';
 
 function validateSetBudgetAmount(params: Record<string, unknown>): {
   month: string;
@@ -716,7 +720,7 @@ function formatCents(amount: number): string {
 export function formatActionDetails(
   action: BudgetAction,
   ctx?: DisplayContext,
-): string[] {
+): FormattedActionResult {
   const lines: string[] = [];
   const p = action.params;
 
@@ -825,7 +829,7 @@ export function formatActionDetails(
         }
       }
 
-      if (updates.length >= 6 && changeGroups.size <= updates.length / 2) {
+      if (updates.length >= 10 && changeGroups.size <= updates.length / 2) {
         for (const [change, group] of changeGroups) {
           const payeeList = Array.from(group.payees);
           const payeeSummary =
@@ -834,9 +838,9 @@ export function formatActionDetails(
               : `${payeeList.slice(0, 3).join(', ')} +${payeeList.length - 3} more`;
           lines.push(`${group.count}x ${change} (${payeeSummary})`);
         }
-      } else {
-        lines.push(...detailLines);
+        return { summaryLines: lines, detailLines, isGrouped: true };
       }
+      lines.push(...detailLines);
       break;
     }
     case 'correct-transfer-direction': {
@@ -1142,7 +1146,7 @@ export function formatActionDetails(
     }
   }
 
-  return lines;
+  return { summaryLines: lines, isGrouped: false };
 }
 
 async function resolveRuleConditions(

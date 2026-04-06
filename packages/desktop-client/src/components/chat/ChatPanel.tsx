@@ -531,11 +531,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
                 ...context.accounts,
                 ...(context.closedAccounts || []),
               ];
+              const lookupStartDate = new Date(
+                Date.now() - 90 * 24 * 60 * 60 * 1000,
+              )
+                .toISOString()
+                .split('T')[0];
               for (const acct of allAccounts) {
                 if (missingSet.size === 0) break;
                 const txns = (await send('api/transactions-get', {
                   accountId: acct.id,
-                  startDate: '2020-01-01',
+                  startDate: lookupStartDate,
                 })) as Array<{
                   id: string;
                   date: string;
