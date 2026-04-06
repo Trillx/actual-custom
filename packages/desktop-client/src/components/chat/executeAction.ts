@@ -1,4 +1,5 @@
 import { send } from 'loot-core/platform/client/connection';
+import { q } from 'loot-core/shared/query';
 
 import { createGoal, deleteGoal, updateGoal } from './goalStorage';
 import {
@@ -55,8 +56,9 @@ function validateUpdateTransaction(params: Record<string, unknown>): {
   payee_name?: string;
   category_id?: string;
   notes?: string;
+  accountId?: string;
 } {
-  const { transactionId, date, amount, payee_name, category_id, notes } =
+  const { transactionId, date, amount, payee_name, category_id, notes, accountId } =
     params;
   if (typeof transactionId !== 'string' || !transactionId)
     throw new Error('Missing or invalid "transactionId" parameter.');
@@ -67,6 +69,7 @@ function validateUpdateTransaction(params: Record<string, unknown>): {
     payee_name: typeof payee_name === 'string' ? payee_name : undefined,
     category_id: typeof category_id === 'string' ? category_id : undefined,
     notes: typeof notes === 'string' ? notes : undefined,
+    accountId: typeof accountId === 'string' ? accountId : undefined,
   };
 }
 
@@ -78,6 +81,7 @@ function validateBulkUpdateTransactions(params: Record<string, unknown>): {
     notes?: string;
     amount?: number;
     date?: string;
+    accountId?: string;
   }>;
 } {
   const { updates } = params;
@@ -96,6 +100,8 @@ function validateBulkUpdateTransactions(params: Record<string, unknown>): {
       notes: typeof entry.notes === 'string' ? entry.notes : undefined,
       amount: typeof entry.amount === 'number' ? entry.amount : undefined,
       date: typeof entry.date === 'string' ? entry.date : undefined,
+      accountId:
+        typeof entry.accountId === 'string' ? entry.accountId : undefined,
     };
   });
   return { updates: validated };
@@ -730,6 +736,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
         lines.push(`New Amount: ${formatCents(p.amount as number)}`);
       if (p.payee_name) lines.push(`New Payee: ${p.payee_name}`);
       if (p.category_id) lines.push(`New Category ID: ${p.category_id}`);
+      if (p.accountId) lines.push(`Move to Account: ${p.accountId}`);
       if (p.notes !== undefined)
         lines.push(`New Notes: ${p.notes || '(cleared)'}`);
       break;
@@ -743,6 +750,7 @@ export function formatActionDetails(action: BudgetAction): string[] {
           const parts: string[] = [];
           if (u.category_id) parts.push(`category: ${u.category_id}`);
           if (u.payee_name) parts.push(`payee: ${u.payee_name}`);
+          if (u.accountId) parts.push(`account: ${u.accountId}`);
           if (u.notes !== undefined)
             parts.push(`notes: ${u.notes || '(cleared)'}`);
           lines.push(
@@ -752,6 +760,10 @@ export function formatActionDetails(action: BudgetAction): string[] {
       }
       break;
     }
+    case 'correct-transfer-direction':
+      lines.push(`Type: Reverse Transfer Direction`);
+      if (p.transactionId) lines.push(`Transaction ID: ${p.transactionId}`);
+      break;
     case 'delete-transaction':
       lines.push(`Type: Delete Transaction`);
       lines.push(`Transaction ID: ${p.transactionId}`);
@@ -938,16 +950,47 @@ export function formatActionDetails(action: BudgetAction): string[] {
     case 'list-memories':
       lines.push(`Type: List Memories`);
       break;
-    case 'create-rule':
-      lines.push(`Type: Create Payee Rename Rule`);
-      if (p.containsPattern)
-        lines.push(`Match imported payees containing: "${p.containsPattern}"`);
-      if (Array.isArray(p.fromNames))
-        lines.push(
-          `Match imported payees exactly: ${(p.fromNames as string[]).join(', ')}`,
-        );
-      if (p.toPayee) lines.push(`Rename to: ${p.toPayee}`);
+    case 'create-rule': {
+      const hasAdvancedConditions = Array.isArray(p.conditions);
+      if (hasAdvancedConditions) {
+        lines.push(`Type: Create Rule`);
+        for (const c of p.conditions as Array<Record<string, unknown>>) {
+          lines.push(`  Condition: ${c.field} ${c.op} ${c.value}`);
+        }
+        if (Array.isArray(p.actions)) {
+          for (const a of p.actions as Array<Record<string, unknown>>) {
+            lines.push(`  Action: ${a.op} ${a.field} = ${a.value}`);
+          }
+        }
+      } else {
+        lines.push(`Type: Create Payee Rename Rule`);
+        if (p.containsPattern)
+          lines.push(
+            `Match imported payees containing: "${p.containsPattern}"`,
+          );
+        if (Array.isArray(p.fromNames))
+          lines.push(
+            `Match imported payees exactly: ${(p.fromNames as string[]).join(', ')}`,
+          );
+        if (p.toPayee) lines.push(`Rename to: ${p.toPayee}`);
+      }
       break;
+    }
+    case 'update-rule': {
+      lines.push(`Type: Update Rule`);
+      if (p.ruleId) lines.push(`Rule ID: ${p.ruleId}`);
+      if (Array.isArray(p.conditions)) {
+        for (const c of p.conditions as Array<Record<string, unknown>>) {
+          lines.push(`  Condition: ${c.field} ${c.op} ${c.value}`);
+        }
+      }
+      if (Array.isArray(p.actions)) {
+        for (const a of p.actions as Array<Record<string, unknown>>) {
+          lines.push(`  Action: ${a.op} ${a.field} = ${a.value}`);
+        }
+      }
+      break;
+    }
     case 'delete-rule':
       lines.push(`Type: Delete Rule`);
       if (p.ruleId) lines.push(`Rule ID: ${p.ruleId}`);
@@ -1004,6 +1047,123 @@ export function formatActionDetails(action: BudgetAction): string[] {
   return lines;
 }
 
+async function resolveRuleConditions(
+  conditions: Array<Record<string, unknown>>,
+): Promise<Array<{ field: string; op: string; value: unknown }>> {
+  const resolved: Array<{ field: string; op: string; value: unknown }> = [];
+  const allPayees = (await send('payees-get')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const allCategories = (await send('api/categories-get')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const allAccounts = (await send('api/accounts-get')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  for (const c of conditions) {
+    const field = c.field as string;
+    const op = c.op as string;
+    let value = c.value;
+    if (field === 'payee') {
+      if (typeof value === 'string') {
+        const match = allPayees.find(
+          p => p.name.toLowerCase() === (value as string).toLowerCase(),
+        );
+        if (match) value = match.id;
+      } else if (Array.isArray(value)) {
+        value = (value as string[]).map(v => {
+          if (typeof v !== 'string') return v;
+          const match = allPayees.find(p => p.name.toLowerCase() === v.toLowerCase());
+          return match ? match.id : v;
+        });
+      }
+    }
+    if (field === 'category') {
+      if (typeof value === 'string') {
+        const match = allCategories.find(
+          cat => cat.name.toLowerCase() === (value as string).toLowerCase(),
+        );
+        if (match) value = match.id;
+      } else if (Array.isArray(value)) {
+        value = (value as string[]).map(v => {
+          if (typeof v !== 'string') return v;
+          const match = allCategories.find(cat => cat.name.toLowerCase() === v.toLowerCase());
+          return match ? match.id : v;
+        });
+      }
+    }
+    if (field === 'account') {
+      if (typeof value === 'string') {
+        const match = allAccounts.find(
+          a => a.name.toLowerCase() === (value as string).toLowerCase(),
+        );
+        if (match) value = match.id;
+      } else if (Array.isArray(value)) {
+        value = (value as string[]).map(v => {
+          if (typeof v !== 'string') return v;
+          const match = allAccounts.find(a => a.name.toLowerCase() === v.toLowerCase());
+          return match ? match.id : v;
+        });
+      }
+    }
+    resolved.push({ field, op, value });
+  }
+  return resolved;
+}
+
+async function resolveRuleActions(
+  actions: Array<Record<string, unknown>>,
+): Promise<Array<{ op: string; field: string; value: unknown }>> {
+  const resolved: Array<{ op: string; field: string; value: unknown }> = [];
+  const allPayees = (await send('payees-get')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const allCategories = (await send('api/categories-get')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const allAccounts = (await send('api/accounts-get')) as Array<{
+    id: string;
+    name: string;
+  }>;
+  for (const a of actions) {
+    const op = (a.op as string) || 'set';
+    const field = a.field as string;
+    let value = a.value;
+    if (field === 'payee' && typeof value === 'string') {
+      const match = allPayees.find(
+        p => p.name.toLowerCase() === (value as string).toLowerCase(),
+      );
+      if (match) {
+        value = match.id;
+      } else {
+        const newPayeeId = (await send('payee-create', {
+          name: value as string,
+        })) as string;
+        value = newPayeeId;
+      }
+    }
+    if (field === 'category' && typeof value === 'string') {
+      const match = allCategories.find(
+        cat => cat.name.toLowerCase() === (value as string).toLowerCase(),
+      );
+      if (match) value = match.id;
+    }
+    if (field === 'account' && typeof value === 'string') {
+      const match = allAccounts.find(
+        acc => acc.name.toLowerCase() === (value as string).toLowerCase(),
+      );
+      if (match) value = match.id;
+    }
+    resolved.push({ op, field, value });
+  }
+  return resolved;
+}
+
 export async function executeAction(action: BudgetAction): Promise<string> {
   switch (action.type) {
     case 'set-budget-amount': {
@@ -1036,6 +1196,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         category?: string;
         notes?: string;
         payee?: string;
+        account?: string;
       } = { id: validated.transactionId };
       if (validated.date !== undefined) updateFields.date = validated.date;
       if (validated.amount !== undefined)
@@ -1043,6 +1204,8 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       if (validated.category_id !== undefined)
         updateFields.category = validated.category_id;
       if (validated.notes !== undefined) updateFields.notes = validated.notes;
+      if (validated.accountId !== undefined)
+        updateFields.account = validated.accountId;
       if (validated.payee_name !== undefined) {
         const allPayees = (await send('payees-get')) as Array<{
           id: string;
@@ -1066,6 +1229,35 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       );
       return 'Transaction updated successfully.';
     }
+    case 'correct-transfer-direction': {
+      const { transactionId } = action.params;
+      if (typeof transactionId !== 'string' || !transactionId)
+        throw new Error(
+          'correct-transfer-direction requires a non-empty "transactionId".',
+        );
+      const txQuery = q('transactions')
+        .filter({ id: transactionId })
+        .select('*')
+        .options({ splits: 'inline' });
+      const { data: txResults } = (await send('api/query', {
+        query: txQuery.serialize(),
+      })) as { data: Array<{ id: string; amount: number; transfer_id?: string }> };
+      const sourceTx = txResults[0];
+      if (!sourceTx)
+        throw new Error(`Transaction not found: ${transactionId}`);
+      if (!sourceTx.transfer_id)
+        throw new Error(
+          'This transaction is not a transfer. Use update-transaction with accountId to move a regular transaction.',
+        );
+      await send(
+        'transaction-update',
+        {
+          id: sourceTx.id,
+          amount: -sourceTx.amount,
+        } as Parameters<typeof send<'transaction-update'>>[1],
+      );
+      return 'Transfer direction corrected — the flow of money has been reversed between the two accounts.';
+    }
     case 'bulk-update-transactions': {
       const validated = validateBulkUpdateTransactions(action.params);
       const allPayees = (await send('payees-get')) as Array<{
@@ -1081,12 +1273,15 @@ export async function executeAction(action: BudgetAction): Promise<string> {
           category?: string;
           notes?: string;
           payee?: string;
+          account?: string;
         } = { id: entry.transactionId };
         if (entry.date !== undefined) updateFields.date = entry.date;
         if (entry.amount !== undefined) updateFields.amount = entry.amount;
         if (entry.category_id !== undefined)
           updateFields.category = entry.category_id;
         if (entry.notes !== undefined) updateFields.notes = entry.notes;
+        if (entry.accountId !== undefined)
+          updateFields.account = entry.accountId;
         if (entry.payee_name !== undefined) {
           const matchedPayee = allPayees.find(
             p => p.name.toLowerCase() === entry.payee_name!.toLowerCase(),
@@ -1589,9 +1784,40 @@ export async function executeAction(action: BudgetAction): Promise<string> {
       return `Created ${typedGroups.length} category group${typedGroups.length === 1 ? '' : 's'}:\n${summary.join('\n')}`;
     }
     case 'create-rule': {
-      const { fromNames, containsPattern, toPayee } = action.params;
+      const { fromNames, containsPattern, toPayee, conditions, actions, conditionsOp, stage } = action.params;
+      if (Array.isArray(conditions) && Array.isArray(actions)) {
+        const resolvedConditions = await resolveRuleConditions(
+          conditions as Array<Record<string, unknown>>,
+        );
+        const resolvedActions = await resolveRuleActions(
+          actions as Array<Record<string, unknown>>,
+        );
+        const rulePayload = {
+          stage: (stage === null ? null : typeof stage === 'string' ? stage : 'pre') as 'pre' | null | 'post',
+          conditionsOp: (typeof conditionsOp === 'string' ? conditionsOp : 'and') as 'and' | 'or',
+          conditions: resolvedConditions,
+          actions: resolvedActions,
+        };
+        const result = (await send(
+          'rule-add',
+          rulePayload as Parameters<typeof send<'rule-add'>>[1],
+        )) as { error?: { message?: string } } | { id: string };
+        if ('error' in result && result.error) {
+          throw new Error(
+            `Failed to create rule: ${result.error.message || 'validation error'}`,
+          );
+        }
+        const condDesc = resolvedConditions
+          .map(c => `${c.field} ${c.op} ${c.value}`)
+          .join(' AND ');
+        const actDesc = resolvedActions
+          .map(a => `${a.op} ${a.field} = ${a.value}`)
+          .join(', ');
+        return `Rule created: If ${condDesc} → ${actDesc}`;
+      }
+
       if (typeof toPayee !== 'string' || !toPayee.trim()) {
-        throw new Error('create-rule requires a non-empty "toPayee" string.');
+        throw new Error('create-rule requires a non-empty "toPayee" string or "conditions"/"actions" arrays.');
       }
       const cleanToPayee = (toPayee as string).trim();
       const allPayees = (await send('payees-get')) as Array<{
@@ -1633,7 +1859,7 @@ export async function executeAction(action: BudgetAction): Promise<string> {
 
       if (!Array.isArray(fromNames) || fromNames.length === 0) {
         throw new Error(
-          'create-rule requires either "containsPattern" (substring match) or "fromNames" (exact match list).',
+          'create-rule requires either "containsPattern" (substring match), "fromNames" (exact match list), or "conditions"/"actions" arrays.',
         );
       }
       for (const name of fromNames as unknown[]) {
@@ -1648,6 +1874,54 @@ export async function executeAction(action: BudgetAction): Promise<string> {
         to: payeeId,
       });
       return `Payee rename rule created: ${(fromNames as string[]).join(', ')} → ${cleanToPayee}`;
+    }
+    case 'update-rule': {
+      const { ruleId, conditions, actions, conditionsOp, stage } = action.params;
+      if (typeof ruleId !== 'string' || !ruleId.trim()) {
+        throw new Error('update-rule requires a non-empty "ruleId" string.');
+      }
+      const existingRule = (await send('rule-get', {
+        id: ruleId as string,
+      })) as {
+        id: string;
+        stage?: string;
+        conditionsOp?: string;
+        conditions?: Array<{ field: string; op: string; value: unknown }>;
+        actions?: Array<{ field: string; op: string; value: unknown }>;
+      } | null;
+      if (!existingRule) {
+        throw new Error(`Rule not found: ${ruleId}`);
+      }
+      const resolvedStage = stage === null ? null : typeof stage === 'string' ? stage : (existingRule.stage !== undefined ? existingRule.stage : 'pre');
+      const updatedRule: Record<string, unknown> = {
+        id: ruleId,
+        stage: resolvedStage,
+        conditionsOp: typeof conditionsOp === 'string' ? conditionsOp : existingRule.conditionsOp || 'and',
+      };
+      if (Array.isArray(conditions)) {
+        updatedRule.conditions = await resolveRuleConditions(
+          conditions as Array<Record<string, unknown>>,
+        );
+      } else {
+        updatedRule.conditions = existingRule.conditions || [];
+      }
+      if (Array.isArray(actions)) {
+        updatedRule.actions = await resolveRuleActions(
+          actions as Array<Record<string, unknown>>,
+        );
+      } else {
+        updatedRule.actions = existingRule.actions || [];
+      }
+      const updateResult = (await send(
+        'rule-update',
+        updatedRule as Parameters<typeof send<'rule-update'>>[1],
+      )) as { error?: { message?: string } } | { id: string };
+      if ('error' in updateResult && updateResult.error) {
+        throw new Error(
+          `Failed to update rule: ${updateResult.error.message || 'validation error'}`,
+        );
+      }
+      return 'Rule updated successfully.';
     }
     case 'delete-rule': {
       const { ruleId } = action.params;

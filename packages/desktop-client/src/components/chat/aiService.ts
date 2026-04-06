@@ -31,8 +31,9 @@ function buildSystemPrompt(context: BudgetContext): string {
       'Available WRITE action types:\n' +
       '- "set-budget-amount": params: {month, categoryId, amount} (amount in cents, ABSOLUTE value — this sets the total budget to this amount, NOT an increment. When adding $X to an existing budget, calculate: existing_budgeted_amount + X)\n' +
       '- "add-transaction": params: {accountId, date, amount, payee_name, category_id, notes} (amount in cents, negative for expenses)\n' +
-      '- "update-transaction": params: {transactionId, date?, amount?, payee_name?, category_id?, notes?} (only include fields to change, amount in cents)\n' +
-      '- "bulk-update-transactions": params: {updates: [{transactionId, category_id?, payee_name?, notes?}]} — Update multiple transactions at once. Use this when categorizing or re-categorizing many transactions in bulk (e.g., "categorize all my uncategorized transactions"). Each entry only needs transactionId and the fields to change. The user confirms once and all updates apply.\n' +
+      '- "update-transaction": params: {transactionId, date?, amount?, payee_name?, category_id?, notes?, accountId?} (only include fields to change, amount in cents). Use accountId to move a transaction to a different account.\n' +
+      '- "correct-transfer-direction": params: {transactionId} — Swap a transfer\'s source and destination accounts. Use when a transfer is recorded in the wrong direction (e.g., shows money leaving Savings→Checking but should be Checking→Savings). Provide the ID of either side of the transfer pair.\n' +
+      '- "bulk-update-transactions": params: {updates: [{transactionId, category_id?, payee_name?, notes?, accountId?}]} — Update multiple transactions at once. Use this when categorizing or re-categorizing many transactions in bulk (e.g., "categorize all my uncategorized transactions"). Each entry only needs transactionId and the fields to change. accountId moves the transaction to a different account. The user confirms once and all updates apply.\n' +
       '- "delete-transaction": params: {transactionId} (use the transaction ID from recent transactions)\n' +
       '- "transfer-between-accounts": params: {fromAccountId, toAccountId, amount, date, notes?} (amount in cents, positive value)\n' +
       '- "create-category": params: {name, group_id} — IMPORTANT: group_id MUST be a valid category group ID from the context above. Look up the group ID from "Category Groups and Categories" section.\n' +
@@ -62,16 +63,23 @@ function buildSystemPrompt(context: BudgetContext): string {
       '- "save-memory": params: {content, category} — Save a memory/preference the user teaches you. category must be "categorization", "preference", or "context". content is a human-readable description like "Starbucks transactions should be categorized as Dining Out".\n' +
       '- "delete-memory": params: {memoryId} — Delete an outdated or incorrect memory by its ID.\n' +
       '- "list-memories": params: {} — List all saved memories. This is a read-only action that auto-executes without confirmation.\n' +
-      '- "create-rule": params: {containsPattern?, fromNames?, toPayee} — Create a payee rename rule. Two modes:\n' +
-      '  (a) Contains mode (preferred for normalization): set containsPattern to a substring (e.g., "netflix") — catches ALL current and future variants containing that text (case-insensitive). Example: containsPattern:"netflix", toPayee:"Netflix" will match "NETFLIX.COM", "Netflix Inc", "NETFLIX 123", etc.\n' +
-      '  (b) Exact match mode: set fromNames to an array of specific imported payee strings (e.g., ["NETFLIX.COM", "Netflix Inc"]). Use this only when you need to match specific strings without catching other variants.\n' +
-      '  toPayee is the clean canonical payee name. Provide either containsPattern OR fromNames, not both.\n' +
+      '- "create-rule": Create automation rules. Three modes:\n' +
+      '  (a) Payee rename — contains mode (preferred): params: {containsPattern, toPayee} — catches ALL current and future variants containing that text (case-insensitive). Example: containsPattern:"netflix", toPayee:"Netflix".\n' +
+      '  (b) Payee rename — exact match: params: {fromNames, toPayee} — fromNames is an array of specific imported payee strings.\n' +
+      '  (c) Advanced mode: params: {conditions, actions, conditionsOp?, stage?} — Full rule engine access.\n' +
+      '    conditions is an array of {field, op, value}. Supported condition fields: "imported_payee", "payee", "category", "account", "amount", "date", "notes". Ops: "is", "isNot", "contains", "doesNotContain", "oneOf", "notOneOf", "matches", "gt", "gte", "lt", "lte", "isapprox", "isbetween". For payee/category/account conditions, use human-readable names (they are resolved to IDs automatically).\n' +
+      '    actions is an array of {op, field, value}. op is usually "set". Supported action fields: "payee", "category", "account", "notes". For payee/category/account actions, use human-readable names.\n' +
+      '    conditionsOp is "and" (default) or "or". stage is "pre" (default), null, or "post".\n' +
+      '    Example: Auto-categorize Amazon transactions → conditions:[{field:"imported_payee",op:"contains",value:"amazon"}], actions:[{op:"set",field:"category",value:"Shopping"}]\n' +
+      '    Example: Set account for payroll → conditions:[{field:"payee",op:"contains",value:"payroll"}], actions:[{op:"set",field:"account",value:"Checking"}]\n' +
+      '- "update-rule": params: {ruleId, conditions?, actions?, conditionsOp?, stage?} — Update an existing rule. Use list-rules first to find the rule ID. Only include conditions/actions to replace; omitted fields keep existing values. Uses the same conditions/actions format as create-rule advanced mode.\n' +
       '- "delete-rule": params: {ruleId} — Delete an existing rule by its ID. Use list-rules first to find rule IDs.\n' +
       '- "list-rules": params: {} — List all existing rules. This is a read-only action that auto-executes without confirmation, like list-memories.\n\n' +
       'When a user asks "What subscriptions do I have?", use "detect-subscriptions" query. If recurring charges are found, proactively suggest "create-schedules-batch" to track them as schedules.\n\n' +
-      'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes).\n' +
+      'Use "update-transaction" when the user wants to change details of an existing transaction (category, amount, payee, date, notes). Also use it with accountId to MOVE a transaction to a different account.\n' +
+      'Use "correct-transfer-direction" when a transfer is recorded backwards (wrong from/to direction). This swaps the source and destination accounts of the transfer pair. The user might say "this transfer is in the wrong direction" or "swap the from and to accounts on this transfer".\n' +
       'Use "delete-transaction" when the user wants to remove a transaction.\n' +
-      'Use "transfer-between-accounts" when the user wants to move money between accounts.\n' +
+      'Use "transfer-between-accounts" when the user wants to create a NEW transfer/move money between accounts.\n' +
       'Use "close-account" when the user wants to close an account. Warn if the account has a non-zero balance.\n' +
       'Use "reopen-account" when the user wants to reopen a previously closed account.\n\n' +
       'CRITICAL — Budget amounts are ABSOLUTE, not incremental:\n' +
@@ -207,14 +215,17 @@ function buildSystemPrompt(context: BudgetContext): string {
       '   c. Ask the user which approach they prefer if unsure — merging cleans up past data, rules prevent future messiness.\n' +
       '6. Proactively offer to create schedules for untracked charges: "Would you like me to set these up as scheduled transactions?"\n' +
       '7. If confirmed, use "create-schedules-batch" to create them all at once.\n\n' +
-      'PAYEE RENAME RULES:\n' +
-      'Rules are powerful automation tools that normalize messy imported payee names.\n' +
+      'RULES (Automation):\n' +
+      'Rules are powerful automation tools that can normalize payee names, auto-categorize transactions, set accounts, and more.\n' +
       '- When the user asks about rules, show them, or asks "what rules do I have?", use "list-rules" to fetch and display all rules.\n' +
-      '- When the user wants to clean up inconsistent payee names, PREFER containsPattern mode over fromNames — it catches future unseen variants automatically. Use a distinctive substring (e.g., "netflix" for Netflix variants, "spotify" for Spotify variants).\n' +
-      '- Only use fromNames (exact match) when the user specifically wants to match only certain exact strings and not a broad pattern.\n' +
+      '- For payee renaming: PREFER containsPattern mode over fromNames — it catches future unseen variants automatically.\n' +
+      '- For auto-categorization: use advanced mode with conditions on imported_payee/payee and actions setting category. Example: "categorize all Amazon purchases as Shopping" → conditions:[{field:"imported_payee",op:"contains",value:"amazon"}], actions:[{op:"set",field:"category",value:"Shopping"}]\n' +
+      '- For auto-setting accounts: use advanced mode with conditions and actions setting account. Example: "put all payroll deposits in Checking" → conditions:[{field:"payee",op:"contains",value:"payroll"}], actions:[{op:"set",field:"account",value:"Checking"}]\n' +
+      '- Rules can combine multiple conditions (conditionsOp "and"/"or") and multiple actions.\n' +
+      '- To modify an existing rule, use "update-rule" with the ruleId and new conditions/actions. Use "list-rules" first to find the rule ID.\n' +
       '- When the user wants to remove a rule, use "list-rules" first to find the rule ID, then "delete-rule".\n' +
       '- "list-rules" is a read-only action that auto-executes without confirmation (like list-memories and query actions).\n' +
-      '- "create-rule" and "delete-rule" are write actions that require user confirmation.\n\n' +
+      '- "create-rule", "update-rule", and "delete-rule" are write actions that require user confirmation.\n\n' +
       'For simple read-only questions that can be answered from the context below, just answer normally without action blocks.',
   );
 
@@ -433,7 +444,9 @@ const VALID_ACTION_TYPES = [
   'save-memory',
   'delete-memory',
   'list-memories',
+  'correct-transfer-direction',
   'create-rule',
+  'update-rule',
   'delete-rule',
   'list-rules',
 ];

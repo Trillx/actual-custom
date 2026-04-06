@@ -51,7 +51,9 @@ export type BudgetAction = {
     | 'save-memory'
     | 'delete-memory'
     | 'list-memories'
+    | 'correct-transfer-direction'
     | 'create-rule'
+    | 'update-rule'
     | 'delete-rule'
     | 'list-rules';
   description: string;
