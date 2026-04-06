@@ -1,18 +1,18 @@
-import React from "react";
+import React from 'react';
 
-import { Button } from "@actual-app/components/button";
+import { Button } from '@actual-app/components/button';
 import {
   SvgCheckmark,
   SvgClose,
   SvgExclamationOutline,
-} from "@actual-app/components/icons/v1";
-import { Text } from "@actual-app/components/text";
-import { theme } from "@actual-app/components/theme";
-import { View } from "@actual-app/components/view";
+} from '@actual-app/components/icons/v1';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 
-import { formatActionDetails } from "./executeAction";
-import { MarkdownText } from "./MarkdownText";
-import type { ChatMessage as ChatMessageType, QueuedAction } from "./types";
+import { formatActionDetails } from './executeAction';
+import { MarkdownText } from './MarkdownText';
+import type { ChatMessage as ChatMessageType, QueuedAction } from './types';
 
 type ChatMessageProps = {
   message: ChatMessageType;
@@ -30,12 +30,12 @@ function ActionStatusBadge({
   status,
   result,
 }: {
-  status: QueuedAction["status"];
+  status: QueuedAction['status'];
   result?: string;
 }) {
-  if (status === "executed") {
+  if (status === 'executed') {
     return (
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <SvgCheckmark
           style={{ width: 10, height: 10, color: theme.noticeTextDark }}
         />
@@ -43,10 +43,10 @@ function ActionStatusBadge({
       </View>
     );
   }
-  if (status === "failed") {
+  if (status === 'failed') {
     return (
       <View style={{ gap: 2 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <SvgExclamationOutline
             style={{ width: 10, height: 10, color: theme.errorText }}
           />
@@ -57,7 +57,7 @@ function ActionStatusBadge({
             style={{
               fontSize: 10,
               color: theme.errorText,
-              fontStyle: "italic",
+              fontStyle: 'italic',
             }}
           >
             {result}
@@ -66,9 +66,9 @@ function ActionStatusBadge({
       </View>
     );
   }
-  if (status === "rejected") {
+  if (status === 'rejected') {
     return (
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <SvgClose
           style={{ width: 10, height: 10, color: theme.pageTextSubdued }}
         />
@@ -78,13 +78,13 @@ function ActionStatusBadge({
       </View>
     );
   }
-  if (status === "executing") {
+  if (status === 'executing') {
     return (
       <Text
         style={{
           fontSize: 10,
           color: theme.pageTextSubdued,
-          fontStyle: "italic",
+          fontStyle: 'italic',
         }}
       >
         Running...
@@ -105,30 +105,30 @@ export function ChatMessage({
   onConfirmAllActions,
   onRejectAllActions,
 }: ChatMessageProps) {
-  const isUser = message.role === "user";
-  const maxBubbleWidth = isNarrowWidth ? "85%" : "88%";
+  const isUser = message.role === 'user';
+  const maxBubbleWidth = isNarrowWidth ? '85%' : '88%';
   const fontSize = isNarrowWidth ? 14 : 13;
 
   const hasMultipleActions =
     message.pendingActions && message.pendingActions.length > 1;
   const hasPendingInQueue = message.pendingActions?.some(
-    (a) => a.status === "pending"
+    a => a.status === 'pending',
   );
   const hasExecutingInQueue = message.pendingActions?.some(
-    (a) => a.status === "executing"
+    a => a.status === 'executing',
   );
   const allQueueSettled =
     message.pendingActions &&
     !message.pendingActions.some(
-      (a) => a.status === "pending" || a.status === "executing"
+      a => a.status === 'pending' || a.status === 'executing',
     );
 
   return (
     <View
       style={{
-        alignSelf: isUser ? "flex-end" : "flex-start",
+        alignSelf: isUser ? 'flex-end' : 'flex-start',
         maxWidth: maxBubbleWidth,
-        width: "fit-content",
+        width: 'fit-content',
         marginBottom: showTimestamp ? 10 : 4,
         flexShrink: 0,
       }}
@@ -139,23 +139,23 @@ export function ChatMessage({
             ? theme.buttonPrimaryBackground
             : theme.cardBackground,
           color: isUser ? theme.buttonPrimaryText : theme.pageText,
-          padding: isNarrowWidth ? "10px 14px" : "10px 14px",
+          padding: isNarrowWidth ? '10px 14px' : '10px 14px',
           borderRadius: 16,
           borderBottomRightRadius: isUser ? 4 : 16,
           borderBottomLeftRadius: isUser ? 16 : 4,
-          border: isUser ? "none" : `1px solid ${theme.cardBorder}`,
-          overflowWrap: "anywhere",
+          border: isUser ? 'none' : `1px solid ${theme.cardBorder}`,
+          overflowWrap: 'anywhere',
         }}
       >
         {isUser ? (
           <Text
             style={{
               fontSize,
-              lineHeight: "1.5",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              overflowWrap: "break-word",
-              color: "inherit",
+              lineHeight: '1.5',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              color: 'inherit',
               minWidth: 0,
             }}
           >
@@ -166,10 +166,10 @@ export function ChatMessage({
             text={message.content}
             style={{
               fontSize,
-              lineHeight: "1.55",
-              wordBreak: "break-word",
-              overflowWrap: "break-word",
-              color: "inherit",
+              lineHeight: '1.55',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              color: 'inherit',
               minWidth: 0,
             }}
           />
@@ -177,12 +177,12 @@ export function ChatMessage({
       </View>
 
       {message.pendingAction &&
-        message.actionStatus === "pending" &&
+        message.actionStatus === 'pending' &&
         !hasMultipleActions && (
           <View
             style={{
               marginTop: 6,
-              padding: "10px 12px",
+              padding: '10px 12px',
               backgroundColor: theme.cardBackground,
               border: `1px solid ${theme.tableBorder}`,
               borderRadius: 12,
@@ -191,8 +191,8 @@ export function ChatMessage({
           >
             <View
               style={{
-                flexDirection: "row",
-                alignItems: "center",
+                flexDirection: 'row',
+                alignItems: 'center',
                 gap: 6,
                 marginBottom: 6,
               }}
@@ -221,16 +221,16 @@ export function ChatMessage({
                 style={{
                   fontSize: 11,
                   color: theme.pageTextSubdued,
-                  lineHeight: "1.6",
-                  fontFamily: "monospace",
-                  overflowWrap: "break-word",
-                  wordBreak: "break-word",
+                  lineHeight: '1.6',
+                  fontFamily: 'monospace',
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
                 }}
               >
                 {line}
               </Text>
             ))}
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               <Button
                 variant="primary"
                 onPress={() => onConfirmAction?.(message.id)}
@@ -250,15 +250,15 @@ export function ChatMessage({
         )}
 
       {message.pendingAction &&
-        message.actionStatus === "executed" &&
+        message.actionStatus === 'executed' &&
         !hasMultipleActions && (
           <View
             style={{
               marginTop: 4,
-              padding: "4px 8px",
+              padding: '4px 8px',
               borderRadius: 6,
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               gap: 4,
             }}
           >
@@ -276,15 +276,15 @@ export function ChatMessage({
         )}
 
       {message.pendingAction &&
-        message.actionStatus === "rejected" &&
+        message.actionStatus === 'rejected' &&
         !hasMultipleActions && (
           <View
             style={{
               marginTop: 4,
-              padding: "4px 8px",
+              padding: '4px 8px',
               borderRadius: 6,
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               gap: 4,
             }}
           >
@@ -302,15 +302,15 @@ export function ChatMessage({
         )}
 
       {message.pendingAction &&
-        message.actionStatus === "failed" &&
+        message.actionStatus === 'failed' &&
         !hasMultipleActions && (
           <View
             style={{
               marginTop: 4,
-              padding: "4px 8px",
+              padding: '4px 8px',
               borderRadius: 6,
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               gap: 4,
             }}
           >
@@ -331,7 +331,7 @@ export function ChatMessage({
         <View
           style={{
             marginTop: 6,
-            padding: "10px 12px",
+            padding: '10px 12px',
             backgroundColor: theme.cardBackground,
             border: `1px solid ${theme.tableBorder}`,
             borderRadius: 12,
@@ -340,8 +340,8 @@ export function ChatMessage({
         >
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               gap: 6,
               marginBottom: 8,
             }}
@@ -363,9 +363,8 @@ export function ChatMessage({
             >
               {allQueueSettled
                 ? `${
-                    message.pendingActions!.filter(
-                      (a) => a.status === "executed"
-                    ).length
+                    message.pendingActions!.filter(a => a.status === 'executed')
+                      .length
                   } of ${message.pendingActions!.length} actions completed`
                 : `${message.pendingActions!.length} actions to confirm`}
             </Text>
@@ -375,31 +374,31 @@ export function ChatMessage({
             <View
               key={qa.id}
               style={{
-                padding: "8px 10px",
+                padding: '8px 10px',
                 marginBottom: idx < message.pendingActions!.length - 1 ? 6 : 0,
                 backgroundColor:
-                  qa.status === "executed"
-                    ? "rgba(0, 160, 0, 0.04)"
-                    : qa.status === "failed"
-                    ? "rgba(200, 0, 0, 0.04)"
-                    : "transparent",
+                  qa.status === 'executed'
+                    ? 'rgba(0, 160, 0, 0.04)'
+                    : qa.status === 'failed'
+                      ? 'rgba(200, 0, 0, 0.04)'
+                      : 'transparent',
                 border: `1px solid ${
-                  qa.status === "executed"
-                    ? "rgba(0, 160, 0, 0.15)"
-                    : qa.status === "failed"
-                    ? "rgba(200, 0, 0, 0.15)"
-                    : String(theme.tableBorder)
+                  qa.status === 'executed'
+                    ? 'rgba(0, 160, 0, 0.15)'
+                    : qa.status === 'failed'
+                      ? 'rgba(200, 0, 0, 0.15)'
+                      : String(theme.tableBorder)
                 }`,
                 borderRadius: 8,
               }}
             >
               <View
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                   gap: 8,
-                  marginBottom: qa.status === "pending" ? 4 : 0,
+                  marginBottom: qa.status === 'pending' ? 4 : 0,
                 }}
               >
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -417,8 +416,8 @@ export function ChatMessage({
                     style={{
                       fontSize: 11,
                       color: theme.pageTextSubdued,
-                      overflowWrap: "break-word",
-                      wordBreak: "break-word",
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
                     }}
                   >
                     {qa.action.description}
@@ -429,16 +428,16 @@ export function ChatMessage({
                 </View>
               </View>
 
-              {qa.status === "pending" &&
+              {qa.status === 'pending' &&
                 (() => {
                   const isFirstPending = message
                     .pendingActions!.slice(0, idx)
                     .every(
-                      (a) => a.status !== "pending" && a.status !== "executing"
+                      a => a.status !== 'pending' && a.status !== 'executing',
                     );
                   return isFirstPending ? (
                     <View
-                      style={{ flexDirection: "row", gap: 6, marginTop: 4 }}
+                      style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}
                     >
                       <Button
                         variant="primary"
@@ -448,7 +447,7 @@ export function ChatMessage({
                         style={{
                           fontSize: 11,
                           borderRadius: 6,
-                          padding: "3px 10px",
+                          padding: '3px 10px',
                         }}
                       >
                         Confirm
@@ -468,7 +467,7 @@ export function ChatMessage({
                       style={{
                         fontSize: 10,
                         color: theme.pageTextSubdued,
-                        fontStyle: "italic",
+                        fontStyle: 'italic',
                         marginTop: 4,
                       }}
                     >
@@ -482,7 +481,7 @@ export function ChatMessage({
           {hasPendingInQueue && (
             <View
               style={{
-                flexDirection: "row",
+                flexDirection: 'row',
                 gap: 8,
                 marginTop: 10,
                 borderTop: `1px solid ${theme.tableBorder}`,
@@ -495,7 +494,7 @@ export function ChatMessage({
                 isDisabled={hasExecutingInQueue}
                 style={{ fontSize: 12, borderRadius: 8 }}
               >
-                {hasExecutingInQueue ? "Executing..." : "Confirm All"}
+                {hasExecutingInQueue ? 'Executing...' : 'Confirm All'}
               </Button>
               <Button
                 variant="bare"
@@ -516,14 +515,14 @@ export function ChatMessage({
             fontSize: 10,
             color: theme.pageTextSubdued,
             marginTop: 2,
-            alignSelf: isUser ? "flex-end" : "flex-start",
+            alignSelf: isUser ? 'flex-end' : 'flex-start',
             paddingInline: 4,
             opacity: 0.7,
           }}
         >
           {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
+            hour: '2-digit',
+            minute: '2-digit',
           })}
         </Text>
       )}
@@ -533,7 +532,7 @@ export function ChatMessage({
 
 export function shouldShowTimestamp(
   messages: ChatMessageType[],
-  index: number
+  index: number,
 ): boolean {
   const current = messages[index];
   const prev = messages[index - 1];
